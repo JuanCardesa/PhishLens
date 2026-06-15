@@ -5,9 +5,12 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import Settings, get_settings
+from app.services.cache import TTLCache
+from app.services.url_normalizer import normalize_url
 
 
 PHISHTANK_CHECK_URL = "http://checkurl.phishtank.com/checkurl/"
+PHISHTANK_CACHE = TTLCache["PhishTankResult"](ttl_seconds=300)
 
 
 @dataclass(frozen=True)
@@ -22,12 +25,38 @@ class PhishTankResult:
 
 async def check_url(url: str, settings: Settings | None = None) -> PhishTankResult:
     settings = settings or get_settings()
+    normalized_url = normalize_url(url)
+
     if not settings.enable_threat_intel:
         return PhishTankResult(checked=False, error="threat intelligence disabled")
 
     if not settings.phishtank_api_key:
         return PhishTankResult(checked=False, error="PHISHTANK_API_KEY is not configured")
 
+    cached = PHISHTANK_CACHE.get(normalized_url)
+    if cached is not None:
+        return cached
+
+    try:
+        payload = await _fetch_phishtank_payload(normalized_url, settings)
+    except (httpx.HTTPError, ValueError) as exc:
+        result = PhishTankResult(checked=True, error=str(exc))
+        PHISHTANK_CACHE.set(normalized_url, result)
+        return result
+
+    result = payload.get("results") or {}
+    phishtank_result = PhishTankResult(
+        checked=True,
+        in_database=_as_bool(result.get("in_database")),
+        verified=_as_bool(result.get("verified")),
+        valid=_as_bool(result.get("valid")),
+        detail_url=result.get("phish_detail_page"),
+    )
+    PHISHTANK_CACHE.set(normalized_url, phishtank_result)
+    return phishtank_result
+
+
+async def _fetch_phishtank_payload(url: str, settings: Settings) -> dict[str, object]:
     data = {
         "url": url,
         "format": "json",
@@ -35,22 +64,10 @@ async def check_url(url: str, settings: Settings | None = None) -> PhishTankResu
     }
     headers = {"User-Agent": settings.phishtank_user_agent}
 
-    try:
-        async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
-            response = await client.post(PHISHTANK_CHECK_URL, data=data, headers=headers)
-            response.raise_for_status()
-            payload = response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        return PhishTankResult(checked=True, error=str(exc))
-
-    result = payload.get("results") or {}
-    return PhishTankResult(
-        checked=True,
-        in_database=_as_bool(result.get("in_database")),
-        verified=_as_bool(result.get("verified")),
-        valid=_as_bool(result.get("valid")),
-        detail_url=result.get("phish_detail_page"),
-    )
+    async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
+        response = await client.post(PHISHTANK_CHECK_URL, data=data, headers=headers)
+        response.raise_for_status()
+        return response.json()
 
 
 def _as_bool(value: object) -> bool:
@@ -59,3 +76,7 @@ def _as_bool(value: object) -> bool:
     if isinstance(value, str):
         return value.lower() in {"y", "yes", "true", "1"}
     return False
+
+
+def clear_phishtank_cache() -> None:
+    PHISHTANK_CACHE.clear()
