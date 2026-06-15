@@ -20,7 +20,7 @@ async def test_scoring_combines_url_and_dom_reasons() -> None:
             dom_features=DOMFeatures(
                 has_password_field=True,
                 num_forms=1,
-                external_form_action=False,
+                external_form_action=True,
                 num_iframes=0,
                 external_links_ratio=0.1,
                 has_hidden_inputs=False,
