@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds
+dist/
+build/
+coverage/
+htmlcov/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# ML artifacts generated from local training
+ml/models/*.joblib
+backend/app/models/*.joblib
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
