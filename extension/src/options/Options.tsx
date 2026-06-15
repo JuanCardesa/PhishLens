@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { DEFAULT_SETTINGS, getExtensionSettings, saveExtensionSettings } from "../services/settings";
 import type { ExtensionSettings } from "../types/analysis";
@@ -15,7 +15,7 @@ export function Options() {
     });
   }, []);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const saved = await saveExtensionSettings(settings);
     setSettings(saved);
