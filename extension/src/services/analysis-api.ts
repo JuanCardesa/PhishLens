@@ -6,7 +6,7 @@ export async function requestBackendAnalysis(
   settings: ExtensionSettings,
 ): Promise<AnalysisResponse | null> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
+  const timeout = globalThis.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
 
   try {
     const response = await fetch(`${settings.backendBaseUrl}/analyze`, {
@@ -29,7 +29,7 @@ export async function requestBackendAnalysis(
   } catch {
     return null;
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
 
@@ -38,7 +38,7 @@ export async function submitFeedbackReport(
   settings: ExtensionSettings,
 ): Promise<boolean> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
+  const timeout = globalThis.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
 
   try {
     const response = await fetch(`${settings.backendBaseUrl}/report`, {
@@ -54,6 +54,6 @@ export async function submitFeedbackReport(
   } catch {
     return false;
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
