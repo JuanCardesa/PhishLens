@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         validation_alias="PHISHTANK_USER_AGENT",
     )
     allowed_origins_raw: str = Field(
-        default="http://localhost:5173,chrome-extension://*",
+        default="http://localhost:5173",
         validation_alias="PHISHLENS_ALLOWED_ORIGINS",
     )
     enable_threat_intel: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_THREAT_INTEL")
