@@ -1,17 +1,15 @@
-import type { AnalysisResponse, DOMFeatures } from "../types/analysis";
-
-const API_BASE_URL = "http://localhost:8000";
-const REQUEST_TIMEOUT_MS = 2500;
+import type { AnalysisResponse, DOMFeatures, ExtensionSettings, FeedbackReport } from "../types/analysis";
 
 export async function requestBackendAnalysis(
   url: string,
   domFeatures: DOMFeatures,
+  settings: ExtensionSettings,
 ): Promise<AnalysisResponse | null> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = window.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/analyze`, {
+    const response = await fetch(`${settings.backendBaseUrl}/analyze`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -30,6 +28,31 @@ export async function requestBackendAnalysis(
     return (await response.json()) as AnalysisResponse;
   } catch {
     return null;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+export async function submitFeedbackReport(
+  report: FeedbackReport,
+  settings: ExtensionSettings,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
+
+  try {
+    const response = await fetch(`${settings.backendBaseUrl}/report`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(report),
+      signal: controller.signal,
+    });
+
+    return response.ok;
+  } catch {
+    return false;
   } finally {
     window.clearTimeout(timeout);
   }
