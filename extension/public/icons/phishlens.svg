@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="PhishLens icon">
+  <rect width="128" height="128" rx="24" fill="#132238"/>
+  <path d="M28 63c14-22 58-22 72 0-14 22-58 22-72 0Z" fill="#f8fafc"/>
+  <circle cx="64" cy="63" r="18" fill="#3aa6b9"/>
+  <circle cx="64" cy="63" r="8" fill="#132238"/>
+  <path d="M88 88l18 18" stroke="#f4b942" stroke-width="10" stroke-linecap="round"/>
+</svg>
