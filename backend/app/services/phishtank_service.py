@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import httpx
+
+from app.core.config import Settings, get_settings
+
+
+PHISHTANK_CHECK_URL = "http://checkurl.phishtank.com/checkurl/"
+
+
+@dataclass(frozen=True)
+class PhishTankResult:
+    checked: bool
+    in_database: bool = False
+    verified: bool = False
+    valid: bool = False
+    detail_url: str | None = None
+    error: str | None = None
+
+
+async def check_url(url: str, settings: Settings | None = None) -> PhishTankResult:
+    settings = settings or get_settings()
+    if not settings.enable_threat_intel:
+        return PhishTankResult(checked=False, error="threat intelligence disabled")
+
+    if not settings.phishtank_api_key:
+        return PhishTankResult(checked=False, error="PHISHTANK_API_KEY is not configured")
+
+    data = {
+        "url": url,
+        "format": "json",
+        "app_key": settings.phishtank_api_key,
+    }
+    headers = {"User-Agent": settings.phishtank_user_agent}
+
+    try:
+        async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
+            response = await client.post(PHISHTANK_CHECK_URL, data=data, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        return PhishTankResult(checked=True, error=str(exc))
+
+    result = payload.get("results") or {}
+    return PhishTankResult(
+        checked=True,
+        in_database=_as_bool(result.get("in_database")),
+        verified=_as_bool(result.get("verified")),
+        valid=_as_bool(result.get("valid")),
+        detail_url=result.get("phish_detail_page"),
+    )
+
+
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in {"y", "yes", "true", "1"}
+    return False
