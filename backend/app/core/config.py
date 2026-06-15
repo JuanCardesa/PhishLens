@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     model_path: str = Field(default="ml/models/phishlens_model.joblib", validation_alias="PHISHLENS_MODEL_PATH")
     external_timeout_seconds: float = Field(default=4.0, validation_alias="PHISHLENS_EXTERNAL_TIMEOUT_SECONDS")
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     @property
     def allowed_origins(self) -> list[str]:
