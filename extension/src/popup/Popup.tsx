@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { requestBackendAnalysis } from "../services/analysis-api";
-import type { AnalysisResponse, DOMFeatures, PopupAnalysis } from "../types/analysis";
+import { requestBackendAnalysis, submitFeedbackReport } from "../services/analysis-api";
+import { DEFAULT_SETTINGS, getExtensionSettings } from "../services/settings";
+import type { AnalysisMode, AnalysisResponse, DOMFeatures, ExtensionSettings, PopupAnalysis, RiskLabel } from "../types/analysis";
 import { analyzeLocally } from "../utils/risk-score";
 import "./popup.css";
 
@@ -16,25 +17,16 @@ const EMPTY_DOM_FEATURES: DOMFeatures = {
 
 export function Popup() {
   const [analysis, setAnalysis] = useState<PopupAnalysis | null>(null);
+  const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
 
   useEffect(() => {
     void runAnalysis();
   }, []);
 
-  const statusText = useMemo(() => {
-    if (!analysis) {
-      return "Checking";
-    }
-    if (analysis.label === "dangerous") {
-      return "Dangerous";
-    }
-    if (analysis.label === "suspicious") {
-      return "Suspicious";
-    }
-    return "Safe";
-  }, [analysis]);
+  const statusText = analysis ? labelText(analysis.label) : "Checking";
 
   async function runAnalysis() {
     setLoading(true);
@@ -43,6 +35,8 @@ export function Popup() {
     try {
       const tab = await getActiveTab();
       const url = tab?.url;
+      const currentSettings = await getExtensionSettings();
+      setSettings(currentSettings);
 
       if (!tab?.id || !url || !url.startsWith("http")) {
         setError("This page cannot be analyzed by the extension.");
@@ -52,26 +46,51 @@ export function Popup() {
 
       const cached = await readCachedAnalysis(url);
       if (cached) {
-        setAnalysis(cached);
+        setAnalysis({ ...cached, mode: "cached" });
       }
 
       const domFeatures = await collectDomFeatures(tab.id);
-      const localAnalysis = toPopupAnalysis(url, analyzeLocally(url, domFeatures), false);
+      const localAnalysis = toPopupAnalysis(url, analyzeLocally(url, domFeatures), false, "local-only");
       setAnalysis(localAnalysis);
 
-      const backendAnalysis = await requestBackendAnalysis(url, domFeatures);
+      const backendAnalysis = await requestBackendAnalysis(url, domFeatures, currentSettings);
       if (backendAnalysis) {
-        const nextAnalysis = toPopupAnalysis(url, backendAnalysis, true);
+        const nextAnalysis = toPopupAnalysis(url, backendAnalysis, true, "backend-enriched");
         setAnalysis(nextAnalysis);
         await writeCachedAnalysis(url, nextAnalysis);
+        await showDangerOverlay(tab.id, nextAnalysis, currentSettings);
       } else {
-        await writeCachedAnalysis(url, localAnalysis);
+        const fallbackAnalysis = { ...localAnalysis, mode: "backend-unavailable" as const };
+        setAnalysis(fallbackAnalysis);
+        await writeCachedAnalysis(url, fallbackAnalysis);
+        await showDangerOverlay(tab.id, fallbackAnalysis, currentSettings);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Analysis failed.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleFeedback(expectedLabel: RiskLabel) {
+    if (!analysis) {
+      return;
+    }
+
+    setFeedbackStatus("Sending feedback...");
+    const ok = await submitFeedbackReport(
+      {
+        url: analysis.url,
+        observed_label: analysis.label,
+        expected_label: expectedLabel,
+      },
+      settings,
+    );
+    setFeedbackStatus(ok ? "Feedback sent" : "Backend unavailable. Feedback was not sent.");
+  }
+
+  function openOptionsPage() {
+    chrome.runtime.openOptionsPage();
   }
 
   return (
@@ -81,9 +100,14 @@ export function Popup() {
           <p className="eyebrow">PhishLens</p>
           <h1>Page risk</h1>
         </div>
-        <button className="icon-button" type="button" aria-label="Refresh analysis" onClick={() => void runAnalysis()}>
-          <span aria-hidden="true">R</span>
-        </button>
+        <div className="header-actions">
+          <button className="icon-button" type="button" aria-label="Open settings" onClick={openOptionsPage}>
+            <span aria-hidden="true">S</span>
+          </button>
+          <button className="icon-button" type="button" aria-label="Refresh analysis" onClick={() => void runAnalysis()}>
+            <span aria-hidden="true">R</span>
+          </button>
+        </div>
       </header>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -109,7 +133,7 @@ export function Popup() {
           </div>
           <div>
             <span>Backend</span>
-            <strong>{analysis?.backendAvailable ? "Online" : "Local"}</strong>
+            <strong>{analysis ? modeLabel(analysis.mode) : "--"}</strong>
           </div>
         </div>
       </section>
@@ -122,6 +146,19 @@ export function Popup() {
             <li key={reason}>{reason}</li>
           ))}
         </ul>
+      </section>
+
+      <section className="feedback">
+        <h2>Feedback</h2>
+        <div className="feedback-actions">
+          <button type="button" disabled={!analysis} onClick={() => void handleFeedback("safe")}>
+            Mark as safe
+          </button>
+          <button type="button" disabled={!analysis} onClick={() => void handleFeedback("dangerous")}>
+            Mark as phishing
+          </button>
+        </div>
+        {feedbackStatus ? <p role="status">{feedbackStatus}</p> : null}
       </section>
     </main>
   );
@@ -147,11 +184,17 @@ async function collectDomFeatures(tabId: number): Promise<DOMFeatures> {
   });
 }
 
-function toPopupAnalysis(url: string, response: AnalysisResponse, backendAvailable: boolean): PopupAnalysis {
+function toPopupAnalysis(
+  url: string,
+  response: AnalysisResponse,
+  backendAvailable: boolean,
+  mode: AnalysisMode,
+): PopupAnalysis {
   return {
     ...response,
     url,
     backendAvailable,
+    mode,
     analyzedAt: new Date().toISOString(),
   };
 }
@@ -185,4 +228,63 @@ function cacheKey(url: string): string {
     hash = (hash * 31 + url.charCodeAt(index)) >>> 0;
   }
   return `analysis:${hash.toString(16)}`;
+}
+
+function modeLabel(mode: AnalysisMode): string {
+  if (mode === "backend-enriched") {
+    return "Backend enriched";
+  }
+  if (mode === "backend-unavailable") {
+    return "Backend unavailable";
+  }
+  if (mode === "cached") {
+    return "Cached";
+  }
+  if (mode === "checking") {
+    return "Checking";
+  }
+  return "Local only";
+}
+
+function labelText(label: RiskLabel): string {
+  if (label === "dangerous") {
+    return "Dangerous";
+  }
+  if (label === "suspicious") {
+    return "Suspicious";
+  }
+  return "Safe";
+}
+
+async function showDangerOverlay(
+  tabId: number,
+  value: PopupAnalysis,
+  currentSettings: ExtensionSettings,
+): Promise<void> {
+  if (!currentSettings.dangerOverlayEnabled || value.label !== "dangerous") {
+    return;
+  }
+
+  await executeScript(tabId, "warning/overlay.js");
+  await sendOverlayMessage(tabId, {
+    type: "PHISHLENS_SHOW_WARNING",
+    riskScore: value.risk_score,
+    reasons: value.reasons.slice(0, 4),
+  });
+}
+
+async function executeScript(tabId: number, file: string): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.scripting.executeScript({ target: { tabId }, files: [file] }, () => {
+      resolve();
+    });
+  });
+}
+
+async function sendOverlayMessage(tabId: number, message: unknown): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, () => {
+      resolve();
+    });
+  });
 }

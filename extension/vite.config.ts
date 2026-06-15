@@ -27,6 +27,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, "src", "popup", "popup.html"),
+        options: resolve(__dirname, "src", "options", "options.html"),
         serviceWorker: resolve(__dirname, "src", "background", "service-worker.ts"),
         domAnalyzer: resolve(__dirname, "src", "content", "dom-analyzer.ts"),
         overlay: resolve(__dirname, "src", "warning", "overlay.ts"),

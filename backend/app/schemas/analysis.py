@@ -1,7 +1,8 @@
 from typing import Literal
-from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
+
+from app.services.url_normalizer import URLNormalizationError, normalize_url
 
 
 RiskLabel = Literal["safe", "suspicious", "dangerous"]
@@ -23,10 +24,10 @@ class AnalysisRequest(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_http_url(cls, value: str) -> str:
-        parsed = urlparse(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("url must be an absolute http or https URL")
-        return value
+        try:
+            return normalize_url(value)
+        except URLNormalizationError as exc:
+            raise ValueError("url must be an absolute http or https URL") from exc
 
 
 class AnalysisSources(BaseModel):
@@ -53,10 +54,10 @@ class ReportRequest(BaseModel):
     @field_validator("url")
     @classmethod
     def validate_http_url(cls, value: str) -> str:
-        parsed = urlparse(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("url must be an absolute http or https URL")
-        return value
+        try:
+            return normalize_url(value)
+        except URLNormalizationError as exc:
+            raise ValueError("url must be an absolute http or https URL") from exc
 
 
 class ReportResponse(BaseModel):
