@@ -33,6 +33,11 @@ button {
   margin-bottom: 16px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .eyebrow {
   margin: 0 0 2px;
   color: #526070;
@@ -176,16 +181,54 @@ h2 {
   background: #ffffff;
 }
 
-.reasons ul {
+.reasons ul,
+.feedback-actions {
   display: grid;
   gap: 8px;
+}
+
+.reasons ul {
   margin: 0;
   padding-left: 18px;
 }
 
 .reasons li,
-.muted {
+.muted,
+.feedback p {
   color: #344054;
   font-size: 13px;
   line-height: 1.35;
+}
+
+.feedback {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #dfe5ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.feedback-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.feedback button {
+  min-height: 36px;
+  border: 1px solid #cfd8e6;
+  border-radius: 8px;
+  color: #172033;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feedback button:disabled {
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.feedback p {
+  margin: 10px 0 0;
 }
