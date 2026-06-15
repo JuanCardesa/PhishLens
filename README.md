@@ -108,7 +108,7 @@ Copy `.env.example` to `.env` for local overrides.
 
 - `PHISHTANK_API_KEY`: optional PhishTank application key.
 - `PHISHTANK_USER_AGENT`: descriptive User-Agent required by PhishTank.
-- `PHISHLENS_ALLOWED_ORIGINS`: backend CORS origins.
+- `PHISHLENS_ALLOWED_ORIGINS`: backend CORS origins. Add `chrome-extension://*` (or a specific extension origin) only when extension access is required.
 - `PHISHLENS_ENABLE_THREAT_INTEL`: enable or disable threat intel checks.
 - `PHISHLENS_ENABLE_TLS_ANALYSIS`: enable or disable backend TLS checks.
 - `PHISHLENS_MODEL_PATH`: optional path to a trained joblib model.
