@@ -10,6 +10,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
   const overlay = document.createElement("div");
   overlay.id = "phishlens-warning-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "phishlens-warning-title");
+  overlay.tabIndex = -1;
   overlay.style.cssText = [
     "position:fixed",
     "inset:0",
@@ -31,6 +35,7 @@ chrome.runtime.onMessage.addListener((message) => {
   ].join(";");
 
   const title = document.createElement("h2");
+  title.id = "phishlens-warning-title";
   title.textContent = "High-risk phishing signals detected";
   title.style.cssText = "margin:0 0 8px;font-size:20px;line-height:1.2";
 
@@ -62,11 +67,17 @@ chrome.runtime.onMessage.addListener((message) => {
   ].join(";");
   closeButton.addEventListener("click", () => overlay.remove());
 
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      overlay.remove();
+    }
+  });
   overlay.addEventListener("click", () => overlay.remove());
   panel.addEventListener("click", (event) => event.stopPropagation());
   panel.append(title, score, list, closeButton);
   overlay.append(panel);
   document.documentElement.append(overlay);
+  closeButton.focus();
 
   return false;
 });

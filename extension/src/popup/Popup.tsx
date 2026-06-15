@@ -83,7 +83,6 @@ export function Popup() {
         url: analysis.url,
         observed_label: analysis.label,
         expected_label: expectedLabel,
-        notes: `User marked page as ${expectedLabel} from the extension popup.`,
       },
       settings,
     );
