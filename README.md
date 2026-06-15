@@ -8,13 +8,17 @@ It combines local URL heuristics, privacy-preserving DOM signals, optional Phish
 
 ## Current Status
 
-MVP bootstrap implemented:
+Sprint 2 product hardening implemented:
 
 - Chrome Extension Manifest V3 with React popup.
 - Local URL and DOM heuristic analysis.
+- Options page for backend URL, timeout, and dangerous overlay settings.
+- User feedback reporting from the popup to `/report`.
+- Informative, dismissible overlay for `dangerous` results.
 - FastAPI backend with `/health`, `/analyze`, and `/report`.
 - PhishTank integration prepared through environment variables.
 - TLS inspection implemented in the backend.
+- URL normalization and in-memory TTL cache for PhishTank and TLS checks.
 - Demo ML training and evaluation pipeline.
 - Docker Compose and GitHub Actions workflows.
 - Privacy, threat model, architecture, ML methodology, and roadmap docs.
@@ -27,7 +31,8 @@ Chrome page
   -> popup computes local heuristic score
   -> popup optionally calls FastAPI /analyze
   -> backend adds URL, threat intel, TLS, and ML signals
-  -> popup shows score, label, confidence, and reasons
+  -> popup shows score, label, confidence, reasons, and feedback controls
+  -> dangerous results can display a dismissible page overlay
 ```
 
 The extension never sends full HTML, form values, passwords, or typed emails. The backend receives only the current URL and technical DOM features.
@@ -72,6 +77,8 @@ Load `extension/dist` in Chrome:
 
 The extension works locally without the backend. When the backend is available at `http://localhost:8000`, the popup enriches the local result with backend analysis.
 
+Extension settings are available from the popup settings button or Chrome extension details page. The default backend is `http://localhost:8000`.
+
 ## Tests
 
 Backend:
@@ -85,7 +92,9 @@ Extension:
 ```bash
 cd extension
 npm run lint
+npm run test
 npm run build
+npm audit --audit-level=high
 ```
 
 ML demo:
@@ -115,6 +124,12 @@ Copy `.env.example` to `.env` for local overrides.
 
 No real keys are committed.
 
+Extension settings:
+
+- Backend URL: defaults to `http://localhost:8000`.
+- Timeout: clamped between 1000 ms and 10000 ms.
+- Danger overlay: enabled by default and only shown for `dangerous` results.
+
 ## Ethical And Privacy Notice
 
 PhishLens is defensive only. It must not collect credentials, typed emails, private form content, or full page HTML. It is a risk-assistance tool, not a phishing verdict authority. False positives and false negatives are expected, especially before training on a real dataset.
@@ -124,7 +139,8 @@ PhishLens is defensive only. It must not collect credentials, typed emails, priv
 - The included ML dataset is synthetic demo data only.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
-- The first MVP prioritizes explainability and safe defaults over coverage.
+- Feedback is logged for review only; durable storage is intentionally deferred.
+- The current build prioritizes explainability and safe defaults over coverage.
 
 ## Roadmap
 
