@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from app.core.config import Settings, get_settings
+from app.services.cache import TTLCache
+from app.services.url_normalizer import normalize_url
+
+
+TLS_CACHE = TTLCache["TLSResult"](ttl_seconds=300)
 
 
 @dataclass(frozen=True)
@@ -22,7 +27,8 @@ class TLSResult:
 
 async def inspect_tls(url: str, settings: Settings | None = None) -> TLSResult:
     settings = settings or get_settings()
-    parsed = urlparse(url)
+    normalized_url = normalize_url(url)
+    parsed = urlparse(normalized_url)
 
     if not settings.enable_tls_analysis:
         return TLSResult(checked=False, error="TLS analysis disabled")
@@ -34,7 +40,14 @@ async def inspect_tls(url: str, settings: Settings | None = None) -> TLSResult:
     if not hostname:
         return TLSResult(checked=False, error="URL has no hostname")
 
-    return await asyncio.to_thread(_inspect_tls_sync, hostname, settings.external_timeout_seconds)
+    cache_key = hostname.lower()
+    cached = TLS_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    result = await asyncio.to_thread(_inspect_tls_sync, hostname, settings.external_timeout_seconds)
+    TLS_CACHE.set(cache_key, result)
+    return result
 
 
 def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
@@ -78,3 +91,7 @@ def _format_issuer(issuer_parts: object) -> str | None:
                 flattened.append(f"{key_value[0]}={key_value[1]}")
 
     return ", ".join(flattened) if flattened else None
+
+
+def clear_tls_cache() -> None:
+    TLS_CACHE.clear()
