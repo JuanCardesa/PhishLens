@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_SETTINGS,
@@ -11,6 +11,7 @@ import {
 describe("settings", () => {
   it("normalizes backend URLs", () => {
     expect(normalizeBackendBaseUrl(" HTTPS://API.EXAMPLE.TEST/// ")).toBe("https://api.example.test");
+    expect(normalizeBackendBaseUrl("https://user:pass@api.example.test/v1")).toBe("https://api.example.test/v1");
     expect(normalizeBackendBaseUrl("ftp://example.test")).toBe(DEFAULT_SETTINGS.backendBaseUrl);
   });
 
@@ -34,6 +35,26 @@ describe("settings", () => {
 
     await expect(getExtensionSettings()).resolves.toEqual({
       backendBaseUrl: "https://api.example.test",
+      requestTimeoutMs: 3000,
+      dangerOverlayEnabled: false,
+    });
+  });
+
+  it("falls back to the default backend when optional host permission is denied", async () => {
+    chrome.permissions.request = vi.fn(
+      (_permissions: chrome.permissions.Permissions, callback?: (granted: boolean) => void) => {
+        callback?.(false);
+      },
+    ) as unknown as typeof chrome.permissions.request;
+
+    await expect(
+      saveExtensionSettings({
+        backendBaseUrl: "https://api.example.test",
+        requestTimeoutMs: 3000,
+        dangerOverlayEnabled: false,
+      }),
+    ).resolves.toEqual({
+      backendBaseUrl: DEFAULT_SETTINGS.backendBaseUrl,
       requestTimeoutMs: 3000,
       dangerOverlayEnabled: false,
     });

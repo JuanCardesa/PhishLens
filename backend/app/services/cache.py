@@ -31,7 +31,14 @@ class TTLCache(Generic[T]):
         return item.value
 
     def set(self, key: str, value: T) -> None:
-        self._items[key] = CacheEntry(value=value, expires_at=time.monotonic() + self.ttl_seconds)
+        now = time.monotonic()
+        self._prune_expired(now)
+        self._items[key] = CacheEntry(value=value, expires_at=now + self.ttl_seconds)
 
     def clear(self) -> None:
         self._items.clear()
+
+    def _prune_expired(self, now: float) -> None:
+        expired_keys = [key for key, item in self._items.items() if item.expires_at <= now]
+        for key in expired_keys:
+            self._items.pop(key, None)

@@ -18,11 +18,14 @@ export async function getExtensionSettings(): Promise<ExtensionSettings> {
 
 export async function saveExtensionSettings(settings: ExtensionSettings): Promise<ExtensionSettings> {
   const normalized = normalizeSettings(settings);
-  await requestBackendOriginPermission(normalized.backendBaseUrl);
+  const permissionGranted = await requestBackendOriginPermission(normalized.backendBaseUrl);
+  const settingsToStore = permissionGranted
+    ? normalized
+    : { ...normalized, backendBaseUrl: DEFAULT_SETTINGS.backendBaseUrl };
 
   return new Promise((resolve) => {
-    chrome.storage.sync.set({ [SETTINGS_KEY]: normalized }, () => {
-      resolve(normalized);
+    chrome.storage.sync.set({ [SETTINGS_KEY]: settingsToStore }, () => {
+      resolve(settingsToStore);
     });
   });
 }
@@ -43,6 +46,8 @@ export function normalizeBackendBaseUrl(value: string): string {
       return DEFAULT_SETTINGS.backendBaseUrl;
     }
 
+    parsed.username = "";
+    parsed.password = "";
     parsed.pathname = parsed.pathname.replace(/\/+$/, "");
     parsed.search = "";
     parsed.hash = "";

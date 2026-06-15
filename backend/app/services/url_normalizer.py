@@ -10,10 +10,15 @@ class URLNormalizationError(ValueError):
 def normalize_url(value: str) -> str:
     parsed = urlsplit(value.strip())
     scheme = parsed.scheme.lower()
-    netloc = parsed.netloc.lower().rstrip(".")
+    hostname = parsed.hostname.lower().rstrip(".") if parsed.hostname else ""
 
-    if scheme not in {"http", "https"} or not netloc:
+    if scheme not in {"http", "https"} or not hostname:
         raise URLNormalizationError("url must be an absolute http or https URL")
+
+    if parsed.port is not None:
+        netloc = f"{hostname}:{parsed.port}"
+    else:
+        netloc = hostname
 
     return urlunsplit((scheme, netloc, parsed.path, parsed.query, ""))
 
