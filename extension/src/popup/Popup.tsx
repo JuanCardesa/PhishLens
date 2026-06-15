@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { requestBackendAnalysis, submitFeedbackReport } from "../services/analysis-api";
 import { DEFAULT_SETTINGS, getExtensionSettings } from "../services/settings";
@@ -26,18 +26,7 @@ export function Popup() {
     void runAnalysis();
   }, []);
 
-  const statusText = useMemo(() => {
-    if (!analysis) {
-      return "Checking";
-    }
-    if (analysis.label === "dangerous") {
-      return "Dangerous";
-    }
-    if (analysis.label === "suspicious") {
-      return "Suspicious";
-    }
-    return "Safe";
-  }, [analysis]);
+  const statusText = analysis ? labelText(analysis.label) : "Checking";
 
   async function runAnalysis() {
     setLoading(true);
@@ -256,6 +245,16 @@ function modeLabel(mode: AnalysisMode): string {
     return "Checking";
   }
   return "Local only";
+}
+
+function labelText(label: RiskLabel): string {
+  if (label === "dangerous") {
+    return "Dangerous";
+  }
+  if (label === "suspicious") {
+    return "Suspicious";
+  }
+  return "Safe";
 }
 
 async function showDangerOverlay(
