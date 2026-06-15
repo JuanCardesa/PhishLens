@@ -1,4 +1,5 @@
 export type RiskLabel = "safe" | "suspicious" | "dangerous";
+export type AnalysisMode = "checking" | "local-only" | "backend-enriched" | "backend-unavailable" | "cached";
 
 export interface DOMFeatures {
   has_password_field: boolean;
@@ -41,5 +42,19 @@ export interface AnalysisResponse {
 export interface PopupAnalysis extends AnalysisResponse {
   url: string;
   backendAvailable: boolean;
+  mode: AnalysisMode;
   analyzedAt: string;
+}
+
+export interface ExtensionSettings {
+  backendBaseUrl: string;
+  requestTimeoutMs: number;
+  dangerOverlayEnabled: boolean;
+}
+
+export interface FeedbackReport {
+  url: string;
+  observed_label: RiskLabel;
+  expected_label: RiskLabel;
+  notes?: string;
 }
