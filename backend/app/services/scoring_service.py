@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from app.schemas.analysis import AnalysisRequest, AnalysisResponse, AnalysisSources, DOMFeatures, RiskLabel
+from app.services.demo_threat_service import DemoThreatResult, check_demo_threat_source
 from app.services.feature_extractor import URLFeatures, extract_url_features
 from app.services.ml_service import MLResult, predict_ml_adjustment
 from app.services.phishtank_service import PhishTankResult, check_url
@@ -19,6 +20,7 @@ def label_from_score(score: int) -> RiskLabel:
 
 async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     url_features = extract_url_features(request.url)
+    demo_threat_result = check_demo_threat_source(request.url)
     phishtank_result, tls_result = await asyncio.gather(
         check_url(request.url),
         inspect_tls(request.url),
@@ -27,7 +29,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
 
     url_score, url_reasons = _score_url(url_features)
     dom_score, dom_reasons = _score_dom(request.dom_features)
-    threat_score, threat_reasons = _score_threat_intel(phishtank_result)
+    threat_score, threat_reasons = _score_threat_intel(phishtank_result, demo_threat_result)
     tls_score, tls_reasons = _score_tls(tls_result)
 
     raw_score = url_score + dom_score + threat_score + tls_score + ml_result.adjustment
@@ -47,6 +49,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
             ml=ml_result.available,
             phishtank=phishtank_result.checked,
             tls=tls_result.checked,
+            demo=demo_threat_result.matched,
         ),
     )
 
@@ -135,7 +138,9 @@ def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
     return min(score, 30), reasons
 
 
-def _score_threat_intel(result: PhishTankResult) -> tuple[int, list[str]]:
+def _score_threat_intel(result: PhishTankResult, demo_result: DemoThreatResult) -> tuple[int, list[str]]:
+    if demo_result.matched:
+        return 40, ["Local demo threat source is enabled for this walkthrough"]
     if result.in_database and result.verified and result.valid:
         return 40, ["URL appears in a verified phishing intelligence feed"]
     if result.in_database:
