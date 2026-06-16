@@ -35,10 +35,30 @@ def test_diagnostics_tracks_counts_without_sensitive_payloads() -> None:
     assert diagnostics_response.status_code == 200
     payload = diagnostics_response.json()
     assert payload["status"] == "ok"
+    assert payload["capabilities"]["diagnostics_enabled"] is True
+    assert payload["capabilities"]["rate_limiting_enabled"] is True
+    assert payload["capabilities"]["ml_model_available"] is False
     assert payload["counters"]["analysis_requests"] == 1
     assert payload["sources"]["heuristics"] == 1
     assert "login-secure.example.test" not in str(payload)
     assert "password" not in str(payload).lower()
+    assert "test-model-does-not-exist.joblib" not in str(payload)
+
+
+def test_diagnostics_payload_exposes_only_aggregate_keys() -> None:
+    response = client.get("/diagnostics")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert sorted(payload.keys()) == [
+        "capabilities",
+        "counters",
+        "labels",
+        "privacy",
+        "service",
+        "sources",
+        "status",
+    ]
 
 
 def test_validation_errors_do_not_echo_submitted_input() -> None:
