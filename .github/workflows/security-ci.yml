@@ -5,13 +5,6 @@ on:
     branches:
       - develop
       - main
-    paths:
-      - ".github/workflows/**"
-      - ".env.example"
-      - "backend/requirements.txt"
-      - "extension/package.json"
-      - "extension/package-lock.json"
-      - "scripts/ci/**"
   push:
     branches:
       - develop
