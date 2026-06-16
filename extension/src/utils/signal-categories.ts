@@ -1,10 +1,14 @@
-import type { AnalysisSources } from "../types/analysis";
+import type { AnalysisSources, RiskBreakdownCategory, RiskBreakdownItem } from "../types/analysis";
 
 export type SignalCategoryId = "url" | "dom" | "threat-intel" | "tls" | "ml" | "general";
 
 export interface SignalGroup {
   id: SignalCategoryId;
   title: string;
+  score?: number;
+  minScore?: number;
+  maxScore?: number;
+  source?: string;
   reasons: string[];
 }
 
@@ -17,7 +21,23 @@ const CATEGORY_TITLES: Record<SignalCategoryId, string> = {
   general: "General",
 };
 
-export function groupReasonsBySignal(reasons: string[], sources: AnalysisSources): SignalGroup[] {
+export function groupReasonsBySignal(
+  reasons: string[],
+  sources: AnalysisSources,
+  riskBreakdown?: RiskBreakdownItem[],
+): SignalGroup[] {
+  if (riskBreakdown?.length) {
+    return riskBreakdown.map((item) => ({
+      id: signalIdFromBreakdownCategory(item.category),
+      title: CATEGORY_TITLES[signalIdFromBreakdownCategory(item.category)],
+      score: item.score,
+      minScore: item.min_score,
+      maxScore: item.max_score,
+      source: item.source,
+      reasons: item.reasons.length > 0 ? item.reasons : [neutralReason(item)],
+    }));
+  }
+
   const grouped = new Map<SignalCategoryId, string[]>();
 
   for (const reason of reasons) {
@@ -49,9 +69,46 @@ export function groupReasonsBySignal(reasons: string[], sources: AnalysisSources
 export function primarySignalReason(groups: SignalGroup[]): string {
   for (const group of groups) {
     const reason = group.reasons[0];
-    if (reason && reason !== "No high-risk signals were detected") {
+    if (reason && reason !== "No high-risk signals were detected" && (group.score ?? 1) !== 0) {
       return `${group.title}: ${reason}`;
     }
+  }
+
+  return "No high-risk signals were detected";
+}
+
+export function formatSignalScore(group: SignalGroup): string {
+  if (group.score === undefined || group.maxScore === undefined) {
+    return "";
+  }
+
+  if (group.minScore !== undefined && group.minScore < 0) {
+    return `${group.score} (${group.minScore} to +${group.maxScore})`;
+  }
+
+  return `${group.score}/${group.maxScore}`;
+}
+
+function signalIdFromBreakdownCategory(category: RiskBreakdownCategory): SignalCategoryId {
+  if (category === "threat_intel") {
+    return "threat-intel";
+  }
+  return category;
+}
+
+function neutralReason(item: RiskBreakdownItem): string {
+  if (item.category === "threat_intel") {
+    return item.source === "fallback"
+      ? "Threat intelligence was not available for this result"
+      : "Threat intelligence did not add high-risk signals";
+  }
+
+  if (item.category === "tls") {
+    return item.source === "fallback" ? "TLS analysis was not available for this result" : "TLS did not add high-risk signals";
+  }
+
+  if (item.category === "ml") {
+    return item.source === "fallback" ? "ML model was not available; heuristic scoring was used" : "ML did not change the score";
   }
 
   return "No high-risk signals were detected";
