@@ -6,9 +6,9 @@ on:
       - "extension/**"
       - ".github/workflows/extension-ci.yml"
   pull_request:
-    paths:
-      - "extension/**"
-      - ".github/workflows/extension-ci.yml"
+    branches:
+      - develop
+      - main
 
 jobs:
   extension:

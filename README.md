@@ -24,6 +24,7 @@ Sprint 3 demo and release readiness implemented:
 - Development diagnostics with request IDs and no sensitive payloads.
 - In-memory rate limiting for analysis and feedback endpoints.
 - Extension release packaging script.
+- PR Guardian, security CI, and automated extension release workflow.
 
 ## Architecture
 
@@ -114,6 +115,12 @@ docker compose build
 docker compose up backend
 ```
 
+Review automation:
+
+```bash
+python scripts/ci/pr_guardian.py --all
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` for local overrides.
@@ -185,3 +192,7 @@ The zip is written to `extension/release/`.
 ## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md).
+
+## Review And Release Process
+
+PhishLens uses deterministic review gates instead of relying on a single reviewer. See [docs/review-methodology.md](docs/review-methodology.md) and [docs/release-process.md](docs/release-process.md).

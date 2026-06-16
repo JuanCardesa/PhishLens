@@ -1,0 +1,32 @@
+name: PR Guardian
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guardian:
+    name: Review guardrails
+    runs-on: ubuntu-latest
+    env:
+      BASE_REF: ${{ github.base_ref || 'develop' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch base branch
+        run: git fetch origin "$BASE_REF" --depth=1
+
+      - name: Run repository guardrails
+        run: python scripts/ci/pr_guardian.py --base-ref "origin/$BASE_REF" --head-ref HEAD --github-summary "$GITHUB_STEP_SUMMARY"
