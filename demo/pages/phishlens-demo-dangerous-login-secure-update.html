@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhishLens Demo - Dangerous Page</title>
+    <style>
+      body {
+        max-width: 760px;
+        margin: 48px auto;
+        padding: 0 20px;
+        color: #172033;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+      form,
+      section {
+        margin-top: 20px;
+        padding: 16px;
+        border: 1px solid #d7dde8;
+        border-radius: 8px;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      input {
+        min-height: 36px;
+      }
+      .frames {
+        display: grid;
+        gap: 8px;
+      }
+      iframe {
+        width: 100%;
+        height: 60px;
+        border: 1px solid #d7dde8;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Dangerous Demo Page</h1>
+      <p>
+        This page intentionally combines local demo signals so the extension can show the high-risk overlay during a
+        walkthrough. Do not enter real information.
+      </p>
+      <form action="https://example.net/demo-submit" method="post">
+        <input type="hidden" name="session_marker" value="demo-only" />
+        <label>
+          Account email
+          <input name="account" autocomplete="off" />
+        </label>
+        <label>
+          Password
+          <input type="password" name="password" autocomplete="off" />
+        </label>
+        <button type="button">Verify account</button>
+      </form>
+      <section>
+        <a href="https://example.com/login">External login</a>
+        <a href="https://example.org/secure">External secure update</a>
+        <a href="https://example.net/account">External account page</a>
+        <a href="/pages/safe.html">Internal reference</a>
+      </section>
+      <section class="frames" aria-label="Demo iframes">
+        <iframe title="demo frame one" src="/pages/safe.html"></iframe>
+        <iframe title="demo frame two" src="/pages/safe.html"></iframe>
+        <iframe title="demo frame three" src="/pages/safe.html"></iframe>
+      </section>
+    </main>
+  </body>
+</html>

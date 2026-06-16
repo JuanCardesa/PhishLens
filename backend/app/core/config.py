@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     enable_tls_analysis: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_TLS_ANALYSIS")
     model_path: str = Field(default="ml/models/phishlens_model.joblib", validation_alias="PHISHLENS_MODEL_PATH")
     external_timeout_seconds: float = Field(default=4.0, validation_alias="PHISHLENS_EXTERNAL_TIMEOUT_SECONDS")
+    enable_diagnostics: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_DIAGNOSTICS")
+    enable_rate_limiting: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_RATE_LIMITING")
+    analyze_rate_limit_per_minute: int = Field(default=60, ge=1, validation_alias="PHISHLENS_ANALYZE_RATE_LIMIT")
+    report_rate_limit_per_minute: int = Field(default=20, ge=1, validation_alias="PHISHLENS_REPORT_RATE_LIMIT")
+    rate_limit_window_seconds: int = Field(default=60, ge=1, validation_alias="PHISHLENS_RATE_LIMIT_WINDOW_SECONDS")
+    enable_demo_threat_source: bool = Field(default=False, validation_alias="PHISHLENS_ENABLE_DEMO_THREAT_SOURCE")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
