@@ -1,12 +1,23 @@
 # Demo Script
 
-1. Start the backend:
+This script demonstrates PhishLens without visiting suspicious external sites or using a real PhishTank key.
+
+## Setup
+
+1. Start the backend with the local demo threat source enabled:
 
    ```bash
-   python -m uvicorn app.main:app --app-dir backend --reload
+   $env:PHISHLENS_ENABLE_DEMO_THREAT_SOURCE="true"
+   .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
    ```
 
-2. Build the extension:
+2. Start the local demo pages in a second terminal:
+
+   ```bash
+   python demo/serve_demo.py
+   ```
+
+3. Build and load the extension:
 
    ```bash
    cd extension
@@ -14,7 +25,7 @@
    npm run build
    ```
 
-3. Load `extension/dist` in Chrome Developer mode.
+   Load `extension/dist` from `chrome://extensions` with Developer mode enabled.
 
 4. Open PhishLens settings from the popup and confirm:
 
@@ -22,23 +33,39 @@
    - Timeout: `2500`.
    - Danger overlay: enabled.
 
-5. Visit a normal HTTPS page and open the popup. Confirm a low or moderate score and the `Backend enriched` state when the API is running.
+## Walkthrough
 
-6. Stop the backend and reopen the popup. Confirm analysis still works and the UI shows `Backend unavailable`.
+1. Open `http://127.0.0.1:8080/pages/safe.html`.
+   Confirm a low-risk result and the `Backend enriched` state.
 
-7. Start the backend again and inspect a suspicious case directly:
+2. Open `http://127.0.0.1:8080/pages/suspicious.html`.
+   Confirm the popup explains form, iframe, or external-link signals.
 
-   ```bash
-   curl -X POST http://localhost:8000/analyze ^
-     -H "Content-Type: application/json" ^
-     -d "{\"url\":\"http://login-secure.example.test/account-update\",\"dom_features\":{\"has_password_field\":true,\"num_forms\":1,\"external_form_action\":true,\"num_iframes\":0,\"external_links_ratio\":0.2,\"has_hidden_inputs\":true}}"
-   ```
+3. Open `http://127.0.0.1:8080/pages/phishlens-demo-dangerous-login-secure-update.html`.
+   Confirm the final label is `dangerous` and the dismissible overlay appears.
 
-8. On a page whose final score is `dangerous`, confirm the dismissible warning overlay appears when enabled.
+4. Stop the backend and reopen the popup on a demo page.
+   Confirm the analysis still works and the UI shows `Backend unavailable`.
 
-9. Use popup feedback:
+5. Restart the backend and use popup feedback:
 
    - `Mark as safe` for suspected false positives.
    - `Mark as phishing` for suspected false negatives.
 
-10. Explain the displayed reasons, backend/local state, feedback flow, and privacy boundary.
+6. Use `Copy report`.
+   Confirm the copied text contains host-level context and excludes full URLs, form values, page text, cookies, screenshots, and HTML.
+
+7. Inspect diagnostics:
+
+   ```bash
+   curl http://localhost:8000/diagnostics
+   ```
+
+   Confirm the payload contains counters only, not URLs or page content.
+
+## Talking Points
+
+- Local analysis works without the backend.
+- Backend enrichment adds TLS, threat intelligence, ML when available, and a dev-only demo threat source.
+- Feedback is logged without persistence and without page content.
+- Diagnostics expose counters only and are intended for development environments.

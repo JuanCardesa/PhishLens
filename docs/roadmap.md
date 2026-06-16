@@ -39,3 +39,7 @@ Prepare Chrome Web Store assets, privacy policy, screenshots, and release packag
 ## 10. Continuous Improvement
 
 Monitor false positives, review threat intelligence sources, and maintain security dependencies.
+
+## 11. Demo And Observability
+
+Maintain a reproducible local demo, development diagnostics, request IDs, and rate-limit protections without expanding sensitive data collection.

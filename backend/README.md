@@ -15,6 +15,13 @@ python -m venv .venv
 - `GET /health`: service health.
 - `POST /analyze`: combines URL, DOM, threat intel, TLS, and optional ML signals.
 - `POST /report`: receives false positive or false negative feedback without persistence.
+- `GET /diagnostics`: development counters without URLs or page content.
+
+## Development Controls
+
+- `PHISHLENS_ENABLE_DIAGNOSTICS`: enables `/diagnostics`.
+- `PHISHLENS_ENABLE_RATE_LIMITING`: enables in-memory rate limits for `/analyze` and `/report`.
+- `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`: enables localhost-only demo scoring for the local walkthrough.
 
 ## Privacy Boundary
 

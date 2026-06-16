@@ -4,11 +4,9 @@ PhishLens is a defensive Chrome extension and FastAPI backend for explainable ph
 
 It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
 
-> Demo placeholder: add screenshots or a short GIF after the first browser run.
-
 ## Current Status
 
-Sprint 2 product hardening implemented:
+Sprint 3 demo and release readiness implemented:
 
 - Chrome Extension Manifest V3 with React popup.
 - Local URL and DOM heuristic analysis.
@@ -22,6 +20,10 @@ Sprint 2 product hardening implemented:
 - Demo ML training and evaluation pipeline.
 - Docker Compose and GitHub Actions workflows.
 - Privacy, threat model, architecture, ML methodology, and roadmap docs.
+- Reproducible local demo pages.
+- Development diagnostics with request IDs and no sensitive payloads.
+- In-memory rate limiting for analysis and feedback endpoints.
+- Extension release packaging script.
 
 ## Architecture
 
@@ -33,6 +35,7 @@ Chrome page
   -> backend adds URL, threat intel, TLS, and ML signals
   -> popup shows score, label, confidence, reasons, and feedback controls
   -> dangerous results can display a dismissible page overlay
+  -> development diagnostics expose counters only
 ```
 
 The extension never sends full HTML, form values, passwords, or typed emails. The backend receives only the current URL and technical DOM features.
@@ -121,6 +124,12 @@ Copy `.env.example` to `.env` for local overrides.
 - `PHISHLENS_ENABLE_THREAT_INTEL`: enable or disable threat intel checks.
 - `PHISHLENS_ENABLE_TLS_ANALYSIS`: enable or disable backend TLS checks.
 - `PHISHLENS_MODEL_PATH`: optional path to a trained joblib model.
+- `PHISHLENS_ENABLE_DIAGNOSTICS`: enable development diagnostics.
+- `PHISHLENS_ENABLE_RATE_LIMITING`: enable in-memory rate limits.
+- `PHISHLENS_ANALYZE_RATE_LIMIT`: per-window `/analyze` request limit.
+- `PHISHLENS_REPORT_RATE_LIMIT`: per-window `/report` request limit.
+- `PHISHLENS_RATE_LIMIT_WINDOW_SECONDS`: rate-limit window.
+- `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`: localhost-only dangerous demo signal.
 
 No real keys are committed.
 
@@ -134,12 +143,43 @@ Extension settings:
 
 PhishLens is defensive only. It must not collect credentials, typed emails, private form content, or full page HTML. It is a risk-assistance tool, not a phishing verdict authority. False positives and false negatives are expected, especially before training on a real dataset.
 
+## Local Demo
+
+Run the backend, demo pages, and extension locally:
+
+```bash
+$env:PHISHLENS_ENABLE_DEMO_THREAT_SOURCE="true"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
+python demo/serve_demo.py
+cd extension
+npm run build
+```
+
+Load `extension/dist` in Chrome and visit:
+
+- `http://127.0.0.1:8080/pages/safe.html`
+- `http://127.0.0.1:8080/pages/suspicious.html`
+- `http://127.0.0.1:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
+
+The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches localhost/127.0.0.1 URLs containing `phishlens-demo-dangerous`.
+
+Package the extension:
+
+```bash
+cd extension
+npm run package
+```
+
+The zip is written to `extension/release/`.
+
 ## Limitations
 
 - The included ML dataset is synthetic demo data only.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback is logged for review only; durable storage is intentionally deferred.
+- Diagnostics are development counters only and should not be treated as production telemetry.
+- In-memory rate limiting is process-local and resets when the backend restarts.
 - The current build prioritizes explainability and safe defaults over coverage.
 
 ## Roadmap
