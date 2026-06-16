@@ -12,6 +12,7 @@ PhishLens is designed to minimize data collection.
 - Optional PhishTank lookup result for the URL.
 - Optional user feedback labels from the popup: observed label, expected label, and a short non-sensitive note.
 - Aggregate diagnostics counters for request counts, labels, sources, rate limits, cache hits, and external-service skips/errors.
+- Non-sensitive backend capability flags such as whether diagnostics, TLS analysis, threat intelligence, rate limiting, demo source, or ML model loading are enabled.
 
 ## Data Not Collected
 
@@ -27,6 +28,7 @@ PhishLens must not collect:
 - Screenshots.
 - Private page text.
 - Full URLs in diagnostics.
+- Local model paths in diagnostics.
 
 ## Storage
 

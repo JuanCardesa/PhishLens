@@ -26,6 +26,7 @@ Browser tab
 10. The popup displays score, label, confidence, reasons, source mode, and feedback controls.
 11. A `dangerous` final result can inject a dismissible page overlay when enabled.
 12. `/diagnostics` exposes aggregate counters only when diagnostics are enabled.
+13. The options page can query `/health` and `/diagnostics` to show backend status, capability flags, and aggregate counters without exposing URLs or page content.
 
 ## Extension And Backend Boundary
 
@@ -47,7 +48,7 @@ Custom remote backend origins use optional host permissions instead of broad def
 
 The backend adds an `X-Request-ID` header to every response. A caller-provided `X-Request-ID` is accepted only when it is short and uses safe characters; otherwise the backend generates one.
 
-`/diagnostics` is intended for development and demo workflows. It reports counters for analysis requests, feedback, rate limits, labels, sources, cache hits/misses, and external service skips/errors. It does not expose URLs, page text, form values, credentials, cookies, screenshots, or HTML.
+`/diagnostics` is intended for development and demo workflows. It reports counters for analysis requests, feedback, rate limits, labels, sources, cache hits/misses, external service skips/errors, and non-sensitive capability flags. It does not expose URLs, page text, form values, credentials, cookies, screenshots, model paths, or HTML.
 
 ## Rate Limiting
 

@@ -59,3 +59,38 @@ export interface FeedbackReport {
   expected_label: RiskLabel;
   notes?: string;
 }
+
+export interface BackendHealthResponse {
+  status: "ok" | string;
+  service: string;
+}
+
+export interface DiagnosticsCapabilities {
+  diagnostics_enabled: boolean;
+  rate_limiting_enabled: boolean;
+  threat_intel_enabled: boolean;
+  tls_analysis_enabled: boolean;
+  ml_model_available: boolean;
+  demo_threat_source_enabled: boolean;
+}
+
+export interface DiagnosticsResponse {
+  status: "ok" | string;
+  service: string;
+  privacy: string;
+  capabilities: DiagnosticsCapabilities;
+  counters: Record<string, number>;
+  labels: Record<string, number>;
+  sources: Record<string, number>;
+}
+
+export type BackendStatusState = "online" | "diagnostics-disabled" | "offline";
+
+export interface BackendStatus {
+  state: BackendStatusState;
+  service: string | null;
+  diagnosticsAvailable: boolean;
+  diagnostics: DiagnosticsResponse | null;
+  message: string;
+  checkedAt: string;
+}
