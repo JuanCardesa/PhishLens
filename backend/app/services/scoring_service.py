@@ -2,12 +2,27 @@ from __future__ import annotations
 
 import asyncio
 
-from app.schemas.analysis import AnalysisRequest, AnalysisResponse, AnalysisSources, DOMFeatures, RiskLabel
+from app.schemas.analysis import (
+    AnalysisRequest,
+    AnalysisResponse,
+    AnalysisSources,
+    DOMFeatures,
+    RiskBreakdownItem,
+    RiskLabel,
+)
 from app.services.demo_threat_service import DemoThreatResult, check_demo_threat_source
 from app.services.feature_extractor import URLFeatures, extract_url_features
 from app.services.ml_service import MLResult, predict_ml_adjustment
 from app.services.phishtank_service import PhishTankResult, check_url
 from app.services.tls_service import TLSResult, inspect_tls
+
+
+URL_SCORE_CAP = 35
+DOM_SCORE_CAP = 30
+THREAT_INTEL_SCORE_CAP = 40
+TLS_SCORE_CAP = 15
+ML_MIN_ADJUSTMENT = -10
+ML_MAX_ADJUSTMENT = 20
 
 
 def label_from_score(score: int) -> RiskLabel:
@@ -31,10 +46,25 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     dom_score, dom_reasons = _score_dom(request.dom_features)
     threat_score, threat_reasons = _score_threat_intel(phishtank_result, demo_threat_result)
     tls_score, tls_reasons = _score_tls(tls_result)
+    ml_reasons = _ml_reasons(ml_result)
 
     raw_score = url_score + dom_score + threat_score + tls_score + ml_result.adjustment
     risk_score = max(0, min(100, round(raw_score)))
-    reasons = url_reasons + dom_reasons + threat_reasons + tls_reasons + _ml_reasons(ml_result)
+    risk_breakdown = _build_risk_breakdown(
+        url_score=url_score,
+        url_reasons=url_reasons,
+        dom_score=dom_score,
+        dom_reasons=dom_reasons,
+        threat_score=threat_score,
+        threat_reasons=threat_reasons,
+        phishtank_result=phishtank_result,
+        demo_threat_result=demo_threat_result,
+        tls_score=tls_score,
+        tls_reasons=tls_reasons,
+        ml_result=ml_result,
+        ml_reasons=ml_reasons,
+    )
+    reasons = url_reasons + dom_reasons + threat_reasons + tls_reasons + ml_reasons
 
     if not reasons:
         reasons = ["No high-risk signals were detected"]
@@ -51,6 +81,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
             tls=tls_result.checked,
             demo=demo_threat_result.matched,
         ),
+        risk_breakdown=risk_breakdown,
     )
 
 
@@ -101,7 +132,7 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         score += 5
         reasons.append("Domain has high character entropy")
 
-    return min(score, 35), reasons
+    return min(score, URL_SCORE_CAP), reasons
 
 
 def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
@@ -135,14 +166,14 @@ def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
         score += 4
         reasons.append("Page contains hidden form inputs")
 
-    return min(score, 30), reasons
+    return min(score, DOM_SCORE_CAP), reasons
 
 
 def _score_threat_intel(result: PhishTankResult, demo_result: DemoThreatResult) -> tuple[int, list[str]]:
     if demo_result.matched:
-        return 40, ["Local demo threat source is enabled for this walkthrough"]
+        return THREAT_INTEL_SCORE_CAP, ["Local demo threat source is enabled for this walkthrough"]
     if result.in_database and result.verified and result.valid:
-        return 40, ["URL appears in a verified phishing intelligence feed"]
+        return THREAT_INTEL_SCORE_CAP, ["URL appears in a verified phishing intelligence feed"]
     if result.in_database:
         return 25, ["URL appears in a phishing intelligence feed"]
     return 0, []
@@ -170,7 +201,7 @@ def _score_tls(result: TLSResult) -> tuple[int, list[str]]:
         score += 4
         reasons.append("TLS certificate check returned an error")
 
-    return min(score, 15), reasons
+    return min(score, TLS_SCORE_CAP), reasons
 
 
 def _ml_reasons(result: MLResult) -> list[str]:
@@ -181,6 +212,69 @@ def _ml_reasons(result: MLResult) -> list[str]:
         return ["Machine learning model increased the estimated risk"]
 
     return ["Machine learning model reduced the estimated risk"]
+
+
+def _build_risk_breakdown(
+    *,
+    url_score: int,
+    url_reasons: list[str],
+    dom_score: int,
+    dom_reasons: list[str],
+    threat_score: int,
+    threat_reasons: list[str],
+    phishtank_result: PhishTankResult,
+    demo_threat_result: DemoThreatResult,
+    tls_score: int,
+    tls_reasons: list[str],
+    ml_result: MLResult,
+    ml_reasons: list[str],
+) -> list[RiskBreakdownItem]:
+    return [
+        RiskBreakdownItem(
+            category="url",
+            score=url_score,
+            max_score=URL_SCORE_CAP,
+            reasons=url_reasons,
+            source="heuristics",
+        ),
+        RiskBreakdownItem(
+            category="dom",
+            score=dom_score,
+            max_score=DOM_SCORE_CAP,
+            reasons=dom_reasons,
+            source="dom",
+        ),
+        RiskBreakdownItem(
+            category="threat_intel",
+            score=threat_score,
+            max_score=THREAT_INTEL_SCORE_CAP,
+            reasons=threat_reasons,
+            source=_threat_intel_source(phishtank_result, demo_threat_result),
+        ),
+        RiskBreakdownItem(
+            category="tls",
+            score=tls_score,
+            max_score=TLS_SCORE_CAP,
+            reasons=tls_reasons,
+            source="tls",
+        ),
+        RiskBreakdownItem(
+            category="ml",
+            score=max(ML_MIN_ADJUSTMENT, min(ML_MAX_ADJUSTMENT, ml_result.adjustment)),
+            min_score=ML_MIN_ADJUSTMENT,
+            max_score=ML_MAX_ADJUSTMENT,
+            reasons=ml_reasons,
+            source="ml" if ml_result.available else "fallback",
+        ),
+    ]
+
+
+def _threat_intel_source(result: PhishTankResult, demo_result: DemoThreatResult) -> str:
+    if demo_result.matched:
+        return "demo"
+    if result.checked:
+        return "phishtank"
+    return "fallback"
 
 
 def _confidence(score: int, ml_result: MLResult) -> float:

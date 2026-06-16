@@ -23,10 +23,25 @@ Browser tab
 7. The backend normalizes the URL, removes fragments, and combines URL heuristics, DOM signals, optional PhishTank, TLS checks, and optional ML adjustment.
 8. PhishTank and TLS checks use short in-memory TTL caches to reduce repeated external calls.
 9. In development demo mode, localhost URLs containing `phishlens-demo-dangerous` can trigger an explicit demo threat signal.
-10. The popup displays score, label, confidence, reasons, source mode, and feedback controls.
-11. A `dangerous` final result can inject a dismissible page overlay when enabled.
-12. `/diagnostics` exposes aggregate counters only when diagnostics are enabled.
-13. The options page can query `/health` and `/diagnostics` to show backend status, capability flags, and aggregate counters without exposing URLs or page content.
+10. The backend returns both compatibility `reasons` and structured `risk_breakdown` items by category.
+11. The popup displays score, label, confidence, risk breakdown, source mode, and feedback controls.
+12. A `dangerous` final result can inject a dismissible page overlay when enabled.
+13. `/diagnostics` exposes aggregate counters only when diagnostics are enabled.
+14. The options page can query `/health` and `/diagnostics` to show backend status, capability flags, and aggregate counters without exposing URLs or page content.
+
+## Risk Breakdown
+
+`POST /analyze` returns the final normalized score and a structured category breakdown:
+
+| Category | Score Range | Purpose |
+| --- | --- | --- |
+| `url` | `0..35` | URL length, host shape, suspicious keywords, HTTPS, punycode, and entropy. |
+| `dom` | `0..30` | Non-sensitive page structure signals such as forms, password field presence, iframes, external form action, external link ratio, and hidden input presence. |
+| `threat_intel` | `0..40` | Optional PhishTank or local demo threat source result. |
+| `tls` | `0..15` | Backend-side certificate validity, expiration, and controlled TLS errors. |
+| `ml` | `-10..20` | Optional model adjustment. Missing model artifacts use a neutral fallback. |
+
+The top-level `reasons` list remains for compatibility. New UI should prefer `risk_breakdown` because it includes category, score, cap, source, and reasons.
 
 ## Extension And Backend Boundary
 
