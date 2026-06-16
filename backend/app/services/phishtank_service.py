@@ -6,6 +6,7 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
+from app.services.diagnostics import DIAGNOSTICS
 from app.services.url_normalizer import normalize_url
 
 
@@ -28,18 +29,23 @@ async def check_url(url: str, settings: Settings | None = None) -> PhishTankResu
     normalized_url = normalize_url(url)
 
     if not settings.enable_threat_intel:
+        DIAGNOSTICS.record_external_skip("phishtank")
         return PhishTankResult(checked=False, error="threat intelligence disabled")
 
     if not settings.phishtank_api_key:
+        DIAGNOSTICS.record_external_skip("phishtank")
         return PhishTankResult(checked=False, error="PHISHTANK_API_KEY is not configured")
 
     cached = PHISHTANK_CACHE.get(normalized_url)
     if cached is not None:
+        DIAGNOSTICS.record_cache("phishtank", hit=True)
         return cached
+    DIAGNOSTICS.record_cache("phishtank", hit=False)
 
     try:
         payload = await _fetch_phishtank_payload(normalized_url, settings)
     except (httpx.HTTPError, ValueError) as exc:
+        DIAGNOSTICS.record_external_error("phishtank")
         result = PhishTankResult(checked=True, error=str(exc))
         PHISHTANK_CACHE.set(normalized_url, result)
         return result
