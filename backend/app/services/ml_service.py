@@ -71,6 +71,11 @@ def predict_ml_adjustment(
         return MLResult(available=False, error=str(exc))
 
 
+def is_model_available(settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    return _resolve_model_path(settings.model_path).exists()
+
+
 def _resolve_model_path(configured_path: str) -> Path:
     path = Path(configured_path)
     if path.is_absolute():

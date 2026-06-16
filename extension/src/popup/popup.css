@@ -63,6 +63,13 @@ h2 {
   font-size: 14px;
 }
 
+h3 {
+  margin: 0 0 6px;
+  color: #172033;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
 .tool-button {
   display: inline-grid;
   min-width: 76px;
@@ -227,7 +234,6 @@ h2 {
   background: #ffffff;
 }
 
-.reasons ul,
 .feedback-actions {
   display: grid;
   gap: 8px;
@@ -236,6 +242,24 @@ h2 {
 .reasons ul {
   margin: 0;
   padding-left: 18px;
+}
+
+.signal-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-group {
+  padding-top: 10px;
+  border-top: 1px solid #edf1f6;
+}
+
+.primary-signal {
+  margin-bottom: 8px;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .reasons li,
