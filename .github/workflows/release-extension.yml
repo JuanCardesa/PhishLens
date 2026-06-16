@@ -1,0 +1,81 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-package:
+    name: Validate and package extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r backend/requirements.txt
+
+      - name: Backend checks
+        run: |
+          python -c "import app.main; print('backend import ok')"
+          ruff check app tests ../demo
+          pytest tests
+        working-directory: backend
+
+      - name: Install extension dependencies
+        run: npm ci
+        working-directory: extension
+
+      - name: Extension checks
+        run: |
+          npm run lint
+          npm run test
+          npm run build
+          npm audit --audit-level=high
+          npm run package
+        working-directory: extension
+
+      - name: Validate release metadata
+        run: python scripts/ci/pr_guardian.py --all --release-tag "$GITHUB_REF_NAME" --github-summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload packaged extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: phishlens-extension
+          path: extension/release/phishlens-extension-v*.zip
+          if-no-files-found: error
+
+  publish-github-release:
+    name: Publish GitHub release asset
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: validate-and-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged extension
+        uses: actions/download-artifact@v4
+        with:
+          name: phishlens-extension
+          path: release-artifacts
+
+      - name: Attach extension zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/phishlens-extension-v*.zip
