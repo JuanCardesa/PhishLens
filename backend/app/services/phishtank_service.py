@@ -12,6 +12,7 @@ from app.services.url_normalizer import normalize_url
 
 PHISHTANK_CHECK_URL = "http://checkurl.phishtank.com/checkurl/"
 PHISHTANK_CACHE = TTLCache["PhishTankResult"](ttl_seconds=300)
+PHISHTANK_ERROR_CACHE = TTLCache["PhishTankResult"](ttl_seconds=30)
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,7 @@ async def check_url(url: str, settings: Settings | None = None) -> PhishTankResu
         DIAGNOSTICS.record_external_skip("phishtank")
         return PhishTankResult(checked=False, error="PHISHTANK_API_KEY is not configured")
 
-    cached = PHISHTANK_CACHE.get(normalized_url)
+    cached = PHISHTANK_CACHE.get(normalized_url) or PHISHTANK_ERROR_CACHE.get(normalized_url)
     if cached is not None:
         DIAGNOSTICS.record_cache("phishtank", hit=True)
         return cached
@@ -47,7 +48,10 @@ async def check_url(url: str, settings: Settings | None = None) -> PhishTankResu
     except (httpx.HTTPError, ValueError) as exc:
         DIAGNOSTICS.record_external_error("phishtank")
         result = PhishTankResult(checked=True, error=str(exc))
-        PHISHTANK_CACHE.set(normalized_url, result)
+        # Cache transient errors briefly (30 s) to avoid hammering PhishTank
+        # during a partial outage, but allow retries much sooner than a
+        # successful result would (300 s).
+        PHISHTANK_ERROR_CACHE.set(normalized_url, result)
         return result
 
     result = payload.get("results") or {}
@@ -86,3 +90,4 @@ def _as_bool(value: object) -> bool:
 
 def clear_phishtank_cache() -> None:
     PHISHTANK_CACHE.clear()
+    PHISHTANK_ERROR_CACHE.clear()
