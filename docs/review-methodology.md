@@ -40,6 +40,7 @@ The rules live in `scripts/ci/pr_guardian.py` so they can be reviewed and run lo
 Before merging a pull request:
 
 - Confirm the branch target is correct.
+- Fill out the pull request template with scope, validation, and risk notes.
 - Read the changed files, not only the summary.
 - Check whether Chrome permissions changed.
 - Check whether backend logging or diagnostics changed.
