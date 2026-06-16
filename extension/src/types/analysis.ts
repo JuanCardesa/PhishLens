@@ -29,6 +29,7 @@ export interface AnalysisSources {
   ml: boolean;
   phishtank: boolean;
   tls: boolean;
+  demo?: boolean;
 }
 
 export interface AnalysisResponse {

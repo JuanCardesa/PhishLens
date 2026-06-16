@@ -11,7 +11,7 @@
 }
 
 body {
-  min-width: 360px;
+  min-width: 380px;
   margin: 0;
   background: #f5f7fb;
 }
@@ -21,7 +21,7 @@ button {
 }
 
 .popup-shell {
-  width: 360px;
+  width: 380px;
   padding: 18px;
 }
 
@@ -63,16 +63,45 @@ h2 {
   font-size: 14px;
 }
 
-.icon-button {
-  display: grid;
-  width: 36px;
+.tool-button {
+  display: inline-grid;
+  min-width: 76px;
   height: 36px;
   place-items: center;
   border: 1px solid #d7dde8;
   border-radius: 8px;
   color: #172033;
   background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+}
+
+.mode-banner {
+  margin-bottom: 12px;
+  padding: 9px 11px;
+  border: 1px solid #d7dde8;
+  border-radius: 8px;
+  color: #344054;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mode-banner.backend-enriched {
+  border-color: #9ad7ba;
+  background: #eefaf4;
+}
+
+.mode-banner.backend-unavailable {
+  border-color: #f2ca72;
+  background: #fff8e6;
+}
+
+.mode-banner.cached {
+  border-color: #b8c7e5;
+  background: #eef4ff;
 }
 
 .notice {
@@ -174,6 +203,23 @@ h2 {
   font-size: 16px;
 }
 
+.source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source-list span {
+  padding: 4px 8px;
+  border: 1px solid #d7dde8;
+  border-radius: 999px;
+  color: #344054;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .reasons {
   padding: 12px;
   border: 1px solid #dfe5ef;
@@ -200,7 +246,8 @@ h2 {
   line-height: 1.35;
 }
 
-.feedback {
+.feedback,
+.report-copy {
   margin-top: 14px;
   padding: 12px;
   border: 1px solid #dfe5ef;
@@ -212,7 +259,8 @@ h2 {
   grid-template-columns: 1fr 1fr;
 }
 
-.feedback button {
+.feedback button,
+.report-copy button {
   min-height: 36px;
   border: 1px solid #cfd8e6;
   border-radius: 8px;
@@ -224,11 +272,17 @@ h2 {
   cursor: pointer;
 }
 
-.feedback button:disabled {
+.feedback button:disabled,
+.report-copy button:disabled {
   color: #98a2b3;
   cursor: not-allowed;
 }
 
-.feedback p {
+.report-copy button {
+  width: 100%;
+}
+
+.feedback p,
+.report-copy p {
   margin: 10px 0 0;
 }
