@@ -119,10 +119,10 @@ https://github.com/JuanCardesa/PhishLens/issues
 ## Privacy policy URL
 
 ```
-https://juancardesa.github.io/PhishLens/privacy
+https://juancardesa.github.io/PhishLens/privacy/
 ```
 
-*(Requires the GitHub Pages site to be live — see docs/privacy-policy.html)*
+*(Requires GitHub Pages to be enabled on main → docs/ folder — see docs/privacy/index.html)*
 
 ---
 
