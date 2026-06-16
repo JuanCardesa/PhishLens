@@ -97,6 +97,7 @@ def main() -> int:
     failures.extend(check_workflow_allowlist(changed_files))
     failures.extend(check_workflow_permissions(changed_files))
     failures.extend(check_manifest_contract(changed_files, args.all))
+    failures.extend(check_manifest_permission_docs(changed_files, args.all))
     failures.extend(check_sensitive_surface_docs(changed_files, args.all))
     failures.extend(check_secret_patterns(changed_files))
     failures.extend(check_release_tag(args.release_tag))
@@ -228,6 +229,22 @@ def check_manifest_contract(files: list[str], scan_all: bool) -> list[Finding]:
         findings.append(Finding("extension/manifest.json", "Manifest version must match extension/package.json."))
 
     return findings
+
+
+def check_manifest_permission_docs(files: list[str], scan_all: bool) -> list[Finding]:
+    if scan_all:
+        return []
+
+    changed = set(files)
+    if "extension/manifest.json" in changed and "docs/permissions.md" not in changed:
+        return [
+            Finding(
+                "extension/manifest.json",
+                "Manifest permission changes must review and update docs/permissions.md.",
+            )
+        ]
+
+    return []
 
 
 def check_sensitive_surface_docs(files: list[str], scan_all: bool) -> list[Finding]:
