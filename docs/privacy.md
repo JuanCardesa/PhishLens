@@ -11,6 +11,7 @@ PhishLens is designed to minimize data collection.
 - Optional backend TLS certificate metadata for the domain.
 - Optional PhishTank lookup result for the URL.
 - Optional user feedback labels from the popup: observed label, expected label, and a short non-sensitive note.
+- Aggregate diagnostics counters for request counts, labels, sources, rate limits, cache hits, and external-service skips/errors.
 
 ## Data Not Collected
 
@@ -25,6 +26,7 @@ PhishLens must not collect:
 - Browser history.
 - Screenshots.
 - Private page text.
+- Full URLs in diagnostics.
 
 ## Storage
 
@@ -34,9 +36,19 @@ The extension stores backend settings in `chrome.storage.sync`: backend URL, tim
 
 The backend uses short-lived in-memory caches for PhishTank URL lookups and TLS hostname checks. These caches are process-local and are not durable storage.
 
+Diagnostics and rate-limit counters are process-local and reset when the backend restarts.
+
 ## Feedback
 
 Popup feedback exists to support future false positive and false negative review. In this sprint, `/report` logs only host-level context, labels, and whether a note was present. It does not store credentials, form values, page content, or full HTML.
+
+## Diagnostics
+
+`GET /diagnostics` is a development endpoint. It returns aggregate counters only. It must not include submitted URLs, form values, page content, cookies, credentials, screenshots, or HTML.
+
+## Demo Threat Source
+
+`PHISHLENS_ENABLE_DEMO_THREAT_SOURCE` enables a localhost-only signal for the reproducible demo page. It is disabled by default and does not represent PhishTank or any external intelligence feed.
 
 ## API Keys
 
