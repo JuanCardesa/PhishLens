@@ -8,11 +8,9 @@ on:
       - "pytest.ini"
       - ".github/workflows/backend-ci.yml"
   pull_request:
-    paths:
-      - "backend/**"
-      - "demo/**"
-      - "pytest.ini"
-      - ".github/workflows/backend-ci.yml"
+    branches:
+      - develop
+      - main
 
 jobs:
   backend:

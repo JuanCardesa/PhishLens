@@ -1,0 +1,75 @@
+name: Security CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".env.example"
+      - "backend/requirements.txt"
+      - "extension/package.json"
+      - "extension/package-lock.json"
+      - "scripts/ci/**"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extension-audit:
+    name: Extension dependency audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit high severity issues
+        run: npm audit --audit-level=high
+
+  python-advisory-audit:
+    name: Python advisory audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+
+      - name: Audit backend dependencies
+        run: pip-audit -r backend/requirements.txt
+
+  repository-guardrails:
+    name: Repository security guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Scan repository guardrails
+        run: python scripts/ci/pr_guardian.py --all --github-summary "$GITHUB_STEP_SUMMARY"
