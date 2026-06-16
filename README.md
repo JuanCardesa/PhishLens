@@ -25,6 +25,8 @@ Sprint 3 demo and release readiness implemented:
 - In-memory rate limiting for analysis and feedback endpoints.
 - Extension release packaging script.
 - PR Guardian, security CI, and automated extension release workflow.
+- Backend status diagnostics in the extension options page.
+- Chrome Web Store readiness and permission documentation.
 
 ## Architecture
 
@@ -121,6 +123,12 @@ Review automation:
 python scripts/ci/pr_guardian.py --all
 ```
 
+Demo readiness:
+
+```bash
+python scripts/dev/check_demo.py
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` for local overrides.
@@ -196,3 +204,5 @@ See [docs/roadmap.md](docs/roadmap.md).
 ## Review And Release Process
 
 PhishLens uses deterministic review gates instead of relying on a single reviewer. See [docs/review-methodology.md](docs/review-methodology.md) and [docs/release-process.md](docs/release-process.md).
+
+Publication preparation lives in [docs/chrome-web-store.md](docs/chrome-web-store.md), with permission rationale in [docs/permissions.md](docs/permissions.md).
