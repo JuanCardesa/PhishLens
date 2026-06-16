@@ -43,3 +43,7 @@ Monitor false positives, review threat intelligence sources, and maintain securi
 ## 11. Demo And Observability
 
 Maintain a reproducible local demo, development diagnostics, request IDs, and rate-limit protections without expanding sensitive data collection.
+
+## 12. Publication Readiness
+
+Prepare Chrome Web Store checklist, permission documentation, demo readiness checks, and release artifacts without changing the privacy boundary.
