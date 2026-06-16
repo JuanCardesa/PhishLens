@@ -64,10 +64,20 @@ h2 {
 }
 
 h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 6px;
   color: #172033;
   font-size: 12px;
   text-transform: uppercase;
+}
+
+h3 strong {
+  color: #526070;
+  font-size: 11px;
+  text-transform: none;
 }
 
 .tool-button {

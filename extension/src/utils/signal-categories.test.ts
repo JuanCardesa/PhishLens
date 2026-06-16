@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { groupReasonsBySignal, primarySignalReason } from "./signal-categories";
+import { formatSignalScore, groupReasonsBySignal, primarySignalReason } from "./signal-categories";
 
 const SOURCES = {
   heuristics: true,
@@ -38,5 +38,30 @@ describe("signal-categories", () => {
     });
 
     expect(primarySignalReason(groups)).toBe("TLS: TLS certificate appears to be expired");
+  });
+
+  it("builds groups from structured risk breakdown", () => {
+    const groups = groupReasonsBySignal(["URL contains many dots"], SOURCES, [
+      {
+        category: "url",
+        score: 12,
+        min_score: 0,
+        max_score: 35,
+        reasons: ["URL contains many dots"],
+        source: "heuristics",
+      },
+      {
+        category: "ml",
+        score: -5,
+        min_score: -10,
+        max_score: 20,
+        reasons: ["Machine learning model reduced the estimated risk"],
+        source: "ml",
+      },
+    ]);
+
+    expect(groups.map((group) => group.id)).toEqual(["url", "ml"]);
+    expect(formatSignalScore(groups[0])).toBe("12/35");
+    expect(formatSignalScore(groups[1])).toBe("-5 (-10 to +20)");
   });
 });

@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, getExtensionSettings } from "../services/settings";
 import type { AnalysisMode, AnalysisResponse, DOMFeatures, ExtensionSettings, PopupAnalysis, RiskLabel } from "../types/analysis";
 import { buildReportSummary } from "../utils/report-summary";
 import { analyzeLocally } from "../utils/risk-score";
-import { groupReasonsBySignal, primarySignalReason } from "../utils/signal-categories";
+import { formatSignalScore, groupReasonsBySignal, primarySignalReason } from "../utils/signal-categories";
 import "./popup.css";
 
 const EMPTY_DOM_FEATURES: DOMFeatures = {
@@ -30,7 +30,7 @@ export function Popup() {
   }, []);
 
   const statusText = analysis ? labelText(analysis.label) : "Checking";
-  const signalGroups = analysis ? groupReasonsBySignal(analysis.reasons, analysis.sources) : [];
+  const signalGroups = analysis ? groupReasonsBySignal(analysis.reasons, analysis.sources, analysis.risk_breakdown) : [];
 
   async function runAnalysis() {
     setLoading(true);
@@ -174,7 +174,10 @@ export function Popup() {
         <div className="signal-groups">
           {signalGroups.map((group) => (
             <section className="signal-group" key={group.id}>
-              <h3>{group.title}</h3>
+              <h3>
+                <span>{group.title}</span>
+                <strong>{formatSignalScore(group)}</strong>
+              </h3>
               <ul>
                 {group.reasons.map((reason) => (
                   <li key={reason}>{reason}</li>

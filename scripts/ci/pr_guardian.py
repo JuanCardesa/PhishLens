@@ -59,6 +59,21 @@ SENSITIVE_SURFACE_PREFIXES = (
     "extension/src/warning/",
 )
 
+SCORING_SURFACE_FILES = {
+    "backend/app/services/scoring_service.py",
+    "backend/app/schemas/analysis.py",
+    "extension/src/utils/risk-score.ts",
+    "extension/src/utils/signal-categories.ts",
+    "extension/src/types/analysis.ts",
+}
+
+SCORING_TEST_FILES = {
+    "backend/tests/test_analyze_endpoint.py",
+    "backend/tests/test_scoring_service.py",
+    "extension/src/utils/risk-score.test.ts",
+    "extension/src/utils/signal-categories.test.ts",
+}
+
 PRIVACY_DOC_FILES = {
     "README.md",
     "docs/architecture.md",
@@ -98,6 +113,7 @@ def main() -> int:
     failures.extend(check_workflow_permissions(changed_files))
     failures.extend(check_manifest_contract(changed_files, args.all))
     failures.extend(check_manifest_permission_docs(changed_files, args.all))
+    failures.extend(check_scoring_tests(changed_files, args.all))
     failures.extend(check_sensitive_surface_docs(changed_files, args.all))
     failures.extend(check_secret_patterns(changed_files))
     failures.extend(check_release_tag(args.release_tag))
@@ -241,6 +257,23 @@ def check_manifest_permission_docs(files: list[str], scan_all: bool) -> list[Fin
             Finding(
                 "extension/manifest.json",
                 "Manifest permission changes must review and update docs/permissions.md.",
+            )
+        ]
+
+    return []
+
+
+def check_scoring_tests(files: list[str], scan_all: bool) -> list[Finding]:
+    if scan_all:
+        return []
+
+    changed = set(files)
+    scoring_changes = changed & SCORING_SURFACE_FILES
+    if scoring_changes and not (changed & SCORING_TEST_FILES):
+        return [
+            Finding(
+                sorted(scoring_changes)[0],
+                "Scoring contract changes must include backend or extension scoring tests.",
             )
         ]
 
