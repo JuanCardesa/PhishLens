@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "backend/**"
+      - "demo/**"
       - "pytest.ini"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "demo/**"
       - "pytest.ini"
       - ".github/workflows/backend-ci.yml"
 
@@ -30,6 +32,6 @@ jobs:
       - name: Import check
         run: python -c "import app.main; print('backend import ok')"
       - name: Ruff
-        run: ruff check app tests
+        run: ruff check app tests ../demo
       - name: Pytest
         run: pytest tests

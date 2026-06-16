@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
+from app.services.diagnostics import DIAGNOSTICS
 from app.services.url_normalizer import normalize_url
 
 
@@ -31,21 +32,28 @@ async def inspect_tls(url: str, settings: Settings | None = None) -> TLSResult:
     parsed = urlparse(normalized_url)
 
     if not settings.enable_tls_analysis:
+        DIAGNOSTICS.record_external_skip("tls")
         return TLSResult(checked=False, error="TLS analysis disabled")
 
     if parsed.scheme != "https":
+        DIAGNOSTICS.record_external_skip("tls")
         return TLSResult(checked=False, error="URL does not use HTTPS")
 
     hostname = parsed.hostname
     if not hostname:
+        DIAGNOSTICS.record_external_error("tls")
         return TLSResult(checked=False, error="URL has no hostname")
 
     cache_key = hostname.lower()
     cached = TLS_CACHE.get(cache_key)
     if cached is not None:
+        DIAGNOSTICS.record_cache("tls", hit=True)
         return cached
+    DIAGNOSTICS.record_cache("tls", hit=False)
 
     result = await asyncio.to_thread(_inspect_tls_sync, hostname, settings.external_timeout_seconds)
+    if result.error:
+        DIAGNOSTICS.record_external_error("tls")
     TLS_CACHE.set(cache_key, result)
     return result
 

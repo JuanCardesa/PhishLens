@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { requestBackendAnalysis, submitFeedbackReport } from "../services/analysis-api";
 import { DEFAULT_SETTINGS, getExtensionSettings } from "../services/settings";
 import type { AnalysisMode, AnalysisResponse, DOMFeatures, ExtensionSettings, PopupAnalysis, RiskLabel } from "../types/analysis";
+import { buildReportSummary } from "../utils/report-summary";
 import { analyzeLocally } from "../utils/risk-score";
 import "./popup.css";
 
@@ -21,6 +22,7 @@ export function Popup() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
 
   useEffect(() => {
     void runAnalysis();
@@ -86,7 +88,24 @@ export function Popup() {
       },
       settings,
     );
-    setFeedbackStatus(ok ? "Feedback sent" : "Backend unavailable. Feedback was not sent.");
+    setFeedbackStatus(
+      ok
+        ? `Feedback sent: observed ${analysis.label}, expected ${expectedLabel}. No page content or form values were sent.`
+        : "Backend unavailable. Feedback was not sent.",
+    );
+  }
+
+  async function copyReport() {
+    if (!analysis) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildReportSummary(analysis));
+      setReportStatus("Report copied without full URL or page content.");
+    } catch {
+      setReportStatus("Clipboard unavailable. Try again from the browser popup.");
+    }
   }
 
   function openOptionsPage() {
@@ -101,16 +120,17 @@ export function Popup() {
           <h1>Page risk</h1>
         </div>
         <div className="header-actions">
-          <button className="icon-button" type="button" aria-label="Open settings" onClick={openOptionsPage}>
-            <span aria-hidden="true">S</span>
+          <button className="tool-button" type="button" aria-label="Open settings" onClick={openOptionsPage}>
+            Settings
           </button>
-          <button className="icon-button" type="button" aria-label="Refresh analysis" onClick={() => void runAnalysis()}>
-            <span aria-hidden="true">R</span>
+          <button className="tool-button" type="button" aria-label="Refresh analysis" onClick={() => void runAnalysis()}>
+            Refresh
           </button>
         </div>
       </header>
 
       {error ? <div className="notice">{error}</div> : null}
+      {analysis ? <div className={`mode-banner ${analysis.mode}`}>{modeDescription(analysis.mode)}</div> : null}
 
       <section className={`risk-panel ${analysis?.label ?? "safe"}`}>
         <div>
@@ -136,6 +156,13 @@ export function Popup() {
             <strong>{analysis ? modeLabel(analysis.mode) : "--"}</strong>
           </div>
         </div>
+        {analysis ? (
+          <div className="source-list" aria-label="Analysis sources">
+            {sourceList(analysis).map((source) => (
+              <span key={source}>{source}</span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="reasons">
@@ -159,6 +186,14 @@ export function Popup() {
           </button>
         </div>
         {feedbackStatus ? <p role="status">{feedbackStatus}</p> : null}
+      </section>
+
+      <section className="report-copy">
+        <h2>Report</h2>
+        <button type="button" disabled={!analysis} onClick={() => void copyReport()}>
+          Copy report
+        </button>
+        {reportStatus ? <p role="status">{reportStatus}</p> : null}
       </section>
     </main>
   );
@@ -244,6 +279,39 @@ function modeLabel(mode: AnalysisMode): string {
     return "Checking";
   }
   return "Local only";
+}
+
+function modeDescription(mode: AnalysisMode): string {
+  if (mode === "backend-enriched") {
+    return "Backend enrichment is active for this result.";
+  }
+  if (mode === "backend-unavailable") {
+    return "Backend unavailable. Showing local fallback analysis.";
+  }
+  if (mode === "cached") {
+    return "Showing a recent cached result while refreshing.";
+  }
+  if (mode === "checking") {
+    return "Checking the current page.";
+  }
+  return "Local-only analysis. Backend enrichment is not active.";
+}
+
+function sourceList(analysis: PopupAnalysis): string[] {
+  const sources = ["heuristics"];
+  if (analysis.sources.tls) {
+    sources.push("tls");
+  }
+  if (analysis.sources.phishtank) {
+    sources.push("phishtank");
+  }
+  if (analysis.sources.ml) {
+    sources.push("ml");
+  }
+  if (analysis.sources.demo) {
+    sources.push("demo");
+  }
+  return sources;
 }
 
 function labelText(label: RiskLabel): string {

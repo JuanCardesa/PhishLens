@@ -8,6 +8,7 @@ Browser tab
   -> popup UI and options page
   -> FastAPI backend
   -> optional PhishTank, TLS socket inspection, and local ML model
+  -> development diagnostics and rate limiting
 ```
 
 ## Analysis Flow
@@ -21,8 +22,10 @@ Browser tab
 6. The popup calls `POST /analyze` when the configured backend is available.
 7. The backend normalizes the URL, removes fragments, and combines URL heuristics, DOM signals, optional PhishTank, TLS checks, and optional ML adjustment.
 8. PhishTank and TLS checks use short in-memory TTL caches to reduce repeated external calls.
-9. The popup displays score, label, confidence, reasons, source mode, and feedback controls.
-10. A `dangerous` final result can inject a dismissible page overlay when enabled.
+9. In development demo mode, localhost URLs containing `phishlens-demo-dangerous` can trigger an explicit demo threat signal.
+10. The popup displays score, label, confidence, reasons, source mode, and feedback controls.
+11. A `dangerous` final result can inject a dismissible page overlay when enabled.
+12. `/diagnostics` exposes aggregate counters only when diagnostics are enabled.
 
 ## Extension And Backend Boundary
 
@@ -39,6 +42,16 @@ The options page stores:
 - Whether the dangerous-result overlay is enabled.
 
 Custom remote backend origins use optional host permissions instead of broad default host access.
+
+## Request Context And Diagnostics
+
+The backend adds an `X-Request-ID` header to every response. A caller-provided `X-Request-ID` is accepted only when it is short and uses safe characters; otherwise the backend generates one.
+
+`/diagnostics` is intended for development and demo workflows. It reports counters for analysis requests, feedback, rate limits, labels, sources, cache hits/misses, and external service skips/errors. It does not expose URLs, page text, form values, credentials, cookies, screenshots, or HTML.
+
+## Rate Limiting
+
+`/analyze` and `/report` use process-local in-memory rate limits keyed by route and client host. This is a lightweight development safeguard, not a distributed production limiter.
 
 ## TLS In Backend
 
@@ -62,9 +75,9 @@ This can differ from what the browser sees when the user is behind a corporate p
                                      | POST /analyze
                                      v
                              [FastAPI backend]
-                              |      |       |
-                              v      v       v
-                         [PhishTank] [TLS] [ML model]
+                              |      |       |        |
+                              v      v       v        v
+                         [PhishTank] [TLS] [ML model] [Diagnostics]
                               ^      ^
                               |      |
                             TTL cache

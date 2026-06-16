@@ -18,6 +18,7 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
       ml: false,
       phishtank: false,
       tls: false,
+      demo: false,
     },
   };
 }

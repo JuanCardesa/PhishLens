@@ -35,6 +35,7 @@ class AnalysisSources(BaseModel):
     ml: bool
     phishtank: bool
     tls: bool
+    demo: bool = False
 
 
 class AnalysisResponse(BaseModel):
