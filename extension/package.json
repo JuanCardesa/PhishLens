@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "generate-icons": "node scripts/generate-icons.mjs",
     "lint": "tsc --noEmit",
     "package": "npm run build && node scripts/package-extension.mjs",
     "test": "vitest run --config vitest.config.ts",
@@ -22,6 +23,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "sharp": "^0.35.1",
     "vitest": "^4.1.9"
   }
 }
