@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
+from app.core.config import get_settings
 from app.schemas.analysis import (
     AnalysisRequest,
     AnalysisResponse,
@@ -15,6 +17,8 @@ from app.services.feature_extractor import URLFeatures, extract_url_features
 from app.services.ml_service import MLResult, predict_ml_adjustment
 from app.services.phishtank_service import PhishTankResult, check_url
 from app.services.tls_service import TLSResult, inspect_tls
+
+logger = logging.getLogger(__name__)
 
 
 URL_SCORE_CAP = 35
@@ -34,12 +38,23 @@ def label_from_score(score: int) -> RiskLabel:
 
 
 async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
+    settings = get_settings()
     url_features = extract_url_features(request.url)
     demo_threat_result = check_demo_threat_source(request.url)
-    phishtank_result, tls_result = await asyncio.gather(
-        check_url(request.url),
-        inspect_tls(request.url),
-    )
+
+    # Each service has its own per-request timeout; this outer guard prevents both
+    # running in sequence from exceeding a combined wall-clock budget.
+    gather_timeout = settings.external_timeout_seconds * 2.5
+    try:
+        phishtank_result, tls_result = await asyncio.wait_for(
+            asyncio.gather(check_url(request.url), inspect_tls(request.url)),
+            timeout=gather_timeout,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("external_services_timeout", extra={"timeout_seconds": gather_timeout})
+        phishtank_result = PhishTankResult(checked=False, in_database=False, verified=False, valid=False)
+        tls_result = TLSResult(checked=False)
+
     ml_result = predict_ml_adjustment(url_features, request.dom_features)
 
     url_score, url_reasons = _score_url(url_features)
