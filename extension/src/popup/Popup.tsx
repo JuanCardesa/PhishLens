@@ -30,6 +30,7 @@ export function Popup() {
   }, []);
 
   const statusText = analysis ? labelText(analysis.label) : "Checking";
+  const statusSymbol = analysis ? labelSymbol(analysis.label) : null;
   const signalGroups = analysis ? groupReasonsBySignal(analysis.reasons, analysis.sources, analysis.risk_breakdown) : [];
 
   async function runAnalysis() {
@@ -132,14 +133,22 @@ export function Popup() {
       </header>
 
       {error ? <div className="notice">{error}</div> : null}
-      {analysis ? <div className={`mode-banner ${analysis.mode}`}>{modeDescription(analysis.mode)}</div> : null}
+      {analysis ? <div className={`mode-banner ${analysis.mode}`}>{modeBannerText(analysis)}</div> : null}
 
-      <section className={`risk-panel ${analysis?.label ?? "safe"}`}>
+      <section
+        className={`risk-panel ${analysis?.label ?? "safe"}`}
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={analysis ? `Risk level: ${statusText}, score ${analysis.risk_score} out of 100` : "Awaiting analysis"}
+      >
         <div>
-          <span className="status">{statusText}</span>
+          <span className="status">
+            {statusSymbol ? <span className="status-symbol" aria-hidden="true">{statusSymbol}</span> : null}
+            {statusText}
+          </span>
           <strong className="score">{analysis?.risk_score ?? "--"}</strong>
         </div>
-        <span className="score-label">risk score</span>
+        <span className="score-label" aria-hidden="true">risk score</span>
       </section>
 
       <section className="details">
@@ -294,17 +303,22 @@ function modeLabel(mode: AnalysisMode): string {
   return "Local only";
 }
 
-function modeDescription(mode: AnalysisMode): string {
-  if (mode === "backend-enriched") {
+function modeBannerText(analysis: PopupAnalysis): string {
+  if (analysis.mode === "backend-enriched") {
     return "Backend enrichment is active for this result.";
   }
-  if (mode === "backend-unavailable") {
-    return "Backend unavailable. Showing local fallback analysis.";
+  if (analysis.mode === "backend-unavailable") {
+    const skipped: string[] = [];
+    if (!analysis.sources.tls) skipped.push("TLS");
+    if (!analysis.sources.phishtank) skipped.push("threat intelligence");
+    if (!analysis.sources.ml) skipped.push("ML");
+    const suffix = skipped.length > 0 ? ` ${skipped.join(", ")} ${skipped.length === 1 ? "was" : "were"} not checked.` : "";
+    return `Backend unavailable — showing local heuristic analysis.${suffix}`;
   }
-  if (mode === "cached") {
+  if (analysis.mode === "cached") {
     return "Showing a recent cached result while refreshing.";
   }
-  if (mode === "checking") {
+  if (analysis.mode === "checking") {
     return "Checking the current page.";
   }
   return "Local-only analysis. Backend enrichment is not active.";
@@ -335,6 +349,16 @@ function labelText(label: RiskLabel): string {
     return "Suspicious";
   }
   return "Safe";
+}
+
+function labelSymbol(label: RiskLabel): string {
+  if (label === "dangerous") {
+    return "✕";
+  }
+  if (label === "suspicious") {
+    return "!";
+  }
+  return "✓";
 }
 
 async function showDangerOverlay(

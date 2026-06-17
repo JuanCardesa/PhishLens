@@ -47,7 +47,7 @@ The top-level `reasons` list remains for compatibility. New UI should prefer `ri
 
 The extension does not send full HTML or form values. The backend receives the URL and structured DOM features only.
 
-Feedback uses the same privacy boundary. The popup sends URL, observed label, expected label, and a short non-sensitive note. The backend logs host-level context and does not persist feedback in the MVP.
+Feedback uses the same privacy boundary. The popup sends URL, observed label, expected label, and a short non-sensitive note. The backend logs host-level context and persists only host-level label metadata in the configured SQLite feedback store; it does not persist full URLs, note text, page content, form values, credentials, cookies, screenshots, or HTML.
 
 ## Configuration Flow
 
