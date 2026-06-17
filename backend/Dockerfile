@@ -1,4 +1,4 @@
-# --- build stage: install all dependencies (including dev tools) -----------
+# --- build stage: install runtime dependencies -----------------------------
 FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,12 +10,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
-# --- runtime stage: lean image, no dev tooling ----------------------------
+# --- runtime stage: lean image, no dev tooling -----------------------------
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PHISHLENS_FEEDBACK_DB_PATH=/data/feedback.db
 
 # Non-root user so the process cannot write to arbitrary container paths.
 RUN addgroup --system phishlens && adduser --system --ingroup phishlens phishlens

@@ -14,9 +14,7 @@ services:
 
       # CORS — comma-separated allowed origins for the backend API
       PHISHLENS_ALLOWED_ORIGINS: ${PHISHLENS_ALLOWED_ORIGINS:-http://localhost:5173}
-
-      # Optional: lock CORS to specific Chrome extension IDs (recommended for production)
-      # PHISHLENS_CHROME_EXTENSION_IDS: abc123def456,xyz789
+      PHISHLENS_CHROME_EXTENSION_IDS: ${PHISHLENS_CHROME_EXTENSION_IDS:-}
 
       # Feature flags
       PHISHLENS_ENABLE_THREAT_INTEL: ${PHISHLENS_ENABLE_THREAT_INTEL:-true}
