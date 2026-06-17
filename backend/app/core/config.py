@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     enable_demo_threat_source: bool = Field(default=False, validation_alias="PHISHLENS_ENABLE_DEMO_THREAT_SOURCE")
     # Comma-separated Chrome extension IDs that are allowed to call the API.
     # When set, only these specific extension origins are accepted.
-    # When empty (default), any chrome-extension:// origin is accepted — suitable for
-    # local development before the extension has a stable published ID.
+    # When empty, PHISHLENS_ALLOWED_ORIGINS may still opt into chrome-extension://*
+    # for local development before the extension has a stable published ID.
     chrome_extension_ids: str = Field(default="", validation_alias="PHISHLENS_CHROME_EXTENSION_IDS")
     behind_proxy: bool = Field(default=False, validation_alias="PHISHLENS_BEHIND_PROXY")
     feedback_db_path: str = Field(default="feedback.db", validation_alias="PHISHLENS_FEEDBACK_DB_PATH")

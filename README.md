@@ -28,6 +28,7 @@ Implemented product capabilities:
 - Backend status diagnostics in the extension options page.
 - Chrome Web Store readiness and permission documentation.
 - Structured risk breakdown by URL, DOM, threat intelligence, TLS, and ML categories.
+- SQLite feedback persistence for host-level label metadata only.
 
 ## Architecture
 
@@ -137,6 +138,7 @@ Copy `.env.example` to `.env` for local overrides.
 - `PHISHTANK_API_KEY`: optional PhishTank application key.
 - `PHISHTANK_USER_AGENT`: descriptive User-Agent required by PhishTank.
 - `PHISHLENS_ALLOWED_ORIGINS`: backend CORS origins. Add `chrome-extension://*` (or a specific extension origin) only when extension access is required.
+- `PHISHLENS_CHROME_EXTENSION_IDS`: comma-separated Chrome extension IDs allowed by backend CORS.
 - `PHISHLENS_ENABLE_THREAT_INTEL`: enable or disable threat intel checks.
 - `PHISHLENS_ENABLE_TLS_ANALYSIS`: enable or disable backend TLS checks.
 - `PHISHLENS_MODEL_PATH`: optional path to a trained joblib model.
@@ -145,6 +147,8 @@ Copy `.env.example` to `.env` for local overrides.
 - `PHISHLENS_ANALYZE_RATE_LIMIT`: per-window `/analyze` request limit.
 - `PHISHLENS_REPORT_RATE_LIMIT`: per-window `/report` request limit.
 - `PHISHLENS_RATE_LIMIT_WINDOW_SECONDS`: rate-limit window.
+- `PHISHLENS_BEHIND_PROXY`: trust `X-Forwarded-For` only when the backend is behind a trusted reverse proxy.
+- `PHISHLENS_FEEDBACK_DB_PATH`: SQLite path for feedback metadata. Set to an empty string to disable persistence.
 - `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`: localhost-only dangerous demo signal.
 
 No real keys are committed.
@@ -193,7 +197,7 @@ The zip is written to `extension/release/`.
 - The included ML dataset is synthetic demo data only.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
-- Feedback is logged for review only; durable storage is intentionally deferred.
+- Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
 - Diagnostics are development counters only and should not be treated as production telemetry.
 - In-memory rate limiting is process-local and resets when the backend restarts.
 - The current build prioritizes explainability and safe defaults over coverage.

@@ -32,6 +32,7 @@ backend/app/models/*.joblib
 # SQLite feedback database (runtime data, not source)
 feedback.db
 *.db
+*.db-*
 
 # OS/editor
 .DS_Store
