@@ -15,6 +15,7 @@ describe("analyzeLocally", () => {
 
     expect(result.label).toBe("safe");
     expect(result.risk_score).toBeLessThan(35);
+    expect(result.risk_breakdown?.map((item) => item.category)).toEqual(["url", "dom", "threat_intel", "tls", "ml"]);
   });
 
   it("combines URL and DOM signals into suspicious risk", () => {
@@ -29,5 +30,7 @@ describe("analyzeLocally", () => {
 
     expect(result.label).toBe("suspicious");
     expect(result.reasons).toContain("Form submits data to an external domain");
+    expect(result.risk_breakdown?.find((item) => item.category === "dom")?.max_score).toBe(30);
+    expect(result.risk_breakdown?.find((item) => item.category === "ml")?.min_score).toBe(-10);
   });
 });

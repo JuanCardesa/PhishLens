@@ -41,7 +41,11 @@ def extract_url_features(url: str) -> URLFeatures:
     uses_ip_domain = _is_ip_address(hostname)
     registered_domain_parts = labels[-2:] if len(labels) >= 2 else labels
     registered_domain = ".".join(registered_domain_parts)
-    keyword_matches = tuple(keyword for keyword in SUSPICIOUS_KEYWORDS if keyword in url.lower())
+    # Limit keyword scan to hostname + path only; query strings like
+    # ?q=bank+verify are common on legitimate search engines and cause
+    # false positives when the full URL is checked.
+    hostname_and_path = (hostname + (parsed.path or "")).lower()
+    keyword_matches = tuple(keyword for keyword in SUSPICIOUS_KEYWORDS if keyword in hostname_and_path)
 
     return URLFeatures(
         url_length=len(url),

@@ -8,7 +8,7 @@ PhishLens is designed to minimize data collection.
 - Structured URL features derived from that URL.
 - DOM counts and booleans:
   forms, password field presence, external form action, iframes, external link ratio, and hidden input presence.
-- Optional backend TLS certificate metadata for the domain.
+- Optional backend TLS certificate metadata for the domain, including expiry status. An expired certificate is identified via the OpenSSL verify code (code 10 = `X509_V_ERR_CERT_HAS_EXPIRED`) rather than by reading the `notAfter` field, because the SSL handshake rejects expired certificates before the field is accessible.
 - Optional PhishTank lookup result for the URL.
 - Optional user feedback labels from the popup: observed label, expected label, and a short non-sensitive note.
 - Aggregate diagnostics counters for request counts, labels, sources, rate limits, cache hits, and external-service skips/errors.
@@ -37,6 +37,8 @@ The extension stores short-lived cached analysis results keyed by a local hash o
 The extension stores backend settings in `chrome.storage.sync`: backend URL, timeout, and overlay preference.
 
 The backend uses short-lived in-memory caches for PhishTank URL lookups and TLS hostname checks. These caches are process-local and are not durable storage.
+
+Successful PhishTank results are cached for 300 seconds. Transient network errors from PhishTank are cached separately for 30 seconds to allow fast retries during brief outages without hammering the external API on every request.
 
 Diagnostics and rate-limit counters are process-local and reset when the backend restarts.
 
