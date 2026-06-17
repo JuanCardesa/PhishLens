@@ -30,6 +30,16 @@ Implemented product capabilities:
 - Structured risk breakdown by URL, DOM, threat intelligence, TLS, and ML categories.
 - SQLite feedback persistence for host-level label metadata only.
 
+## Screenshots
+
+| Safe result | Suspicious result | Dangerous result |
+|---|---|---|
+| ![Safe result](docs/screenshots/01-safe-result.png) | ![Suspicious result](docs/screenshots/02-suspicious-result.png) | ![Dangerous result](docs/screenshots/03-dangerous-result.png) |
+
+| Local-only mode (backend unavailable) | Danger overlay |
+|---|---|
+| ![Local-only mode](docs/screenshots/04-local-only.png) | ![Danger overlay](docs/screenshots/05-danger-overlay.png) |
+
 ## Architecture
 
 ```text
@@ -56,6 +66,17 @@ The extension never sends full HTML, form values, passwords, or typed emails. Th
 
 ### Backend
 
+**Linux / macOS**
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+uvicorn app.main:app --app-dir backend --reload
+```
+
+**Windows**
+
 ```bash
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
@@ -67,6 +88,8 @@ Health check:
 ```bash
 curl http://localhost:8000/health
 ```
+
+Interactive API documentation is available at `http://localhost:8000/docs` while the backend is running.
 
 ### Extension
 
@@ -178,11 +201,11 @@ npm run build
 
 Load `extension/dist` in Chrome and visit:
 
-- `http://127.0.0.1:8080/pages/safe.html`
-- `http://127.0.0.1:8080/pages/suspicious.html`
-- `http://127.0.0.1:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
+- `http://localhost:8080/pages/safe.html`
+- `http://localhost:8080/pages/suspicious.html`
+- `http://localhost:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
 
-The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches localhost/127.0.0.1 URLs containing `phishlens-demo-dangerous`.
+The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches `localhost` URLs containing `phishlens-demo-dangerous`. Use `localhost` rather than `127.0.0.1`: the backend rejects private IP literals as an SSRF safeguard.
 
 Package the extension:
 
