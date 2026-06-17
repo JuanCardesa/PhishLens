@@ -30,6 +30,7 @@ export function Popup() {
   }, []);
 
   const statusText = analysis ? labelText(analysis.label) : "Checking";
+  const statusSymbol = analysis ? labelSymbol(analysis.label) : null;
   const signalGroups = analysis ? groupReasonsBySignal(analysis.reasons, analysis.sources, analysis.risk_breakdown) : [];
 
   async function runAnalysis() {
@@ -134,12 +135,20 @@ export function Popup() {
       {error ? <div className="notice">{error}</div> : null}
       {analysis ? <div className={`mode-banner ${analysis.mode}`}>{modeBannerText(analysis)}</div> : null}
 
-      <section className={`risk-panel ${analysis?.label ?? "safe"}`}>
+      <section
+        className={`risk-panel ${analysis?.label ?? "safe"}`}
+        aria-live="polite"
+        aria-atomic="true"
+        aria-label={analysis ? `Risk level: ${statusText}, score ${analysis.risk_score} out of 100` : "Awaiting analysis"}
+      >
         <div>
-          <span className="status">{statusText}</span>
+          <span className="status">
+            {statusSymbol ? <span className="status-symbol" aria-hidden="true">{statusSymbol}</span> : null}
+            {statusText}
+          </span>
           <strong className="score">{analysis?.risk_score ?? "--"}</strong>
         </div>
-        <span className="score-label">risk score</span>
+        <span className="score-label" aria-hidden="true">risk score</span>
       </section>
 
       <section className="details">
@@ -340,6 +349,16 @@ function labelText(label: RiskLabel): string {
     return "Suspicious";
   }
   return "Safe";
+}
+
+function labelSymbol(label: RiskLabel): string {
+  if (label === "dangerous") {
+    return "✕";
+  }
+  if (label === "suspicious") {
+    return "!";
+  }
+  return "✓";
 }
 
 async function showDangerOverlay(
