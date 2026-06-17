@@ -79,8 +79,12 @@ def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
     except Exception as exc:
         return TLSResult(checked=True, valid=False, error=str(exc))
 
+    if cert is None:
+        return TLSResult(checked=True, valid=False, error="could not retrieve certificate")
+
     try:
-        expires_at = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+        not_after = str(cert["notAfter"])
+        expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
         days_until_expiration = (expires_at - datetime.now(timezone.utc)).days
         expired = days_until_expiration < 0
     except (KeyError, ValueError) as exc:

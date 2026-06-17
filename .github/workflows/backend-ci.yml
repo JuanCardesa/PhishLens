@@ -31,5 +31,7 @@ jobs:
         run: python -c "import app.main; print('backend import ok')"
       - name: Ruff
         run: ruff check app tests ../demo
+      - name: Mypy
+        run: mypy app
       - name: Pytest
         run: pytest tests

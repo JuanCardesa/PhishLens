@@ -20,7 +20,7 @@ def report_feedback(
     _: None = Depends(rate_limit_dependency("report")),
 ) -> ReportResponse:
     request_id = getattr(request.state, "request_id", None)
-    url_host = hostname_from_url(payload.url)
+    url_host = hostname_from_url(payload.url) or "unknown"
 
     DIAGNOSTICS.record_report()
     FEEDBACK_STORE.record(

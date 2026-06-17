@@ -42,7 +42,7 @@ class MLResult:
 
 @dataclass
 class _ModelArtifact:
-    model: object
+    model: Any
     feature_order: list[str]
 
 
