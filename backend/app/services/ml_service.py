@@ -9,11 +9,11 @@ from typing import Any
 
 import joblib
 
-logger = logging.getLogger(__name__)
-
 from app.core.config import Settings, get_settings
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import URLFeatures
+
+logger = logging.getLogger(__name__)
 
 
 FEATURE_ORDER = [
