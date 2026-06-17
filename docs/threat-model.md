@@ -16,6 +16,7 @@
 - False negatives on new phishing campaigns.
 - Backend dependency or threat-intel outage.
 - Malicious pages attempting to confuse DOM feature extraction.
+- SSRF via DNS resolution: the URL normalizer blocks private IP literals but does not resolve DNS names. A hostname that resolves to a private or link-local address (e.g. an internal DNS entry or a DNS-rebinding attack) passes the literal check and reaches the TLS service's TCP connection.
 
 ## Assumptions
 
@@ -39,3 +40,7 @@
 - Explicit docs for limitations and privacy boundaries.
 - Tests around scoring and schemas.
 - Conventional commits and reviewable changes.
+
+## Accepted Risks And Limitations
+
+**SSRF via DNS name resolution.** Blocking IP literals at request time without resolving DNS names is a deliberate trade-off. Resolving every submitted hostname before connecting would add latency, require a DNS dependency on the backend, and introduce a TOCTOU window between the resolution check and the actual connection. The accepted risk is that an attacker-controlled hostname resolving to a private address could reach internal services via the TLS inspection path. This is mitigated by the fact that the backend only makes a TLS handshake (no HTTP request body is sent to the target), the connection is limited to port 443, and the backend runs as a non-root user in a container. A network-level egress firewall blocking RFC 1918 ranges is the recommended control for production deployments.
