@@ -4,6 +4,7 @@ type StorageArea = {
   data: Record<string, unknown>;
   get: (keys: string[] | string, callback: (items: Record<string, unknown>) => void) => void;
   set: (items: Record<string, unknown>, callback?: () => void) => void;
+  remove: (keys: string[] | string, callback?: () => void) => void;
 };
 
 function createStorageArea(): StorageArea {
@@ -15,6 +16,13 @@ function createStorageArea(): StorageArea {
     },
     set(items, callback) {
       this.data = { ...this.data, ...items };
+      callback?.();
+    },
+    remove(keys, callback) {
+      const keyList = Array.isArray(keys) ? keys : [keys];
+      for (const key of keyList) {
+        delete this.data[key];
+      }
       callback?.();
     },
   };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AnalysisMode, PopupAnalysis } from "../types/analysis";
-import { labelSymbol, labelText, modeBannerText, modeLabel, sourceList } from "./Popup";
+import { cacheKey, labelSymbol, labelText, modeBannerText, modeLabel, sourceList } from "./Popup";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -171,5 +171,34 @@ describe("sourceList", () => {
     expect(sources.indexOf("tls")).toBeLessThan(sources.indexOf("phishtank"));
     expect(sources.indexOf("phishtank")).toBeLessThan(sources.indexOf("ml"));
     expect(sources.indexOf("ml")).toBeLessThan(sources.indexOf("demo"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// cacheKey
+// ---------------------------------------------------------------------------
+
+describe("cacheKey", () => {
+  it("returns an analysis:-prefixed 16-char hex string", async () => {
+    const key = await cacheKey("https://example.com");
+    expect(key).toMatch(/^analysis:[0-9a-f]{16}$/);
+  });
+
+  it("returns the same key for the same URL", async () => {
+    const key1 = await cacheKey("https://example.com");
+    const key2 = await cacheKey("https://example.com");
+    expect(key1).toBe(key2);
+  });
+
+  it("returns different keys for different URLs", async () => {
+    const key1 = await cacheKey("https://example.com");
+    const key2 = await cacheKey("https://other.com");
+    expect(key1).not.toBe(key2);
+  });
+
+  it("distinguishes URLs that share a common prefix", async () => {
+    const key1 = await cacheKey("https://bank.example.com/login");
+    const key2 = await cacheKey("https://bank.example.com/logout");
+    expect(key1).not.toBe(key2);
   });
 });

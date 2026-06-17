@@ -257,7 +257,7 @@ function toPopupAnalysis(
 }
 
 async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
-  const key = cacheKey(url);
+  const key = await cacheKey(url);
   return new Promise((resolve) => {
     chrome.storage.local.get([key], (items) => {
       const cached = items[key] as PopupAnalysis | undefined;
@@ -267,24 +267,28 @@ async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
       }
 
       const ageMs = Date.now() - new Date(cached.analyzedAt).getTime();
-      resolve(ageMs < 5 * 60 * 1000 ? cached : null);
+      if (ageMs >= 5 * 60 * 1000) {
+        chrome.storage.local.remove([key]);
+        resolve(null);
+        return;
+      }
+      resolve(cached);
     });
   });
 }
 
 async function writeCachedAnalysis(url: string, value: PopupAnalysis): Promise<void> {
-  const key = cacheKey(url);
+  const key = await cacheKey(url);
   return new Promise((resolve) => {
     chrome.storage.local.set({ [key]: value }, () => resolve());
   });
 }
 
-function cacheKey(url: string): string {
-  let hash = 0;
-  for (let index = 0; index < url.length; index += 1) {
-    hash = (hash * 31 + url.charCodeAt(index)) >>> 0;
-  }
-  return `analysis:${hash.toString(16)}`;
+export async function cacheKey(url: string): Promise<string> {
+  const data = new TextEncoder().encode(url);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hex = Array.from(new Uint8Array(hashBuffer), (b) => b.toString(16).padStart(2, "0")).join("");
+  return `analysis:${hex.slice(0, 16)}`;
 }
 
 export function modeLabel(mode: AnalysisMode): string {
