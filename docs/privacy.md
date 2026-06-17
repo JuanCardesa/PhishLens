@@ -52,7 +52,7 @@ The mode banner in the popup UI explicitly lists which backend services (TLS, th
 
 The popup UI supports the system `prefers-color-scheme: dark` media query via CSS custom properties. This is a purely visual change — no additional data is collected or transmitted based on the user's colour scheme preference.
 
-The risk panel uses `aria-live="polite"` with `aria-atomic="true"` so screen readers announce the updated risk level and score when analysis completes. The risk level label (`Safe`, `Suspicious`, `Dangerous`) is rendered as visible text in addition to the colour-coded border; CSS `::before` symbols (✓ / ⚠ / ✕) provide a colour-independent indicator for users with colour-vision deficiency. No user interaction data beyond what is already documented is captured by these accessibility additions.
+The risk panel uses `aria-live="polite"` with `aria-atomic="true"` so screen readers announce the updated risk level and score when analysis completes. The risk level label (`Safe`, `Suspicious`, `Dangerous`) is rendered as visible text in addition to the colour-coded border; visible symbols marked `aria-hidden="true"` provide a colour-independent indicator for users with colour-vision deficiency. No user interaction data beyond what is already documented is captured by these accessibility additions.
 
 ## Diagnostics
 
