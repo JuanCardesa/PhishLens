@@ -4,19 +4,50 @@ services:
       context: ./backend
     ports:
       - "8000:8000"
+    volumes:
+      # Persist the feedback SQLite database across container restarts.
+      - feedback_data:/data
     environment:
+      # PhishTank threat intelligence
       PHISHTANK_API_KEY: ${PHISHTANK_API_KEY:-}
       PHISHTANK_USER_AGENT: ${PHISHTANK_USER_AGENT:-phishtank/phishlens-demo}
+
+      # CORS — comma-separated allowed origins for the backend API
       PHISHLENS_ALLOWED_ORIGINS: ${PHISHLENS_ALLOWED_ORIGINS:-http://localhost:5173}
+
+      # Optional: lock CORS to specific Chrome extension IDs (recommended for production)
+      # PHISHLENS_CHROME_EXTENSION_IDS: abc123def456,xyz789
+
+      # Feature flags
       PHISHLENS_ENABLE_THREAT_INTEL: ${PHISHLENS_ENABLE_THREAT_INTEL:-true}
       PHISHLENS_ENABLE_TLS_ANALYSIS: ${PHISHLENS_ENABLE_TLS_ANALYSIS:-true}
       PHISHLENS_ENABLE_DIAGNOSTICS: ${PHISHLENS_ENABLE_DIAGNOSTICS:-true}
       PHISHLENS_ENABLE_RATE_LIMITING: ${PHISHLENS_ENABLE_RATE_LIMITING:-true}
+      PHISHLENS_ENABLE_DEMO_THREAT_SOURCE: ${PHISHLENS_ENABLE_DEMO_THREAT_SOURCE:-false}
+
+      # Rate limiting
       PHISHLENS_ANALYZE_RATE_LIMIT: ${PHISHLENS_ANALYZE_RATE_LIMIT:-60}
       PHISHLENS_REPORT_RATE_LIMIT: ${PHISHLENS_REPORT_RATE_LIMIT:-20}
       PHISHLENS_RATE_LIMIT_WINDOW_SECONDS: ${PHISHLENS_RATE_LIMIT_WINDOW_SECONDS:-60}
-      PHISHLENS_ENABLE_DEMO_THREAT_SOURCE: ${PHISHLENS_ENABLE_DEMO_THREAT_SOURCE:-false}
 
+      # Proxy — set to true when deployed behind nginx / Caddy / AWS ALB
+      PHISHLENS_BEHIND_PROXY: ${PHISHLENS_BEHIND_PROXY:-false}
+
+      # Feedback store — writes to the /data volume
+      PHISHLENS_FEEDBACK_DB_PATH: /data/feedback.db
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  feedback_data:
+
+  # Uncomment to add Redis for future persistent rate limiting:
   # redis:
   #   image: redis:7-alpine
   #   ports:
