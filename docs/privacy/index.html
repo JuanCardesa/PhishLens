@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — PhishLens</title>
+    <meta
+      name="description"
+      content="PhishLens privacy policy — what data the extension processes and what it never collects."
+    />
+    <style>
+      :root {
+        --navy: #132238;
+        --teal: #3aa6b9;
+        --light: #f8fafc;
+        --mid: #64748b;
+        --text: #e2e8f0;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: var(--navy);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.7;
+      }
+      .wrap { max-width: 680px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+      nav { margin-bottom: 2.5rem; }
+      nav a { color: var(--teal); text-decoration: none; font-size: 0.875rem; }
+      nav a:hover { text-decoration: underline; }
+      h1 { font-size: 1.75rem; font-weight: 700; color: var(--light); margin-bottom: 0.5rem; }
+      .subtitle { color: var(--mid); font-size: 0.875rem; margin-bottom: 2.5rem; }
+      h2 { font-size: 1.05rem; font-weight: 600; color: var(--teal); margin: 2rem 0 0.75rem; }
+      p { margin-bottom: 0.75rem; font-size: 0.95rem; }
+      ul { margin: 0.5rem 0 0.75rem 1.5rem; font-size: 0.95rem; }
+      ul li { margin-bottom: 0.3rem; }
+      .never { background: rgba(244,185,66,0.08); border-left: 3px solid #f4b942; padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin: 0.75rem 0; }
+      .never ul { margin-top: 0.5rem; }
+      footer { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.5rem; margin-top: 3rem; font-size: 0.8rem; color: var(--mid); }
+      footer a { color: var(--mid); text-decoration: none; }
+      footer a:hover { color: var(--teal); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav><a href="../">&larr; PhishLens</a></nav>
+
+      <h1>Privacy Policy</h1>
+      <p class="subtitle">Last updated: June 2026 &mdash; PhishLens v0.2.0</p>
+
+      <p>
+        PhishLens is designed to minimise data collection. This policy describes exactly what the
+        extension processes and what it never touches.
+      </p>
+
+      <h2>What PhishLens processes</h2>
+      <ul>
+        <li>The URL of the current page when you open or refresh the popup.</li>
+        <li>Derived URL features: length, dot and hyphen counts, IP domain detection, subdomain count, presence of suspicious keywords in the hostname and path, punycode detection, and domain entropy.</li>
+        <li>Non-sensitive page-structure counts: number of forms, presence of a password-input element, whether any form submits to an external domain, number of iframes, ratio of external links, and presence of hidden inputs.</li>
+        <li>Optional TLS certificate metadata (issuer, expiry) fetched from the domain when TLS analysis is enabled on the companion backend.</li>
+        <li>Optional PhishTank lookup result (in-database, verified, valid flags) when threat intelligence is enabled on the companion backend.</li>
+        <li>Optional user feedback: if you click "Mark as safe" or "Mark as phishing", the extension sends the current URL, the displayed label, and the expected label to the backend. No page content is included.</li>
+        <li>Aggregate backend diagnostics: request counts, label distribution, cache hit rates, and error counts. These are process-local counters and reset when the backend restarts.</li>
+      </ul>
+
+      <h2>What PhishLens never collects</h2>
+      <div class="never">
+        <p>The following data is <strong>never read, stored, or transmitted</strong> by PhishLens:</p>
+        <ul>
+          <li>Passwords or password-field values</li>
+          <li>Typed emails or any form field values</li>
+          <li>Full page HTML or page screenshots</li>
+          <li>Cookies or session tokens</li>
+          <li>Browser history</li>
+          <li>Private page text or user-generated content</li>
+          <li>Full URLs in backend diagnostics or logs</li>
+        </ul>
+      </div>
+
+      <h2>Local storage</h2>
+      <p>
+        The extension stores two things in <code>chrome.storage</code>:
+      </p>
+      <ul>
+        <li><strong>Settings</strong> (synced): backend URL, request timeout, and danger-overlay toggle.</li>
+        <li><strong>Analysis cache</strong> (local): a short-lived entry (5-minute TTL) keyed by a one-way hash of the current URL, so the popup does not re-analyse the same page on every open.</li>
+      </ul>
+      <p>No analysis cache entry contains passwords, form values, or any sensitive page content.</p>
+
+      <h2>Backend data handling</h2>
+      <p>
+        The optional companion API (FastAPI, self-hosted) does not durably persist <code>/analyze</code>
+        requests or <code>/report</code> feedback. In-memory caches for TLS and PhishTank results are
+        process-local and cleared on restart.
+      </p>
+      <p>
+        If you use a self-hosted backend, you control the infrastructure and logging configuration.
+        PhishLens does not send data to any Anthropic or third-party servers.
+      </p>
+
+      <h2>API keys</h2>
+      <p>
+        PhishTank API keys are backend environment variables only. They are never bundled with the
+        extension or transmitted to the browser.
+      </p>
+
+      <h2>Permissions</h2>
+      <p>PhishLens requests the minimum permissions needed:</p>
+      <ul>
+        <li><strong>activeTab</strong> — reads the URL of the current tab when you open the popup. No background scanning.</li>
+        <li><strong>scripting</strong> — injects the dismissible danger overlay when a page scores as Dangerous and the overlay setting is enabled.</li>
+        <li><strong>storage</strong> — stores extension settings and the short-lived analysis cache.</li>
+      </ul>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If the data handling described here changes materially, a new version of this policy will be
+        published at this URL and the extension changelog will reference it.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions or concerns about this policy can be raised as a
+        <a href="https://github.com/JuanCardesa/PhishLens/issues" style="color:var(--teal)">GitHub issue</a>.
+      </p>
+
+      <footer>
+        <a href="../">PhishLens home</a> &nbsp;&middot;&nbsp;
+        <a href="https://github.com/JuanCardesa/PhishLens">Source code</a>
+      </footer>
+    </div>
+  </body>
+</html>
