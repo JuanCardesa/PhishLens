@@ -44,7 +44,9 @@ Diagnostics and rate-limit counters are process-local and reset when the backend
 
 ## Feedback
 
-Popup feedback exists to support future false positive and false negative review. In this sprint, `/report` logs only host-level context, labels, and whether a note was present. It does not store credentials, form values, page content, or full HTML.
+Popup feedback is now persisted to a local SQLite database (`feedback.db` by default, configurable via `PHISHLENS_FEEDBACK_DB_PATH`). The store records only the URL hostname, the observed and expected risk labels, and a boolean indicating whether a note was present. Full URLs, note text, page content, form values, and credentials are never stored.
+
+The mode banner in the popup UI explicitly lists which backend services (TLS, threat intelligence, ML) were not checked when the backend is unavailable, so users know the score is heuristic-only.
 
 ## Diagnostics
 
