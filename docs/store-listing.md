@@ -47,8 +47,8 @@ PRIVACY FIRST
 PhishLens is built around minimal data collection:
 • Only the current page URL and a small set of non-sensitive DOM counts are ever sent to the backend.
 • Passwords, typed emails, form values, full HTML, cookies, session tokens, and browser history are never read or transmitted.
-• The backend does not persist analysis requests or user feedback.
-• Optional feedback (marking a result as safe or phishing) sends only URL, observed label, and expected label — no page content.
+• The backend does not persist analysis requests.
+• Optional feedback (marking a result as safe or phishing) sends URL, observed label, and expected label. The self-hosted backend stores only hostname-level label metadata, note presence, request ID, and timestamp — no full URL, note text, or page content.
 
 EXPLAINABILITY
 

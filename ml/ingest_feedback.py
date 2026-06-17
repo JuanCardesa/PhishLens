@@ -7,7 +7,8 @@ user corrected it to). Exports them as CSV for manual review and future
 dataset augmentation.
 
 IMPORTANT — current store limitations:
-  The feedback store records only the URL *hostname* and risk labels.
+  The feedback store records only the URL *hostname*, risk labels,
+  note-presence flag, sanitized request ID, and timestamp.
   It does not store the full URL, DOM features, or the feature vector used
   during analysis. This means exported rows cannot be fed directly into
   train_model.py — they need to be matched with a full crawl or enriched
@@ -16,9 +17,11 @@ IMPORTANT — current store limitations:
 Workflow for turning feedback into training data:
   1. Run this script to export disagreements:
        python ml/ingest_feedback.py --db feedback.db --out ml/datasets/feedback_review.csv
-  2. For each row, locate the original URL (via logs or manual re-crawl),
-     re-extract features, and add a row to ml/datasets/phishing_urls.csv.
-  3. Re-train: python ml/train_model.py
+  2. For each row, re-crawl the recorded hostname or use a separately approved,
+     privacy-reviewed dataset source. Do not add full URLs from backend logs to
+     this repository.
+  3. Re-extract features and add a row to ml/datasets/phishing_urls.csv.
+  4. Re-train: python ml/train_model.py
 
 See ml/datasets/README.md for the dataset column format and real-dataset
 sources (PhishTank data dump, OpenPhish, ISCX-2016 URL dataset).
