@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from uuid import uuid4
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -13,13 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         started_at = time.perf_counter()
         request_id = _request_id_from_header(request.headers.get("X-Request-ID"))
         request.state.request_id = request_id
 
         try:
-            response = await call_next(request)
+            response: Response = await call_next(request)
         except Exception:
             logger.exception(
                 "request_failed",

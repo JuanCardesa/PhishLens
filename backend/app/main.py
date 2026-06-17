@@ -33,7 +33,7 @@ app.add_middleware(
 )
 app.add_middleware(RequestContextMiddleware)
 
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
 
 app.include_router(health.router)
 app.include_router(analyze.router)
