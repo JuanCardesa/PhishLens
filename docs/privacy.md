@@ -32,7 +32,7 @@ PhishLens must not collect:
 
 ## Storage
 
-The extension stores short-lived cached analysis results keyed by a local hash of the URL. The MVP backend does not persist `/analyze` requests or `/report` feedback.
+The extension stores short-lived cached analysis results keyed by a local hash of the URL. The backend does not persist `/analyze` requests. Popup feedback sent to `/report` is persisted only as host-level label metadata in SQLite, as described below.
 
 The extension stores backend settings in `chrome.storage.sync`: backend URL, timeout, and overlay preference.
 
@@ -44,7 +44,15 @@ Diagnostics and rate-limit counters are process-local and reset when the backend
 
 ## Feedback
 
-Popup feedback exists to support future false positive and false negative review. In this sprint, `/report` logs only host-level context, labels, and whether a note was present. It does not store credentials, form values, page content, or full HTML.
+Popup feedback is persisted to a local SQLite database (`feedback.db` by default, configurable via `PHISHLENS_FEEDBACK_DB_PATH`). The store records only the URL hostname, observed and expected risk labels, whether a note was present, a sanitized request ID for tracing, and a timestamp. Full URLs, note text, page content, form values, and credentials are never stored.
+
+The mode banner in the popup UI explicitly lists which backend services (TLS, threat intelligence, ML) were not checked when the backend is unavailable, so users know the score is heuristic-only.
+
+## Accessibility and Dark Mode
+
+The popup UI supports the system `prefers-color-scheme: dark` media query via CSS custom properties. This is a purely visual change — no additional data is collected or transmitted based on the user's colour scheme preference.
+
+The risk panel uses `aria-live="polite"` with `aria-atomic="true"` so screen readers announce the updated risk level and score when analysis completes. The risk level label (`Safe`, `Suspicious`, `Dangerous`) is rendered as visible text in addition to the colour-coded border; visible symbols marked `aria-hidden="true"` provide a colour-independent indicator for users with colour-vision deficiency. No user interaction data beyond what is already documented is captured by these accessibility additions.
 
 ## Diagnostics
 

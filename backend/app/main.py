@@ -16,10 +16,16 @@ app = FastAPI(
     description="Defensive phishing risk analysis API for the PhishLens browser extension.",
 )
 
+_extension_origins = settings.chrome_extension_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
-    allow_origin_regex=r"^chrome-extension://.*$" if settings.allow_chrome_extension_origins else None,
+    allow_origins=[*settings.allowed_origins, *_extension_origins],
+    # Fall back to broad regex only when no specific IDs are configured (local dev).
+    allow_origin_regex=(
+        r"^chrome-extension://.*$"
+        if settings.allow_chrome_extension_origins and not _extension_origins
+        else None
+    ),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "X-Request-ID"],
