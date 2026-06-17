@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
@@ -10,6 +12,8 @@ import joblib
 from app.core.config import Settings, get_settings
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import URLFeatures
+
+logger = logging.getLogger(__name__)
 
 
 FEATURE_ORDER = [
@@ -44,6 +48,7 @@ class MLResult:
 class _ModelArtifact:
     model: Any
     feature_order: list[str]
+    sha256_prefix: str
 
 
 _artifact_cache: _ModelArtifact | None = None
@@ -61,10 +66,14 @@ def _load_artifact(model_path: Path) -> _ModelArtifact:
         if _artifact_cache is not None:
             return _artifact_cache
 
+        file_bytes = model_path.read_bytes()
+        sha256_prefix = hashlib.sha256(file_bytes).hexdigest()[:16]
+        logger.info("ml_model_loaded path=%s sha256_prefix=%s", model_path, sha256_prefix)
+
         raw = joblib.load(model_path)
         model = raw["model"] if isinstance(raw, dict) and "model" in raw else raw
         feature_order = raw.get("feature_order", FEATURE_ORDER) if isinstance(raw, dict) else FEATURE_ORDER
-        _artifact_cache = _ModelArtifact(model=model, feature_order=feature_order)
+        _artifact_cache = _ModelArtifact(model=model, feature_order=feature_order, sha256_prefix=sha256_prefix)
 
     return _artifact_cache
 
