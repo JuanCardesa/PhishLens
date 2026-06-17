@@ -29,6 +29,10 @@ extension/release/
 ml/models/*.joblib
 backend/app/models/*.joblib
 
+# SQLite feedback database (runtime data, not source)
+feedback.db
+*.db
+
 # OS/editor
 .DS_Store
 Thumbs.db

@@ -48,6 +48,12 @@ Popup feedback is now persisted to a local SQLite database (`feedback.db` by def
 
 The mode banner in the popup UI explicitly lists which backend services (TLS, threat intelligence, ML) were not checked when the backend is unavailable, so users know the score is heuristic-only.
 
+## Accessibility and Dark Mode
+
+The popup UI supports the system `prefers-color-scheme: dark` media query via CSS custom properties. This is a purely visual change — no additional data is collected or transmitted based on the user's colour scheme preference.
+
+The risk panel uses `aria-live="polite"` with `aria-atomic="true"` so screen readers announce the updated risk level and score when analysis completes. The risk level label (`Safe`, `Suspicious`, `Dangerous`) is rendered as visible text in addition to the colour-coded border; visible symbols marked `aria-hidden="true"` provide a colour-independent indicator for users with colour-vision deficiency. No user interaction data beyond what is already documented is captured by these accessibility additions.
+
 ## Diagnostics
 
 `GET /diagnostics` is a development endpoint. It returns aggregate counters only. It must not include submitted URLs, form values, page content, cookies, credentials, screenshots, or HTML.
