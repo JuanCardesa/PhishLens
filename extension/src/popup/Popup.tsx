@@ -287,7 +287,7 @@ function cacheKey(url: string): string {
   return `analysis:${hash.toString(16)}`;
 }
 
-function modeLabel(mode: AnalysisMode): string {
+export function modeLabel(mode: AnalysisMode): string {
   if (mode === "backend-enriched") {
     return "Backend enriched";
   }
@@ -303,7 +303,7 @@ function modeLabel(mode: AnalysisMode): string {
   return "Local only";
 }
 
-function modeBannerText(analysis: PopupAnalysis): string {
+export function modeBannerText(analysis: PopupAnalysis): string {
   if (analysis.mode === "backend-enriched") {
     return "Backend enrichment is active for this result.";
   }
@@ -324,7 +324,7 @@ function modeBannerText(analysis: PopupAnalysis): string {
   return "Local-only analysis. Backend enrichment is not active.";
 }
 
-function sourceList(analysis: PopupAnalysis): string[] {
+export function sourceList(analysis: PopupAnalysis): string[] {
   const sources = ["heuristics"];
   if (analysis.sources.tls) {
     sources.push("tls");
@@ -341,7 +341,7 @@ function sourceList(analysis: PopupAnalysis): string[] {
   return sources;
 }
 
-function labelText(label: RiskLabel): string {
+export function labelText(label: RiskLabel): string {
   if (label === "dangerous") {
     return "Dangerous";
   }
@@ -351,7 +351,7 @@ function labelText(label: RiskLabel): string {
   return "Safe";
 }
 
-function labelSymbol(label: RiskLabel): string {
+export function labelSymbol(label: RiskLabel): string {
   if (label === "dangerous") {
     return "✕";
   }

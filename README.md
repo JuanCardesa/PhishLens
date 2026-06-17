@@ -58,7 +58,7 @@ The extension never sends full HTML, form values, passwords, or typed emails. Th
 
 ```bash
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
 ```
 
@@ -92,6 +92,7 @@ Extension settings are available from the popup settings button or Chrome extens
 Backend:
 
 ```bash
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 pytest backend/tests
 ```
 

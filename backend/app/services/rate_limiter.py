@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from math import ceil
 from threading import Lock
@@ -76,7 +77,7 @@ def _resolve_client_ip(request: Request, behind_proxy: bool) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def rate_limit_dependency(route_name: str):
+def rate_limit_dependency(route_name: str) -> Callable[[Request], Awaitable[None]]:
     async def dependency(request: Request) -> None:
         settings = get_settings()
         if not settings.enable_rate_limiting:
