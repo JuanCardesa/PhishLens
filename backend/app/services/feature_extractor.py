@@ -49,7 +49,7 @@ def extract_url_features(url: str) -> URLFeatures:
 
     return URLFeatures(
         url_length=len(url),
-        num_dots=url.count("."),
+        num_dots=hostname_and_path.count("."),   # query string excluded to avoid false positives
         num_hyphens=url.count("-"),
         uses_ip_domain=uses_ip_domain,
         has_at_symbol="@" in url,

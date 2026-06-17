@@ -34,6 +34,10 @@ services:
       # Feedback store — writes to the /data volume
       PHISHLENS_FEEDBACK_DB_PATH: /data/feedback.db
 
+      # Diagnostics token — when non-empty, GET /diagnostics requires
+      # the X-Diagnostics-Token: <value> header to prevent info leakage.
+      PHISHLENS_DIAGNOSTICS_TOKEN: ${PHISHLENS_DIAGNOSTICS_TOKEN:-}
+
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]

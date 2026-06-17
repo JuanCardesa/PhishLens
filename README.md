@@ -167,6 +167,7 @@ Copy `.env.example` to `.env` for local overrides.
 - `PHISHLENS_ENABLE_TLS_ANALYSIS`: enable or disable backend TLS checks.
 - `PHISHLENS_MODEL_PATH`: optional path to a trained joblib model.
 - `PHISHLENS_ENABLE_DIAGNOSTICS`: enable development diagnostics.
+- `PHISHLENS_DIAGNOSTICS_TOKEN`: optional token required in `X-Diagnostics-Token` for `/diagnostics` when set.
 - `PHISHLENS_ENABLE_RATE_LIMITING`: enable in-memory rate limits.
 - `PHISHLENS_ANALYZE_RATE_LIMIT`: per-window `/analyze` request limit.
 - `PHISHLENS_REPORT_RATE_LIMIT`: per-window `/report` request limit.

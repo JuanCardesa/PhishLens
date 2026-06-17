@@ -20,6 +20,7 @@ python -m venv .venv
 ## Development Controls
 
 - `PHISHLENS_ENABLE_DIAGNOSTICS`: enables `/diagnostics`.
+- `PHISHLENS_DIAGNOSTICS_TOKEN`: optional token required in `X-Diagnostics-Token` for `/diagnostics` when set.
 - `PHISHLENS_ENABLE_RATE_LIMITING`: enables in-memory rate limits for `/analyze` and `/report`.
 - `PHISHLENS_BEHIND_PROXY`: trusts `X-Forwarded-For` for rate limiting when deployed behind a trusted reverse proxy.
 - `PHISHLENS_FEEDBACK_DB_PATH`: SQLite path for persisted feedback metadata. Set to an empty string to disable persistence.

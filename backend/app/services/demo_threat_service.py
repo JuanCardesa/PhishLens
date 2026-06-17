@@ -8,7 +8,9 @@ from app.services.url_normalizer import normalize_url
 
 
 DEMO_THREAT_MARKER = "phishlens-demo-dangerous"
-DEMO_HOSTS = {"localhost", "127.0.0.1", "::1"}
+# Only the DNS name 'localhost' is used: numeric literals like 127.0.0.1 are
+# blocked by SSRF protection and must not be added here.
+DEMO_HOSTS = {"localhost"}
 
 
 @dataclass(frozen=True)

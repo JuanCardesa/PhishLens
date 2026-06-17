@@ -37,6 +37,7 @@ jobs:
         run: |
           python -c "import app.main; print('backend import ok')"
           ruff check app tests ../demo
+          mypy app
           pytest tests
         working-directory: backend
 

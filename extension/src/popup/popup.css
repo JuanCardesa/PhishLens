@@ -210,6 +210,11 @@ h3 strong {
   background: var(--color-surface);
 }
 
+.risk-panel.loading {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
 .risk-panel.safe {
   border-color: var(--color-safe-border);
   background: var(--color-safe-bg);

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from hmac import compare_digest
+
+from fastapi import APIRouter, Header, HTTPException
 
 from app.core.config import get_settings
 from app.services.diagnostics import DIAGNOSTICS
@@ -9,10 +11,12 @@ router = APIRouter(tags=["diagnostics"])
 
 
 @router.get("/diagnostics")
-def diagnostics() -> dict[str, object]:
+def diagnostics(x_diagnostics_token: str = Header(default="")) -> dict[str, object]:
     settings = get_settings()
     if not settings.enable_diagnostics:
         raise HTTPException(status_code=404, detail="Diagnostics are disabled.")
+    if settings.diagnostics_token and not compare_digest(x_diagnostics_token, settings.diagnostics_token):
+        raise HTTPException(status_code=401, detail="Invalid or missing diagnostics token.")
 
     snapshot = DIAGNOSTICS.snapshot()
     return {

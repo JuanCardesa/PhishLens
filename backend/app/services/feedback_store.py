@@ -3,7 +3,6 @@ from __future__ import annotations
 import sqlite3
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -89,10 +88,6 @@ def _make_store(db_path: str) -> SQLiteFeedbackStore | _DisabledFeedbackStore:
         return _DisabledFeedbackStore()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     return SQLiteFeedbackStore(db_path)
-
-
-def _now_utc() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # Module-level singleton; initialised once on first import.

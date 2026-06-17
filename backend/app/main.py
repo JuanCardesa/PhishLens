@@ -28,7 +28,7 @@ app.add_middleware(
     ),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Request-ID"],
+    allow_headers=["Content-Type", "X-Request-ID", "X-Diagnostics-Token"],
     expose_headers=["X-Request-ID"],
 )
 app.add_middleware(RequestContextMiddleware)

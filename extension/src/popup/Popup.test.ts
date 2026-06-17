@@ -28,15 +28,15 @@ function makeAnalysis(overrides: Partial<PopupAnalysis> = {}): PopupAnalysis {
 // ---------------------------------------------------------------------------
 
 describe("labelText", () => {
-  it("maps safe → Safe", () => {
+  it("maps safe to Safe", () => {
     expect(labelText("safe")).toBe("Safe");
   });
 
-  it("maps suspicious → Suspicious", () => {
+  it("maps suspicious to Suspicious", () => {
     expect(labelText("suspicious")).toBe("Suspicious");
   });
 
-  it("maps dangerous → Dangerous", () => {
+  it("maps dangerous to Dangerous", () => {
     expect(labelText("dangerous")).toBe("Dangerous");
   });
 });
@@ -70,7 +70,7 @@ describe("modeLabel", () => {
     ["cached", "Cached"],
     ["checking", "Checking"],
     ["local-only", "Local only"],
-  ])("maps %s → %s", (mode, expected) => {
+  ])("maps %s to %s", (mode, expected) => {
     expect(modeLabel(mode)).toBe(expected);
   });
 });

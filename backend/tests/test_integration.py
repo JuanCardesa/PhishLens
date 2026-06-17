@@ -224,3 +224,19 @@ def test_report_rejects_invalid_label() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_private_ip_url_is_rejected_with_422() -> None:
+    for private_url in (
+        "http://0.0.0.0/secret",
+        "http://127.0.0.1/secret",
+        "http://192.168.1.1/admin",
+        "http://10.0.0.1/internal",
+        "http://100.64.0.1/internal",
+        "http://169.254.169.254/latest/meta-data/",  # AWS metadata service
+        "http://[::1]/secret",
+        "http://[fe80::1]/internal",
+        "http://203.0.113.10/example",
+    ):
+        response = client.post("/analyze", json={"url": private_url})
+        assert response.status_code == 422, f"Expected 422 for {private_url}, got {response.status_code}"

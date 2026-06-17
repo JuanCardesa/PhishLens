@@ -17,7 +17,7 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
 
   return {
     url_length: rawUrl.length,
-    num_dots: count(rawUrl, "."),
+    num_dots: count(hostnameAndPath, "."),  // query string excluded to avoid false positives
     num_hyphens: count(rawUrl, "-"),
     uses_ip_domain: usesIpDomain,
     has_at_symbol: rawUrl.includes("@"),

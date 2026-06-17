@@ -64,11 +64,13 @@ export function Popup() {
         setAnalysis(nextAnalysis);
         await writeCachedAnalysis(url, nextAnalysis);
         await showDangerOverlay(tab.id, nextAnalysis, currentSettings);
+        await updateActionBadge(tab.id, nextAnalysis.label);
       } else {
         const fallbackAnalysis = { ...localAnalysis, mode: "backend-unavailable" as const };
         setAnalysis(fallbackAnalysis);
         await writeCachedAnalysis(url, fallbackAnalysis);
         await showDangerOverlay(tab.id, fallbackAnalysis, currentSettings);
+        await updateActionBadge(tab.id, fallbackAnalysis.label);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Analysis failed.");
@@ -136,7 +138,7 @@ export function Popup() {
       {analysis ? <div className={`mode-banner ${analysis.mode}`}>{modeBannerText(analysis)}</div> : null}
 
       <section
-        className={`risk-panel ${analysis?.label ?? "safe"}`}
+        className={`risk-panel ${loading && !analysis ? "loading" : (analysis?.label ?? "safe")}`}
         aria-live="polite"
         aria-atomic="true"
         aria-label={analysis ? `Risk level: ${statusText}, score ${analysis.risk_score} out of 100` : "Awaiting analysis"}
@@ -363,6 +365,17 @@ export function labelSymbol(label: RiskLabel): string {
     return "!";
   }
   return "✓";
+}
+
+async function updateActionBadge(tabId: number, label: RiskLabel): Promise<void> {
+  const text = label === "safe" ? "" : label === "suspicious" ? "!" : "✕";
+  const color = label === "safe" ? "#166534" : label === "suspicious" ? "#92400e" : "#7f1d1d";
+  try {
+    await chrome.action.setBadgeText({ text, tabId });
+    await chrome.action.setBadgeBackgroundColor({ color, tabId });
+  } catch {
+    // Badge API may be unavailable in some extension contexts
+  }
 }
 
 async function showDangerOverlay(

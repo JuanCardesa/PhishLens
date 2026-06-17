@@ -202,13 +202,14 @@ def _score_tls(result: TLSResult) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
 
-    if not result.valid:
+    # Use elif so only the most severe condition adds points; expired implies
+    # not valid, so checking them separately would double-count.
+    if result.expired:
+        score += TLS_SCORE_CAP
+        reasons.append("TLS certificate appears to be expired")
+    elif not result.valid:
         score += 10
         reasons.append("TLS certificate could not be validated")
-
-    if result.expired:
-        score += 15
-        reasons.append("TLS certificate appears to be expired")
     elif result.days_until_expiration is not None and result.days_until_expiration < 14:
         score += 8
         reasons.append("TLS certificate expires soon")

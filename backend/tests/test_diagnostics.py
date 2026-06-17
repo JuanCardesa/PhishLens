@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from app.main import app
 
 
@@ -59,6 +60,20 @@ def test_diagnostics_payload_exposes_only_aggregate_keys() -> None:
         "sources",
         "status",
     ]
+
+
+def test_diagnostics_requires_token_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("PHISHLENS_DIAGNOSTICS_TOKEN", "test-diagnostics-token")
+    get_settings.cache_clear()
+
+    missing_token = client.get("/diagnostics")
+    valid_token = client.get(
+        "/diagnostics",
+        headers={"X-Diagnostics-Token": "test-diagnostics-token"},
+    )
+
+    assert missing_token.status_code == 401
+    assert valid_token.status_code == 200
 
 
 def test_validation_errors_do_not_echo_submitted_input() -> None:

@@ -63,7 +63,7 @@ Custom remote backend origins use optional host permissions instead of broad def
 
 The backend adds an `X-Request-ID` header to every response. A caller-provided `X-Request-ID` is accepted only when it is short and uses safe characters; otherwise the backend generates one.
 
-`/diagnostics` is intended for development and demo workflows. It reports counters for analysis requests, feedback, rate limits, labels, sources, cache hits/misses, external service skips/errors, and non-sensitive capability flags. It does not expose URLs, page text, form values, credentials, cookies, screenshots, model paths, or HTML.
+`/diagnostics` is intended for development and demo workflows. It reports counters for analysis requests, feedback, rate limits, labels, sources, cache hits/misses, external service skips/errors, and non-sensitive capability flags. It does not expose URLs, page text, form values, credentials, cookies, screenshots, model paths, or HTML. When `PHISHLENS_DIAGNOSTICS_TOKEN` is set, the endpoint requires the matching `X-Diagnostics-Token` header.
 
 ## Rate Limiting
 

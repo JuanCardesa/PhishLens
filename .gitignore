@@ -24,6 +24,7 @@ extension/release/
 .env
 .env.*
 !.env.example
+.claude/settings.local.json
 
 # ML artifacts generated from local training
 ml/models/*.joblib

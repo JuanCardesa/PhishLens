@@ -56,7 +56,7 @@ The risk panel uses `aria-live="polite"` with `aria-atomic="true"` so screen rea
 
 ## Diagnostics
 
-`GET /diagnostics` is a development endpoint. It returns aggregate counters only. It must not include submitted URLs, form values, page content, cookies, credentials, screenshots, or HTML.
+`GET /diagnostics` is a development endpoint. It returns aggregate counters only. It must not include submitted URLs, form values, page content, cookies, credentials, screenshots, or HTML. When `PHISHLENS_DIAGNOSTICS_TOKEN` is set, callers must provide the same value in `X-Diagnostics-Token`.
 
 ## Demo Threat Source
 
