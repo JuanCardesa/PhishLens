@@ -60,7 +60,7 @@ training set. Download, extract, and reformat to match the column schema above.
 
 After running `python ml/ingest_feedback.py`, review `feedback_review.csv`.
 For each row:
-1. Retrieve the original full URL (from server logs or re-crawl the hostname).
-2. Re-extract all 16 features using the same feature extractor.
+1. Re-crawl the recorded hostname or use a separately approved, privacy-reviewed dataset source.
+2. Re-extract all 16 features using the same feature extractor. Do not add full URLs from backend logs to this repository.
 3. Set `label` to `1` if the user flagged it as phishing, `0` if safe.
 4. Append the completed row to this directory as a new CSV and re-run `train_model.py`.
