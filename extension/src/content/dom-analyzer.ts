@@ -3,10 +3,10 @@ import type { DOMFeatures } from "../types/analysis";
 export function collectDomFeatures(): DOMFeatures {
   const forms = Array.from(document.forms);
   const links = Array.from(document.links);
-  const currentHost = window.location.hostname;
+  const currentHost = globalThis.location.hostname;
   const externalLinks = links.filter((link) => {
     try {
-      return new URL(link.href, window.location.href).hostname !== currentHost;
+      return new URL(link.href, globalThis.location.href).hostname !== currentHost;
     } catch {
       return false;
     }
@@ -29,7 +29,7 @@ export function hasExternalAction(form: HTMLFormElement, currentHost: string): b
   }
 
   try {
-    const actionUrl = new URL(rawAction, window.location.href);
+    const actionUrl = new URL(rawAction, globalThis.location.href);
     return actionUrl.protocol.startsWith("http") && actionUrl.hostname !== currentHost;
   } catch {
     return false;
@@ -42,3 +42,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   return false;
 });
+
+// Notify the service worker so it can update the action badge immediately on
+// page load, without requiring the user to open the popup first.
+try {
+  await chrome.runtime.sendMessage({
+    type: "PHISHLENS_PAGE_READY",
+    url: globalThis.location.href,
+    dom_features: collectDomFeatures(),
+  });
+} catch {
+  // Service worker may not be active yet (e.g. fresh install). Ignored.
+}
