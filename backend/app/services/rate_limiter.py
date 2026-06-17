@@ -59,13 +59,30 @@ class InMemoryRateLimiter:
 RATE_LIMITER = InMemoryRateLimiter()
 
 
+def _resolve_client_ip(request: Request, behind_proxy: bool) -> str:
+    """Return the real client IP.
+
+    When behind_proxy is True, reads the leftmost address from X-Forwarded-For,
+    which standard reverse proxies (nginx, Caddy, AWS ALB) populate with the
+    original client IP. Only enable PHISHLENS_BEHIND_PROXY when the backend is
+    not directly internet-facing; blindly trusting this header on a public
+    endpoint lets callers spoof their IP and bypass rate limiting.
+    """
+    if behind_proxy:
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        first_ip = forwarded_for.split(",")[0].strip()
+        if first_ip:
+            return first_ip
+    return request.client.host if request.client else "unknown"
+
+
 def rate_limit_dependency(route_name: str):
     async def dependency(request: Request) -> None:
         settings = get_settings()
         if not settings.enable_rate_limiting:
             return
 
-        client_host = request.client.host if request.client else "unknown"
+        client_host = _resolve_client_ip(request, settings.behind_proxy)
         limit = (
             settings.analyze_rate_limit_per_minute
             if route_name == "analyze"

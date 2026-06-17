@@ -78,5 +78,5 @@ This script demonstrates PhishLens without visiting suspicious external sites or
 - Local analysis works without the backend.
 - Backend enrichment adds TLS, threat intelligence, ML when available, and a dev-only demo threat source.
 - The score is explainable by category through `risk_breakdown`, while `reasons` remains for compatibility.
-- Feedback is logged without persistence and without page content.
+- Feedback is persisted as host-level label metadata only; full URLs, note text, page content, and form values are not stored.
 - Diagnostics expose counters only and are intended for development environments.
