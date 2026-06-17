@@ -1,9 +1,76 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #172033;
-  background: #f5f7fb;
+
+  /* Base colours */
+  --color-bg: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-text: #172033;
+  --color-text-muted: #526070;
+  --color-text-body: #344054;
+  --color-text-caption: #637083;
+  --color-text-disabled: #98a2b3;
+  --color-border: #dfe5ef;
+  --color-border-ui: #d7dde8;
+  --color-divider: #edf1f6;
+
+  /* Risk panel */
+  --color-safe-bg: #eaf8f0;
+  --color-safe-border: #9ad7ba;
+  --color-suspicious-bg: #fff7df;
+  --color-suspicious-border: #f2ca72;
+  --color-dangerous-bg: #fff0ee;
+  --color-dangerous-border: #f08a80;
+
+  /* Mode banners */
+  --color-enriched-bg: #eefaf4;
+  --color-enriched-border: #9ad7ba;
+  --color-unavailable-bg: #fff8e6;
+  --color-unavailable-border: #f2ca72;
+  --color-cached-bg: #eef4ff;
+  --color-cached-border: #b8c7e5;
+
+  /* Notice banner */
+  --color-notice-bg: #fff4f2;
+  --color-notice-border: #f4c7c3;
+  --color-notice-text: #8c1d18;
+
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111827;
+    --color-surface: #1f2937;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-text-body: #cbd5e1;
+    --color-text-caption: #8898aa;
+    --color-text-disabled: #4b5563;
+    --color-border: #374151;
+    --color-border-ui: #374151;
+    --color-divider: #1e2936;
+
+    --color-safe-bg: #0a1f14;
+    --color-safe-border: #166534;
+    --color-suspicious-bg: #1c1400;
+    --color-suspicious-border: #713f12;
+    --color-dangerous-bg: #1c0f0d;
+    --color-dangerous-border: #7f1d1d;
+
+    --color-enriched-bg: #0a1f14;
+    --color-enriched-border: #166534;
+    --color-unavailable-bg: #1c1400;
+    --color-unavailable-border: #713f12;
+    --color-cached-bg: #0f172a;
+    --color-cached-border: #1e3a5f;
+
+    --color-notice-bg: #1c0a0a;
+    --color-notice-border: #7f1d1d;
+    --color-notice-text: #fca5a5;
+  }
 }
 
 * {
@@ -13,7 +80,7 @@
 body {
   min-width: 380px;
   margin: 0;
-  background: #f5f7fb;
+  background: var(--color-bg);
 }
 
 button {
@@ -40,7 +107,7 @@ button {
 
 .eyebrow {
   margin: 0 0 2px;
-  color: #526070;
+  color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
@@ -69,13 +136,13 @@ h3 {
   justify-content: space-between;
   gap: 8px;
   margin: 0 0 6px;
-  color: #172033;
+  color: var(--color-text);
   font-size: 12px;
   text-transform: uppercase;
 }
 
 h3 strong {
-  color: #526070;
+  color: var(--color-text-muted);
   font-size: 11px;
   text-transform: none;
 }
@@ -85,10 +152,10 @@ h3 strong {
   min-width: 76px;
   height: 36px;
   place-items: center;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--color-border-ui);
   border-radius: 8px;
-  color: #172033;
-  background: #ffffff;
+  color: var(--color-text);
+  background: var(--color-surface);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -97,37 +164,37 @@ h3 strong {
 .mode-banner {
   margin-bottom: 12px;
   padding: 9px 11px;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--color-border-ui);
   border-radius: 8px;
-  color: #344054;
-  background: #ffffff;
+  color: var(--color-text-body);
+  background: var(--color-surface);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .mode-banner.backend-enriched {
-  border-color: #9ad7ba;
-  background: #eefaf4;
+  border-color: var(--color-enriched-border);
+  background: var(--color-enriched-bg);
 }
 
 .mode-banner.backend-unavailable {
-  border-color: #f2ca72;
-  background: #fff8e6;
+  border-color: var(--color-unavailable-border);
+  background: var(--color-unavailable-bg);
 }
 
 .mode-banner.cached {
-  border-color: #b8c7e5;
-  background: #eef4ff;
+  border-color: var(--color-cached-border);
+  background: var(--color-cached-bg);
 }
 
 .notice {
   margin-bottom: 12px;
   padding: 10px 12px;
-  border: 1px solid #f4c7c3;
+  border: 1px solid var(--color-notice-border);
   border-radius: 8px;
-  color: #8c1d18;
-  background: #fff4f2;
+  color: var(--color-notice-text);
+  background: var(--color-notice-bg);
   font-size: 13px;
 }
 
@@ -139,23 +206,39 @@ h3 strong {
   padding: 18px;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: #101828;
-  background: #ffffff;
+  color: var(--color-text);
+  background: var(--color-surface);
 }
 
 .risk-panel.safe {
-  border-color: #9ad7ba;
-  background: #eaf8f0;
+  border-color: var(--color-safe-border);
+  background: var(--color-safe-bg);
 }
 
 .risk-panel.suspicious {
-  border-color: #f2ca72;
-  background: #fff7df;
+  border-color: var(--color-suspicious-border);
+  background: var(--color-suspicious-bg);
 }
 
 .risk-panel.dangerous {
-  border-color: #f08a80;
-  background: #fff0ee;
+  border-color: var(--color-dangerous-border);
+  background: var(--color-dangerous-bg);
+}
+
+/* Color-independent risk indicators — visible to colorblind users */
+.risk-panel.safe .status::before {
+  content: "✓ ";
+  aria-hidden: "true";
+}
+
+.risk-panel.suspicious .status::before {
+  content: "⚠ ";
+  aria-hidden: "true";
+}
+
+.risk-panel.dangerous .status::before {
+  content: "✕ ";
+  aria-hidden: "true";
 }
 
 .status {
@@ -173,7 +256,7 @@ h3 strong {
 
 .score-label {
   max-width: 76px;
-  color: #526070;
+  color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
   text-align: right;
@@ -189,16 +272,16 @@ h3 strong {
 .url-block,
 .meta-grid > div {
   padding: 12px;
-  border: 1px solid #dfe5ef;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .url-block span,
 .meta-grid span {
   display: block;
   margin-bottom: 4px;
-  color: #637083;
+  color: var(--color-text-caption);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -228,10 +311,10 @@ h3 strong {
 
 .source-list span {
   padding: 4px 8px;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--color-border-ui);
   border-radius: 999px;
-  color: #344054;
-  background: #ffffff;
+  color: var(--color-text-body);
+  background: var(--color-surface);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -239,9 +322,9 @@ h3 strong {
 
 .reasons {
   padding: 12px;
-  border: 1px solid #dfe5ef;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .feedback-actions {
@@ -261,12 +344,12 @@ h3 strong {
 
 .signal-group {
   padding-top: 10px;
-  border-top: 1px solid #edf1f6;
+  border-top: 1px solid var(--color-divider);
 }
 
 .primary-signal {
   margin-bottom: 8px;
-  color: #172033;
+  color: var(--color-text);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
@@ -275,7 +358,7 @@ h3 strong {
 .reasons li,
 .muted,
 .feedback p {
-  color: #344054;
+  color: var(--color-text-body);
   font-size: 13px;
   line-height: 1.35;
 }
@@ -284,9 +367,9 @@ h3 strong {
 .report-copy {
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid #dfe5ef;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .feedback-actions {
@@ -296,10 +379,10 @@ h3 strong {
 .feedback button,
 .report-copy button {
   min-height: 36px;
-  border: 1px solid #cfd8e6;
+  border: 1px solid var(--color-border-ui);
   border-radius: 8px;
-  color: #172033;
-  background: #ffffff;
+  color: var(--color-text);
+  background: var(--color-surface);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -308,7 +391,7 @@ h3 strong {
 
 .feedback button:disabled,
 .report-copy button:disabled {
-  color: #98a2b3;
+  color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
