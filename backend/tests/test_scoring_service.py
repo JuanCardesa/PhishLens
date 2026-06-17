@@ -52,7 +52,10 @@ async def test_scoring_combines_url_and_dom_reasons() -> None:
     assert "Domain or path contains suspicious keywords" in result.reasons
     assert "Page contains a password field" in result.reasons
     assert {item.category for item in result.risk_breakdown} == {"url", "dom", "threat_intel", "tls", "ml"}
-    assert sum(item.score for item in result.risk_breakdown) == result.risk_score
+    # The raw sum of breakdown scores equals risk_score only when the total is
+    # below 100; at or above the cap they diverge because risk_score is clamped.
+    raw_sum = sum(item.score for item in result.risk_breakdown)
+    assert result.risk_score == max(0, min(100, raw_sum))
 
 
 def test_scoring_caps_are_enforced() -> None:

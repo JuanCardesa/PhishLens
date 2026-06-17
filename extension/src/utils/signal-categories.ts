@@ -83,7 +83,8 @@ export function formatSignalScore(group: SignalGroup): string {
   }
 
   if (group.minScore !== undefined && group.minScore < 0) {
-    return `${group.score} (${group.minScore} to +${group.maxScore})`;
+    const prefix = group.score > 0 ? "+" : "";
+    return `${prefix}${group.score} (${group.minScore} to +${group.maxScore})`;
   }
 
   return `${group.score}/${group.maxScore}`;

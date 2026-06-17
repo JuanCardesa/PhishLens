@@ -64,4 +64,30 @@ describe("signal-categories", () => {
     expect(formatSignalScore(groups[0])).toBe("12/35");
     expect(formatSignalScore(groups[1])).toBe("-5 (-10 to +20)");
   });
+
+  it("prefixes positive ML adjustments with a plus sign", () => {
+    const group = {
+      id: "ml" as const,
+      title: "ML",
+      score: 12,
+      minScore: -10,
+      maxScore: 20,
+      reasons: ["Machine learning model increased the estimated risk"],
+    };
+
+    expect(formatSignalScore(group)).toBe("+12 (-10 to +20)");
+  });
+
+  it("does not add a prefix to zero ML adjustment", () => {
+    const group = {
+      id: "ml" as const,
+      title: "ML",
+      score: 0,
+      minScore: -10,
+      maxScore: 20,
+      reasons: [],
+    };
+
+    expect(formatSignalScore(group)).toBe("0 (-10 to +20)");
+  });
 });
