@@ -1,6 +1,6 @@
 import type { DOMFeatures } from "../types/analysis";
 
-function collectDomFeatures(): DOMFeatures {
+export function collectDomFeatures(): DOMFeatures {
   const forms = Array.from(document.forms);
   const links = Array.from(document.links);
   const currentHost = window.location.hostname;
@@ -22,7 +22,7 @@ function collectDomFeatures(): DOMFeatures {
   };
 }
 
-function hasExternalAction(form: HTMLFormElement, currentHost: string): boolean {
+export function hasExternalAction(form: HTMLFormElement, currentHost: string): boolean {
   const rawAction = form.getAttribute("action");
   if (!rawAction) {
     return false;
