@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     report_rate_limit_per_minute: int = Field(default=20, ge=1, validation_alias="PHISHLENS_REPORT_RATE_LIMIT")
     rate_limit_window_seconds: int = Field(default=60, ge=1, validation_alias="PHISHLENS_RATE_LIMIT_WINDOW_SECONDS")
     enable_demo_threat_source: bool = Field(default=False, validation_alias="PHISHLENS_ENABLE_DEMO_THREAT_SOURCE")
+    # Comma-separated Chrome extension IDs that are allowed to call the API.
+    # When set, only these specific extension origins are accepted.
+    # When empty (default), any chrome-extension:// origin is accepted — suitable for
+    # local development before the extension has a stable published ID.
+    chrome_extension_ids: str = Field(default="", validation_alias="PHISHLENS_CHROME_EXTENSION_IDS")
+    behind_proxy: bool = Field(default=False, validation_alias="PHISHLENS_BEHIND_PROXY")
+    feedback_db_path: str = Field(default="feedback.db", validation_alias="PHISHLENS_FEEDBACK_DB_PATH")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
@@ -42,6 +49,17 @@ class Settings(BaseSettings):
     @property
     def allow_chrome_extension_origins(self) -> bool:
         return "chrome-extension://*" in self.allowed_origins_raw
+
+    @property
+    def chrome_extension_origins(self) -> list[str]:
+        """Specific extension origins derived from configured IDs, e.g. chrome-extension://<id>."""
+        if not self.chrome_extension_ids.strip():
+            return []
+        return [
+            f"chrome-extension://{ext_id.strip()}"
+            for ext_id in self.chrome_extension_ids.split(",")
+            if ext_id.strip()
+        ]
 
 
 @lru_cache
