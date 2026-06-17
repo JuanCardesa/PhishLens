@@ -10,7 +10,10 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
   const labels = hostname.split(".").filter(Boolean);
   const usesIpDomain = IPV4_PATTERN.test(hostname) || IPV6_HINT_PATTERN.test(hostname);
   const registeredDomain = labels.length >= 2 ? labels.slice(-2).join(".") : hostname;
-  const lowerUrl = rawUrl.toLowerCase();
+  // Limit keyword scan to hostname + path only; query strings like
+  // ?q=bank+verify are common on legitimate search engines and cause
+  // false positives when the full URL is checked.
+  const hostnameAndPath = (hostname + parsed.pathname).toLowerCase();
 
   return {
     url_length: rawUrl.length,
@@ -20,7 +23,7 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
     has_at_symbol: rawUrl.includes("@"),
     uses_https: parsed.protocol === "https:",
     num_subdomains: usesIpDomain ? 0 : Math.max(0, labels.length - 2),
-    suspicious_keywords: SUSPICIOUS_KEYWORDS.filter((keyword) => lowerUrl.includes(keyword)),
+    suspicious_keywords: SUSPICIOUS_KEYWORDS.filter((keyword) => hostnameAndPath.includes(keyword)),
     uses_punycode: hostname.includes("xn--"),
     domain_entropy: Number(shannonEntropy(registeredDomain.replaceAll(".", "")).toFixed(3)),
     domain: hostname,

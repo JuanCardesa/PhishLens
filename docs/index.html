@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhishLens — Defensive phishing risk analysis</title>
+    <meta
+      name="description"
+      content="PhishLens is a Chrome extension that analyses any page for phishing risk in real time using local heuristics, TLS checks, and optional threat intelligence."
+    />
+    <style>
+      :root {
+        --navy: #132238;
+        --teal: #3aa6b9;
+        --gold: #f4b942;
+        --light: #f8fafc;
+        --mid: #64748b;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: var(--navy);
+        color: var(--light);
+        min-height: 100vh;
+      }
+      header {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+      }
+      header svg { flex-shrink: 0; }
+      header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+      header p { color: var(--teal); font-size: 0.95rem; margin-top: 0.25rem; }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0 1.5rem 4rem;
+      }
+      .tagline {
+        font-size: 1.25rem;
+        color: var(--light);
+        opacity: 0.85;
+        line-height: 1.6;
+        margin-bottom: 2.5rem;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 3rem;
+      }
+      .feature {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        padding: 1.25rem;
+      }
+      .feature h3 { font-size: 0.9rem; color: var(--teal); margin-bottom: 0.4rem; }
+      .feature p { font-size: 0.875rem; color: rgba(248,250,252,0.7); line-height: 1.5; }
+      .cta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; }
+      .btn {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.925rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: opacity 0.15s;
+      }
+      .btn:hover { opacity: 0.85; }
+      .btn-primary { background: var(--teal); color: var(--navy); }
+      .btn-secondary {
+        background: transparent;
+        color: var(--light);
+        border: 1px solid rgba(255,255,255,0.2);
+      }
+      footer {
+        border-top: 1px solid rgba(255,255,255,0.08);
+        padding-top: 1.5rem;
+        font-size: 0.8rem;
+        color: var(--mid);
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+      }
+      footer a { color: var(--mid); text-decoration: none; }
+      footer a:hover { color: var(--teal); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="56" height="56" aria-hidden="true">
+        <rect width="64" height="64" rx="12" fill="#132238"/>
+        <path d="M14 31c7-11 29-11 36 0-7 11-29 11-36 0Z" fill="#f8fafc"/>
+        <circle cx="32" cy="31" r="9" fill="#3aa6b9"/>
+        <circle cx="32" cy="31" r="4" fill="#132238"/>
+        <path d="M44 44l9 9" stroke="#f4b942" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1>PhishLens</h1>
+        <p>Defensive phishing risk analysis for Chrome</p>
+      </div>
+    </header>
+
+    <main>
+      <p class="tagline">
+        Analyse any page for phishing risk in real time — explained signal by signal,
+        with no passwords or page content ever leaving your browser.
+      </p>
+
+      <div class="features">
+        <div class="feature">
+          <h3>Local heuristics</h3>
+          <p>URL and page-structure signals analysed instantly, with no network calls required.</p>
+        </div>
+        <div class="feature">
+          <h3>Explainable scores</h3>
+          <p>Every result shows a per-category breakdown — URL, page structure, TLS, threat intelligence, and ML.</p>
+        </div>
+        <div class="feature">
+          <h3>Privacy first</h3>
+          <p>Passwords, form values, cookies, and full HTML are never read or transmitted.</p>
+        </div>
+        <div class="feature">
+          <h3>Optional enrichment</h3>
+          <p>Self-host the companion API to add TLS inspection, PhishTank lookups, and ML scoring.</p>
+        </div>
+      </div>
+
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/JuanCardesa/PhishLens">View on GitHub</a>
+        <a class="btn btn-secondary" href="privacy/">Privacy policy</a>
+      </div>
+
+      <footer>
+        <a href="privacy/">Privacy policy</a>
+        <a href="https://github.com/JuanCardesa/PhishLens/issues">Report an issue</a>
+        <a href="https://github.com/JuanCardesa/PhishLens">Source code</a>
+        <span>PhishLens is defensive-only and does not collect sensitive data.</span>
+      </footer>
+    </main>
+  </body>
+</html>

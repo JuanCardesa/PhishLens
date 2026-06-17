@@ -19,9 +19,11 @@ class RateLimitDecision:
 
 
 class InMemoryRateLimiter:
-    def __init__(self) -> None:
+    def __init__(self, cleanup_interval: int = 300) -> None:
         self._lock = Lock()
         self._requests: dict[str, deque[float]] = {}
+        self._cleanup_interval = cleanup_interval
+        self._last_cleanup = time.monotonic()
 
     def check(self, key: str, limit: int, window_seconds: int) -> RateLimitDecision:
         now = time.monotonic()
@@ -37,7 +39,17 @@ class InMemoryRateLimiter:
                 return RateLimitDecision(allowed=False, retry_after_seconds=retry_after)
 
             requests.append(now)
+            self._maybe_prune_empty_keys(now)
             return RateLimitDecision(allowed=True)
+
+    def _maybe_prune_empty_keys(self, now: float) -> None:
+        """Remove keys whose deques are empty, executed at most once per cleanup_interval."""
+        if now - self._last_cleanup < self._cleanup_interval:
+            return
+        self._last_cleanup = now
+        empty_keys = [k for k, v in self._requests.items() if not v]
+        for k in empty_keys:
+            del self._requests[k]
 
     def clear(self) -> None:
         with self._lock:

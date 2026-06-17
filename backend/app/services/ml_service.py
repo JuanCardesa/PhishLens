@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import joblib
@@ -39,6 +40,42 @@ class MLResult:
     error: str | None = None
 
 
+@dataclass
+class _ModelArtifact:
+    model: object
+    feature_order: list[str]
+
+
+_artifact_cache: _ModelArtifact | None = None
+_artifact_lock = Lock()
+
+
+def _load_artifact(model_path: Path) -> _ModelArtifact:
+    """Load and cache the model artifact on first call; return cached on subsequent calls."""
+    global _artifact_cache
+    if _artifact_cache is not None:
+        return _artifact_cache
+
+    with _artifact_lock:
+        # Double-checked locking: another thread may have loaded while we waited.
+        if _artifact_cache is not None:
+            return _artifact_cache
+
+        raw = joblib.load(model_path)
+        model = raw["model"] if isinstance(raw, dict) and "model" in raw else raw
+        feature_order = raw.get("feature_order", FEATURE_ORDER) if isinstance(raw, dict) else FEATURE_ORDER
+        _artifact_cache = _ModelArtifact(model=model, feature_order=feature_order)
+
+    return _artifact_cache
+
+
+def _reset_artifact_cache() -> None:
+    """Clear the in-memory model cache. Intended for tests only."""
+    global _artifact_cache
+    with _artifact_lock:
+        _artifact_cache = None
+
+
 def predict_ml_adjustment(
     url_features: URLFeatures,
     dom_features: DOMFeatures,
@@ -51,19 +88,17 @@ def predict_ml_adjustment(
         return MLResult(available=False, error="model artifact not found")
 
     try:
-        artifact = joblib.load(model_path)
-        model = artifact["model"] if isinstance(artifact, dict) and "model" in artifact else artifact
-        feature_order = artifact.get("feature_order", FEATURE_ORDER) if isinstance(artifact, dict) else FEATURE_ORDER
+        artifact = _load_artifact(model_path)
         values = _feature_values(url_features, dom_features)
-        vector = [[values[name] for name in feature_order]]
+        vector = [[values[name] for name in artifact.feature_order]]
 
-        if hasattr(model, "predict_proba"):
-            probabilities = model.predict_proba(vector)[0]
-            classes = list(getattr(model, "classes_", [0, 1]))
+        if hasattr(artifact.model, "predict_proba"):
+            probabilities = artifact.model.predict_proba(vector)[0]
+            classes = list(getattr(artifact.model, "classes_", [0, 1]))
             positive_index = classes.index(1) if 1 in classes else len(probabilities) - 1
             probability = float(probabilities[positive_index])
         else:
-            prediction = int(model.predict(vector)[0])
+            prediction = int(artifact.model.predict(vector)[0])
             probability = 0.85 if prediction == 1 else 0.15
 
         return MLResult(available=True, probability=probability, adjustment=_adjustment_from_probability(probability))

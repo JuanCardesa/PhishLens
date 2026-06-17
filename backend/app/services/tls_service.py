@@ -15,6 +15,9 @@ from app.services.url_normalizer import normalize_url
 
 TLS_CACHE = TTLCache["TLSResult"](ttl_seconds=300)
 
+# OpenSSL verify error code for an expired certificate.
+_OPENSSL_ERR_CERT_HAS_EXPIRED = 10
+
 
 @dataclass(frozen=True)
 class TLSResult:
@@ -66,6 +69,13 @@ def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
         with socket.create_connection((server_name, 443), timeout=timeout) as sock:
             with context.wrap_socket(sock, server_hostname=server_name) as tls_sock:
                 cert = tls_sock.getpeercert()
+    except ssl.SSLCertVerificationError as exc:
+        # Python's ssl raises before the handshake completes for expired certs,
+        # so we never reach the post-handshake parsing. Inspect the OpenSSL
+        # verify code directly to distinguish expiry from other failures.
+        if exc.verify_code == _OPENSSL_ERR_CERT_HAS_EXPIRED:
+            return TLSResult(checked=True, valid=False, expired=True)
+        return TLSResult(checked=True, valid=False, error=str(exc))
     except Exception as exc:
         return TLSResult(checked=True, valid=False, error=str(exc))
 
