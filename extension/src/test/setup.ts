@@ -20,6 +20,16 @@ function createStorageArea(): StorageArea {
   };
 }
 
+// Stub chrome at top-level so modules that register listeners at import time
+// (e.g. dom-analyzer.ts) can safely access chrome.runtime.
+vi.stubGlobal("chrome", {
+  permissions: { request: vi.fn((_permissions, callback: (granted: boolean) => void) => callback(true)) },
+  runtime: { lastError: null, openOptionsPage: vi.fn(), onMessage: { addListener: vi.fn() } },
+  storage: { sync: createStorageArea(), local: createStorageArea() },
+  tabs: { query: vi.fn(), sendMessage: vi.fn() },
+  scripting: { executeScript: vi.fn() },
+});
+
 beforeEach(() => {
   const sync = createStorageArea();
   const local = createStorageArea();
