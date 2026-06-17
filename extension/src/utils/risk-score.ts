@@ -1,5 +1,12 @@
-import type { AnalysisResponse, DOMFeatures, RiskLabel } from "../types/analysis";
+import type { AnalysisResponse, DOMFeatures, RiskBreakdownItem, RiskLabel } from "../types/analysis";
 import { extractUrlFeatures } from "./url-features";
+
+const URL_SCORE_CAP = 35;
+const DOM_SCORE_CAP = 30;
+const THREAT_INTEL_SCORE_CAP = 40;
+const TLS_SCORE_CAP = 15;
+const ML_MIN_ADJUSTMENT = -10;
+const ML_MAX_ADJUSTMENT = 20;
 
 export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisResponse {
   const urlFeatures = extractUrlFeatures(url);
@@ -20,6 +27,7 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
       tls: false,
       demo: false,
     },
+    risk_breakdown: buildLocalRiskBreakdown(urlScore, urlReasons, domScore, domReasons),
   };
 }
 
@@ -90,7 +98,7 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
     reasons.push("Domain has high character entropy");
   }
 
-  return [Math.min(score, 35), reasons];
+  return [Math.min(score, URL_SCORE_CAP), reasons];
 }
 
 function scoreDom(features: DOMFeatures): [number, string[]] {
@@ -130,5 +138,55 @@ function scoreDom(features: DOMFeatures): [number, string[]] {
     reasons.push("Page contains hidden form inputs");
   }
 
-  return [Math.min(score, 30), reasons];
+  return [Math.min(score, DOM_SCORE_CAP), reasons];
+}
+
+function buildLocalRiskBreakdown(
+  urlScore: number,
+  urlReasons: string[],
+  domScore: number,
+  domReasons: string[],
+): RiskBreakdownItem[] {
+  return [
+    {
+      category: "url",
+      score: urlScore,
+      min_score: 0,
+      max_score: URL_SCORE_CAP,
+      reasons: urlReasons,
+      source: "heuristics",
+    },
+    {
+      category: "dom",
+      score: domScore,
+      min_score: 0,
+      max_score: DOM_SCORE_CAP,
+      reasons: domReasons,
+      source: "dom",
+    },
+    {
+      category: "threat_intel",
+      score: 0,
+      min_score: 0,
+      max_score: THREAT_INTEL_SCORE_CAP,
+      reasons: [],
+      source: "fallback",
+    },
+    {
+      category: "tls",
+      score: 0,
+      min_score: 0,
+      max_score: TLS_SCORE_CAP,
+      reasons: [],
+      source: "fallback",
+    },
+    {
+      category: "ml",
+      score: 0,
+      min_score: ML_MIN_ADJUSTMENT,
+      max_score: ML_MAX_ADJUSTMENT,
+      reasons: [],
+      source: "fallback",
+    },
+  ];
 }

@@ -6,7 +6,7 @@ It combines local URL heuristics, privacy-preserving DOM signals, optional Phish
 
 ## Current Status
 
-Sprint 3 demo and release readiness implemented:
+Implemented product capabilities:
 
 - Chrome Extension Manifest V3 with React popup.
 - Local URL and DOM heuristic analysis.
@@ -27,6 +27,7 @@ Sprint 3 demo and release readiness implemented:
 - PR Guardian, security CI, and automated extension release workflow.
 - Backend status diagnostics in the extension options page.
 - Chrome Web Store readiness and permission documentation.
+- Structured risk breakdown by URL, DOM, threat intelligence, TLS, and ML categories.
 
 ## Architecture
 
@@ -36,7 +37,7 @@ Chrome page
   -> popup computes local heuristic score
   -> popup optionally calls FastAPI /analyze
   -> backend adds URL, threat intel, TLS, and ML signals
-  -> popup shows score, label, confidence, reasons, and feedback controls
+  -> popup shows score, label, confidence, risk breakdown, and feedback controls
   -> dangerous results can display a dismissible page overlay
   -> development diagnostics expose counters only
 ```

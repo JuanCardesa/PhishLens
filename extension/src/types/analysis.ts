@@ -32,12 +32,24 @@ export interface AnalysisSources {
   demo?: boolean;
 }
 
+export type RiskBreakdownCategory = "url" | "dom" | "threat_intel" | "tls" | "ml";
+
+export interface RiskBreakdownItem {
+  category: RiskBreakdownCategory;
+  score: number;
+  min_score: number;
+  max_score: number;
+  reasons: string[];
+  source: string;
+}
+
 export interface AnalysisResponse {
   risk_score: number;
   label: RiskLabel;
   confidence: number;
   reasons: string[];
   sources: AnalysisSources;
+  risk_breakdown?: RiskBreakdownItem[];
 }
 
 export interface PopupAnalysis extends AnalysisResponse {

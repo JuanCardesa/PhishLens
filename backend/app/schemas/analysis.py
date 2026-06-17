@@ -6,6 +6,7 @@ from app.services.url_normalizer import URLNormalizationError, normalize_url
 
 
 RiskLabel = Literal["safe", "suspicious", "dangerous"]
+RiskCategory = Literal["url", "dom", "threat_intel", "tls", "ml"]
 
 
 class DOMFeatures(BaseModel):
@@ -38,12 +39,22 @@ class AnalysisSources(BaseModel):
     demo: bool = False
 
 
+class RiskBreakdownItem(BaseModel):
+    category: RiskCategory
+    score: int = Field(ge=-10, le=100)
+    min_score: int = Field(default=0, ge=-10, le=100)
+    max_score: int = Field(ge=0, le=100)
+    reasons: list[str]
+    source: str
+
+
 class AnalysisResponse(BaseModel):
     risk_score: int = Field(ge=0, le=100)
     label: RiskLabel
     confidence: float = Field(ge=0.0, le=1.0)
     reasons: list[str]
     sources: AnalysisSources
+    risk_breakdown: list[RiskBreakdownItem] = Field(default_factory=list)
 
 
 class ReportRequest(BaseModel):
