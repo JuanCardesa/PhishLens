@@ -225,27 +225,16 @@ h3 strong {
   background: var(--color-dangerous-bg);
 }
 
-/* Color-independent risk indicators — visible to colorblind users */
-.risk-panel.safe .status::before {
-  content: "✓ ";
-  aria-hidden: "true";
-}
-
-.risk-panel.suspicious .status::before {
-  content: "⚠ ";
-  aria-hidden: "true";
-}
-
-.risk-panel.dangerous .status::before {
-  content: "✕ ";
-  aria-hidden: "true";
-}
-
 .status {
   display: block;
   margin-bottom: 6px;
   font-size: 14px;
   font-weight: 700;
+}
+
+.status-symbol {
+  display: inline-block;
+  min-width: 1.2em;
 }
 
 .score {
