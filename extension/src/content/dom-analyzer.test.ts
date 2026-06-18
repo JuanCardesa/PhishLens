@@ -86,32 +86,37 @@ describe("collectDomFeatures", () => {
 
 describe("hasExternalAction", () => {
   it("returns false when form has no action attribute", () => {
-    expect(hasExternalAction(makeForm(null), "example.com")).toBe(false);
+    expect(hasExternalAction(makeForm(null), "https://example.com")).toBe(false);
   });
 
-  it("returns false for a same-host absolute action URL", () => {
-    const host = globalThis.location.hostname;
-    expect(hasExternalAction(makeForm(`https://${host}/submit`), host)).toBe(false);
+  it("returns false for a same-origin absolute action URL", () => {
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm(`${origin}/submit`), origin)).toBe(false);
   });
 
   it("returns false for a relative path action", () => {
-    // Relative URLs resolve against window.location, so the hostname matches.
-    const host = globalThis.location.hostname;
-    expect(hasExternalAction(makeForm("/submit"), host)).toBe(false);
+    // Relative URLs resolve against window.location and share the same origin.
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm("/submit"), origin)).toBe(false);
   });
 
   it("returns true for a cross-origin absolute action URL", () => {
-    const host = globalThis.location.hostname;
-    expect(hasExternalAction(makeForm("https://attacker.example.net/steal"), host)).toBe(true);
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm("https://attacker.example.net/steal"), origin)).toBe(true);
+  });
+
+  it("returns true for a same-host action on a different port (distinct origin)", () => {
+    // Different port → different origin, even if hostname matches.
+    expect(hasExternalAction(makeForm("http://localhost:9999/steal"), "http://localhost:8080")).toBe(true);
   });
 
   it("returns false for a non-http action scheme", () => {
-    const host = globalThis.location.hostname;
-    expect(hasExternalAction(makeForm("mailto:someone@example.com"), host)).toBe(false);
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm("mailto:someone@example.com"), origin)).toBe(false);
   });
 
   it("returns false for a malformed action URL", () => {
-    const host = globalThis.location.hostname;
-    expect(hasExternalAction(makeForm(":::bad:::"), host)).toBe(false);
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm(":::bad:::"), origin)).toBe(false);
   });
 });

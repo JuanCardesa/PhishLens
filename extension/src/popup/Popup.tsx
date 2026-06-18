@@ -290,10 +290,24 @@ async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
   });
 }
 
+function stripSensitiveUrlParts(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url.split("?")[0].split("#")[0];
+  }
+}
+
 async function writeCachedAnalysis(url: string, value: PopupAnalysis): Promise<void> {
   const key = await cacheKey(url);
+  // The key is already a hash of the full URL. Strip query string and fragment
+  // from the persisted value so tokens in query params are not stored at rest.
+  const sanitized: PopupAnalysis = { ...value, url: stripSensitiveUrlParts(url) };
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, () => resolve());
+    chrome.storage.local.set({ [key]: sanitized }, () => resolve());
   });
 }
 

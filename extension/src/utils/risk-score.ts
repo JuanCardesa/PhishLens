@@ -8,8 +8,18 @@ const TLS_SCORE_CAP = 15;
 const ML_MIN_ADJUSTMENT = -10;
 const ML_MAX_ADJUSTMENT = 20;
 
+function stripFragment(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url.split("#")[0];
+  }
+}
+
 export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisResponse {
-  const urlFeatures = extractUrlFeatures(url);
+  const urlFeatures = extractUrlFeatures(stripFragment(url));
   const [urlScore, urlReasons] = scoreUrl(urlFeatures);
   const [domScore, domReasons] = scoreDom(domFeatures);
   const riskScore = Math.max(0, Math.min(100, Math.round(urlScore + domScore)));
@@ -32,7 +42,10 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
 }
 
 function labelFromScore(score: number): RiskLabel {
-  if (score >= 70) {
+  // Threshold kept at 60 (not 70) because the local scorer's max is
+  // URL_SCORE_CAP(35) + DOM_SCORE_CAP(30) = 65. A 70 threshold would make
+  // "dangerous" unreachable without backend data.
+  if (score >= 60) {
     return "dangerous";
   }
   if (score >= 35) {
