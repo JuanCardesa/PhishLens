@@ -8,7 +8,9 @@ from app.services.url_normalizer import normalize_url
 
 
 DEMO_THREAT_MARKER = "phishlens-demo-dangerous"
-DEMO_HOSTS = {"localhost", "127.0.0.1", "::1"}
+# Only "localhost" is reachable here — private IP literals (127.0.0.1, ::1) are
+# rejected by normalize_url before this service is called.
+DEMO_HOSTS = {"localhost"}
 
 
 @dataclass(frozen=True)

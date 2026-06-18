@@ -15,7 +15,7 @@ Usage:
     python datasets/build_dataset.py
 
 Requirements (already in backend/requirements.txt or standard library):
-    pandas, requests (or urllib), math, re, unicodedata, ipaddress
+    pandas (unused at runtime), math, ipaddress, urllib
 """
 
 from __future__ import annotations
@@ -26,9 +26,7 @@ import io
 import ipaddress
 import logging
 import math
-import re
 import sys
-import unicodedata
 import urllib.request
 from pathlib import Path
 from typing import TypedDict

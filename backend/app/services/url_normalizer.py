@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import ipaddress
 from urllib.parse import urlsplit, urlunsplit
 
 
 class URLNormalizationError(ValueError):
     pass
+
+
+def _is_private_ip(hostname: str) -> bool:
+    try:
+        return not ipaddress.ip_address(hostname).is_global
+    except ValueError:
+        return False
 
 
 def normalize_url(value: str) -> str:
@@ -14,6 +22,9 @@ def normalize_url(value: str) -> str:
 
     if scheme not in {"http", "https"} or not hostname:
         raise URLNormalizationError("url must be an absolute http or https URL")
+
+    if _is_private_ip(hostname):
+        raise URLNormalizationError("url must not target a private or loopback address")
 
     if parsed.port is not None:
         netloc = f"{hostname}:{parsed.port}"

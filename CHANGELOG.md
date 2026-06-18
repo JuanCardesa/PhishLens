@@ -5,7 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — portfolio hardening
+## [Unreleased] — project stabilization
+
+### Added
+
+- **SSRF protection**: `url_normalizer.py` now blocks private and loopback IP literals (`127.x`, `10.x`, `192.168.x`, `::1`, link-local, etc.) using Python's `ipaddress` module. Hostnames that _resolve_ to private addresses remain an accepted risk (DNS-based SSRF), documented in `docs/threat-model.md`.
+- **Private-IP SSRF tests**: parametrized `pytest` cases cover IPv4 loopback, RFC-1918 ranges, IPv6 loopback, link-local, and a public IP allow-case.
+- **`isAnalysisResponse` runtime guard**: `analysis-api.ts` validates the `/analyze` response shape before casting — malformed backend payloads now return `null` instead of silently propagating an invalid object.
+- **Port/protocol origin check for form actions**: `hasExternalAction` in `dom-analyzer.ts` now compares the full origin (`scheme + host + port`) instead of hostname only. A form targeting `http://site.com:9999` from an `https://site.com` page is now correctly flagged as cross-origin.
+
+### Changed
+
+- **PhishTank transport**: `PHISHTANK_CHECK_URL` switched from `http://` to `https://`. API key and URL are no longer transmitted in cleartext.
+- **TLS scoring**: restructured to be mutually exclusive — an expired certificate now emits one reason ("appears to be expired", 15 pts) instead of two ("could not be validated" + "expired", 25 pts before cap). Order: expired → nearly expired → invalid → error.
+- **Local `dangerous` threshold**: lowered from 70 to 60 in `risk-score.ts`. The local scorer's maximum is `URL_SCORE_CAP(35) + DOM_SCORE_CAP(30) = 65`, making 70 permanently unreachable without backend enrichment. The new threshold makes `dangerous` achievable in local-only mode.
+- **URL fragment normalisation**: `analyzeLocally()` strips the URL fragment before extracting features, matching the backend's `normalize_url` behaviour and preventing divergent scores for the same page.
+- **Cache privacy**: `writeCachedAnalysis` now strips the query string and fragment from the `url` field stored in `chrome.storage.local`. The cache key (SHA-256 of the full URL) is unchanged; only the persisted value is sanitised.
+- **ML dataset row check**: `train_model.py` now applies separate thresholds — ≥ 100 rows for the real dataset, ≥ 4 rows for the synthetic demo. The previous flat `< 20` check broke the included 12-row demo CSV.
+- **`dom-analyzer.ts` content script**: top-level `await chrome.runtime.sendMessage(…)` wrapped in an async IIFE. MV3 content scripts are classic scripts (not ES modules) and cannot use top-level `await`.
+- **`PHISHLENS_MODEL_PATH` default**: `.env.example` corrected from `../ml/models/…` (relative to `backend/`) to `ml/models/…` (relative to the repo root where `uvicorn` is invoked).
+
+### Fixed
+
+- **`chrome-web-store.md`**: corrected privacy disclosure — feedback _is_ persisted in SQLite (hostname, label, note presence, request ID, timestamp), not "not durably stored".
+- **Dead imports** in `ml/datasets/build_dataset.py`: removed unused `re` and `unicodedata` imports that caused `ruff F401` failures.
+
+---
+
+## [0.2.2] — portfolio hardening
 
 ### Added
 

@@ -61,10 +61,15 @@ def main() -> None:
     print(f"Dataset: {DATASET_PATH.name} [{dataset_label}]")
 
     data = pd.read_csv(DATASET_PATH)
-    if len(data) < 20:
+    if _DATASET_IS_REAL and len(data) < 100:
         raise SystemExit(
-            f"Dataset too small ({len(data)} rows). Run `python ml/datasets/build_dataset.py` "
-            "to download a real dataset, or add more rows to the synthetic CSV."
+            f"Real dataset too small ({len(data)} rows). "
+            "Run `python ml/datasets/build_dataset.py` to rebuild it."
+        )
+    if not _DATASET_IS_REAL and len(data) < 4:
+        raise SystemExit(
+            f"Demo dataset too small ({len(data)} rows). "
+            "Add more rows to ml/datasets/demo_phishing_urls.csv."
         )
 
     x = data[FEATURE_COLUMNS]
