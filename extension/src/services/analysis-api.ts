@@ -20,21 +20,26 @@ export async function requestBackendAnalysis(
         signal: controller.signal,
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        return (await response.json()) as AnalysisResponse;
+      }
+      // 4xx: definitive client error (rate-limited, invalid request…) — don't retry.
+      if (response.status < 500) {
         return null;
       }
-
-      return (await response.json()) as AnalysisResponse;
+      // 5xx: transient server error — fall through to retry.
     } catch (error) {
       // Timeouts are user-visible waits — do not add another full window on top.
       if (error instanceof DOMException && error.name === "AbortError") {
         return null;
       }
-      if (attempt < MAX_ATTEMPTS) {
-        await new Promise<void>((resolve) => globalThis.setTimeout(resolve, RETRY_DELAY_MS));
-      }
+      // Network error: fall through to retry.
     } finally {
       globalThis.clearTimeout(timeout);
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise<void>((resolve) => globalThis.setTimeout(resolve, RETRY_DELAY_MS));
     }
   }
 

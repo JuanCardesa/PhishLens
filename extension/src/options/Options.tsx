@@ -5,16 +5,18 @@ import { DEFAULT_SETTINGS, getExtensionSettings, saveExtensionSettings } from ".
 import type { BackendStatus, DiagnosticsCapabilities, ExtensionSettings } from "../types/analysis";
 import "./options.css";
 
+export function diagnosticsLabelFor(backendStatus: BackendStatus | null): string {
+  if (backendStatus?.diagnosticsAvailable) return "Enabled";
+  if (backendStatus?.state === "diagnostics-disabled") return "Disabled";
+  return "Unavailable";
+}
+
 export function Options() {
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
   const [status, setStatus] = useState<string>("Loading settings...");
   const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
   const [backendStatusLoading, setBackendStatusLoading] = useState(false);
-  const diagnosticsLabel = backendStatus?.diagnosticsAvailable
-    ? "Enabled"
-    : backendStatus?.state === "diagnostics-disabled"
-      ? "Disabled"
-      : "Unavailable";
+  const diagnosticsLabel = diagnosticsLabelFor(backendStatus);
 
   useEffect(() => {
     void getExtensionSettings().then((storedSettings) => {
