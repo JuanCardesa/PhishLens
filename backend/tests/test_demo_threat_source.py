@@ -14,7 +14,7 @@ def test_demo_threat_source_is_explicitly_enabled(monkeypatch) -> None:
     response = client.post(
         "/analyze",
         json={
-            "url": "http://127.0.0.1:8080/phishlens-demo-dangerous-login-secure-update.html",
+            "url": "http://localhost:8080/phishlens-demo-dangerous-login-secure-update.html",
             "dom_features": {
                 "has_password_field": True,
                 "num_forms": 1,
@@ -38,7 +38,7 @@ def test_demo_threat_source_is_disabled_by_default() -> None:
     response = client.post(
         "/analyze",
         json={
-            "url": "http://127.0.0.1:8080/phishlens-demo-dangerous-login-secure-update.html",
+            "url": "http://localhost:8080/phishlens-demo-dangerous-login-secure-update.html",
             "dom_features": {},
         },
     )

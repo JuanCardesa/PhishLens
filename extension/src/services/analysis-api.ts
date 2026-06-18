@@ -3,6 +3,17 @@ import type { AnalysisResponse, DOMFeatures, ExtensionSettings, FeedbackReport }
 const MAX_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 200;
 
+function isAnalysisResponse(obj: unknown): obj is AnalysisResponse {
+  if (!obj || typeof obj !== "object") return false;
+  const r = obj as Record<string, unknown>;
+  return (
+    typeof r.risk_score === "number" &&
+    (r.label === "safe" || r.label === "suspicious" || r.label === "dangerous") &&
+    typeof r.confidence === "number" &&
+    Array.isArray(r.reasons)
+  );
+}
+
 export async function requestBackendAnalysis(
   url: string,
   domFeatures: DOMFeatures,
@@ -21,7 +32,9 @@ export async function requestBackendAnalysis(
       });
 
       if (response.ok) {
-        return (await response.json()) as AnalysisResponse;
+        const json: unknown = await response.json();
+        if (!isAnalysisResponse(json)) return null;
+        return json;
       }
       // 4xx: definitive client error (rate-limited, invalid request…) — don't retry.
       if (response.status < 500) {
