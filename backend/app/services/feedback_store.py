@@ -3,7 +3,6 @@ from __future__ import annotations
 import sqlite3
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -49,6 +48,7 @@ class SQLiteFeedbackStore:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at)")
+            conn.execute("DELETE FROM feedback WHERE created_at < datetime('now', '-30 days')")
 
     def record(self, entry: FeedbackEntry) -> None:
         with self._lock, self._connect() as conn:
@@ -69,7 +69,7 @@ class SQLiteFeedbackStore:
             )
 
     def count(self) -> int:
-        with self._connect() as conn:
+        with self._lock, self._connect() as conn:
             row = conn.execute("SELECT COUNT(*) FROM feedback").fetchone()
             return int(row[0]) if row else 0
 
@@ -89,10 +89,6 @@ def _make_store(db_path: str) -> SQLiteFeedbackStore | _DisabledFeedbackStore:
         return _DisabledFeedbackStore()
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     return SQLiteFeedbackStore(db_path)
-
-
-def _now_utc() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # Module-level singleton; initialised once on first import.

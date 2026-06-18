@@ -1,38 +1,93 @@
 # Changelog
 
-## Unreleased
+All notable changes to this project are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-### Extension
+---
 
-- **Proactive badge updates**: Content script sends `PHISHLENS_PAGE_READY` on page load; service worker runs local scoring and sets the action badge colour immediately, without the user needing to open the popup. No new Chrome permissions required.
-- **SHA-256 cache key**: Replaced the 32-bit polynomial hash used for `chrome.storage.local` cache keys with a SHA-256-derived 16-character hex prefix (`crypto.subtle.digest`), eliminating trivial key collisions.
-- **Expired cache eviction on read**: Cached analysis entries older than 5 minutes are removed from storage when read, preventing stale results from being served after the TTL window.
-- **Retry logic on network errors**: `requestBackendAnalysis` retries once (200 ms delay) on transient network errors. AbortError (timeout) and non-2xx HTTP responses are not retried.
-- **`npm ci` in CI**: Extension CI now uses `npm ci` instead of `npm install` for reproducible lockfile-based installs.
-- **Options dark mode**: Added a system-preference-aware dark mode toggle in the Options page.
-- **Structured risk breakdown**: Popup displays a per-category score breakdown (URL, DOM, threat intel, TLS, ML) sourced from `risk_breakdown` in the analysis response.
+## [Unreleased] — portfolio hardening
 
-### Backend
+### Added
 
-- **Health check with real dependency probes**: `GET /health` now runs `FEEDBACK_STORE.count()` and `is_model_available()`; returns `503` when the feedback store is unavailable. ML absence does not affect the status code.
-- **`TTLCache` max-size with LRU-style eviction**: `TTLCache` accepts a `max_size` parameter (default 1000). When at capacity (after expired entry pruning), the soonest-to-expire entry is evicted. Updating an existing key never triggers eviction.
-- **ML model SHA-256 audit log**: On first load, `ml_service` computes a SHA-256 digest of the model file bytes and logs the first 16 hex characters at `INFO` level for integrity traceability.
-- **Strict mypy CI**: Backend CI runs `mypy --strict` on every push via a dedicated `mypy.ini` configuration.
-- **PR Guardian**: `scripts/ci/pr_guardian.py` enforces the allowed Chrome permissions set (`activeTab`, `scripting`, `storage`) and fails CI if `manifest.json` requests anything outside that list.
-- **Multi-stage Docker build**: Dockerfile uses a builder stage for dependency installation and a lean runtime stage; `docker-compose.yml` hardened with `read_only`, `no-new-privileges`, and dropped Linux capabilities.
-- **SSRF guard documented**: Accepted risk of DNS-based SSRF (bypassing IP-literal blocking) documented in `docs/threat-model.md` with rationale and recommended network-level mitigation.
-- **`.env.example` restored**: `PHISHLENS_DIAGNOSTICS_TOKEN` and inline comments for proxy/demo flags were missing from a prior merge; restored with full annotation.
+- **CI badges** in README linking to backend, extension, and security workflows on GitHub Actions.
+- **Quick Start** section in README: five commands to get the project running locally.
+- **Environment variables table** in README with default values and descriptions for all `PHISHLENS_*` settings.
+- **`CONTRIBUTING.md`**: setup, test commands, commit conventions, and PR checklist.
+- **`diagnostics_token` auth**: `GET /diagnostics` now checks `X-Diagnostics-Token` header when `PHISHLENS_DIAGNOSTICS_TOKEN` is set; returns `401` on mismatch. Closes the gap between `.env.example` documentation and actual enforcement.
+- **JSON structured logging**: `app/core/logging_config.py` configures the root logger with a stdlib JSON formatter. Every log record emits `timestamp`, `level`, `logger`, `message`, and any extra fields (e.g. `request_id`, `method`, `path`, `status_code`, `duration_ms`).
+- **React Error Boundary**: `ErrorBoundary.tsx` wraps the popup root. Unhandled render errors show a user-facing fallback with a "Try again" button instead of a blank popup.
+- **`content_security_policy`** field added to `manifest.json` (`script-src 'self'; object-src 'none'`), making the MV3 default explicit and auditable. CSP meta tags added to `popup.html` and `options.html` for tooling visibility.
+- **`Options.test.ts`**: unit tests for `diagnosticsLabelFor()` covering all `BackendStatus` states.
+- **`ml/datasets/build_dataset.py`**: downloads PhishTank verified phishing URLs and Tranco top-1M legitimate domains, extracts URL features, and writes `real_phishing_urls.csv` (~1 200 balanced rows). DOM features are 0 for all rows (browser context required).
+- **ML methodology docs**: `docs/ml-methodology.md` updated with dataset sources table, build instructions, and metrics guidance.
+- **GitHub Pages link** added to README header.
+- **Link to `docs/ml-methodology.md`** added to README.
 
-### Tests
+### Changed
 
-- **Extension test coverage**: Added unit tests for `cacheKey` (4 cases), retry behaviour in `requestBackendAnalysis` (3 cases), and `collectDomFeatures`/`hasExternalAction` helpers.
-- **Backend test coverage**: Added tests for `TTLCache` max-size eviction, health endpoint 503 degraded state, and `FeedbackStore.count()` monkeypatching.
-- **Chrome mock hardened**: `setup.ts` adds `chrome.runtime.sendMessage` and `chrome.runtime.onMessage.addListener` to the top-level and per-test stubs.
+- **`requestBackendAnalysis` retry logic**: 5xx responses (transient server errors) now fall through to the retry loop. 4xx responses (429, 422, etc.) still return `null` immediately. Previously, all non-2xx responses skipped retry.
+- **`isDOMFeatures` type guard**: `collectDomFeatures()` in `Popup.tsx` now validates the content script response shape before casting, falling back to `EMPTY_DOM_FEATURES` on unexpected payloads.
+- **`train_model.py`** auto-detects `real_phishing_urls.csv` and falls back to the synthetic demo set; version string updates accordingly (`0.3.0-real` / `0.2.0-synthetic`).
+- **`docs/permissions.md`** updated to document the new `content_security_policy` manifest field.
+- **Configuration section** in README reformatted from bullet list to a table with default values.
 
-### Documentation
+### Fixed
 
-- **README**: Added screenshots section, Linux/macOS setup commands, corrected demo URLs (`localhost` not `127.0.0.1`), and noted `/docs` FastAPI interactive explorer.
-- **Threat model**: Added SSRF-via-DNS entry to the risks list and a full "Accepted Risks And Limitations" section.
+- **`FeedbackStore.count()` race condition**: method now acquires `self._lock` before executing the `SELECT COUNT(*)` query, consistent with `record()`.
+- **`docker-compose.yml`** now includes `security_opt: [no-new-privileges:true]`, `read_only: true`, `cap_drop: [ALL]`, and a `tmpfs` mount for `/tmp`. Previously the CHANGELOG documented this hardening but the compose file did not reflect it.
+- **30-day feedback retention**: `_init_schema()` runs `DELETE FROM feedback WHERE created_at < datetime('now', '-30 days')` on store startup.
+- **Dead `_now_utc()` removed** from `feedback_store.py` (was already unused after a prior refactor).
+
+### Security
+
+- Diagnostics endpoint now enforces token authentication when `PHISHLENS_DIAGNOSTICS_TOKEN` is configured.
+- Docker container now runs with a read-only root filesystem and no Linux capabilities.
+- Extension pages now declare explicit CSP in `manifest.json`.
+
+---
+
+## [0.2.1] — review fixes
+
+### Added
+
+- Proactive badge updates via `PHISHLENS_PAGE_READY` from content script.
+- SHA-256 cache key for `chrome.storage.local` (replaced 32-bit polynomial hash).
+- Expired cache eviction on read (5-minute TTL enforced at read time).
+- Retry logic on transient network errors in `requestBackendAnalysis`.
+- Health check with real dependency probes (`FEEDBACK_STORE.count()`, `is_model_available()`); returns `503` when feedback store is unavailable.
+- `TTLCache` max-size with LRU-style eviction.
+- ML model SHA-256 audit log on first load.
+- PR Guardian script enforcing Chrome permission allowlist, secret scanning, and scoring test coupling.
+- SSRF guard: accepted risk of DNS-based SSRF documented in `docs/threat-model.md`.
+
+### Changed
+
+- Extension CI uses `npm ci` for reproducible installs.
+- Options page gained system-preference-aware dark mode.
+- Structured risk breakdown (URL / DOM / threat intel / TLS / ML) sourced from `risk_breakdown` field.
+- Strict `mypy --strict` added to backend CI.
+
+### Fixed
+
+- Multi-stage Docker build: lean runtime image with no pip, git, or compiler.
+- `.env.example` restored with `PHISHLENS_DIAGNOSTICS_TOKEN` and inline comments.
+
+---
+
+## [0.2.0]
+
+- Added reproducible local safe, suspicious, and dangerous demo pages.
+- Added backend request IDs, diagnostics counters, sanitized validation responses, and in-memory rate limiting.
+- Added explicit localhost-only demo threat source guarded by `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`.
+- Improved popup status clarity for backend-enriched, local-only, cached, and backend-unavailable modes.
+- Added privacy-preserving report copy from the extension popup.
+- Added `npm run package` to generate a loadable Chrome extension zip.
+- Updated CI to validate demo linting and extension packaging.
+- Expanded README, architecture, privacy, demo, roadmap, and release-process documentation.
+
+## [0.1.0]
+
+- Initial public release with Chrome MV3 extension, FastAPI backend, hybrid scoring, demo ML pipeline, Docker, CI, and core documentation.
 
 ## v0.2.0
 

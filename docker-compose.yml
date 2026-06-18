@@ -34,6 +34,18 @@ services:
       # Feedback store — writes to the /data volume
       PHISHLENS_FEEDBACK_DB_PATH: /data/feedback.db
 
+    # Security hardening: run as non-root (phishlens user set in Dockerfile),
+    # read-only root filesystem, no privilege escalation, no Linux capabilities.
+    # /tmp is mounted as tmpfs so uvicorn can write process temporaries.
+    # /data remains writable via the named volume.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
