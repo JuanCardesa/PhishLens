@@ -229,14 +229,27 @@ async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   });
 }
 
+function isDOMFeatures(obj: unknown): obj is DOMFeatures {
+  if (typeof obj !== "object" || obj === null) return false;
+  const c = obj as Record<string, unknown>;
+  return (
+    typeof c.has_password_field === "boolean" &&
+    typeof c.num_forms === "number" &&
+    typeof c.external_form_action === "boolean" &&
+    typeof c.num_iframes === "number" &&
+    typeof c.external_links_ratio === "number" &&
+    typeof c.has_hidden_inputs === "boolean"
+  );
+}
+
 async function collectDomFeatures(tabId: number): Promise<DOMFeatures> {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, { type: "PHISHLENS_COLLECT_DOM" }, (response) => {
-      if (chrome.runtime.lastError || !response?.ok) {
+      if (chrome.runtime.lastError || !response?.ok || !isDOMFeatures(response.dom_features)) {
         resolve(EMPTY_DOM_FEATURES);
         return;
       }
-      resolve(response.dom_features as DOMFeatures);
+      resolve(response.dom_features);
     });
   });
 }

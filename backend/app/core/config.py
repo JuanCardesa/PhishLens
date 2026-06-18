@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     chrome_extension_ids: str = Field(default="", validation_alias="PHISHLENS_CHROME_EXTENSION_IDS")
     behind_proxy: bool = Field(default=False, validation_alias="PHISHLENS_BEHIND_PROXY")
     feedback_db_path: str = Field(default="feedback.db", validation_alias="PHISHLENS_FEEDBACK_DB_PATH")
+    diagnostics_token: str | None = Field(default=None, validation_alias="PHISHLENS_DIAGNOSTICS_TOKEN")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
