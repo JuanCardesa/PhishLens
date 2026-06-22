@@ -1,8 +1,35 @@
 # PhishLens
 
+[![Backend CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/backend-ci.yml)
+[![Extension CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/extension-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/extension-ci.yml)
+[![Security CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/security-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/security-ci.yml)
+
+**[Project site](https://juancardesa.github.io/PhishLens/)** · [Architecture](docs/architecture.md) · [Privacy policy](docs/privacy.md) · [Threat model](docs/threat-model.md) · [ML methodology](docs/ml-methodology.md)
+
 PhishLens is a defensive Chrome extension and FastAPI backend for explainable phishing risk analysis in real time.
 
 It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
+
+## Quick Start
+
+```bash
+# 1. Clone and set up the backend
+git clone https://github.com/JuanCardesa/PhishLens.git && cd PhishLens
+cp .env.example .env
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r backend/requirements-dev.txt
+
+# 2. Start the backend
+uvicorn app.main:app --app-dir backend --reload
+
+# 3. Build the extension
+cd extension && npm install && npm run build
+
+# 4. Load the extension in Chrome: chrome://extensions → Developer mode → Load unpacked → select extension/dist
+
+# 5. (Optional) Build a real ML dataset and retrain the model
+python ml/datasets/build_dataset.py && python ml/train_model.py
+```
 
 ## Current Status
 
@@ -30,6 +57,16 @@ Implemented product capabilities:
 - Structured risk breakdown by URL, DOM, threat intelligence, TLS, and ML categories.
 - SQLite feedback persistence for host-level label metadata only.
 
+## Screenshots
+
+| Safe result | Suspicious result | Dangerous result |
+|---|---|---|
+| ![Safe result](docs/screenshots/01-safe-result.png) | ![Suspicious result](docs/screenshots/02-suspicious-result.png) | ![Dangerous result](docs/screenshots/03-dangerous-result.png) |
+
+| Local-only mode (backend unavailable) | Danger overlay |
+|---|---|
+| ![Local-only mode](docs/screenshots/04-local-only.png) | ![Danger overlay](docs/screenshots/05-danger-overlay.png) |
+
 ## Architecture
 
 ```text
@@ -56,9 +93,20 @@ The extension never sends full HTML, form values, passwords, or typed emails. Th
 
 ### Backend
 
+**Linux / macOS**
+
 ```bash
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+uvicorn app.main:app --app-dir backend --reload
+```
+
+**Windows**
+
+```bash
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
 ```
 
@@ -67,6 +115,8 @@ Health check:
 ```bash
 curl http://localhost:8000/health
 ```
+
+Interactive API documentation is available at `http://localhost:8000/docs` while the backend is running.
 
 ### Extension
 
@@ -92,6 +142,7 @@ Extension settings are available from the popup settings button or Chrome extens
 Backend:
 
 ```bash
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 pytest backend/tests
 ```
 
@@ -133,25 +184,26 @@ python scripts/dev/check_demo.py
 
 ## Configuration
 
-Copy `.env.example` to `.env` for local overrides.
+Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 
-- `PHISHTANK_API_KEY`: optional PhishTank application key.
-- `PHISHTANK_USER_AGENT`: descriptive User-Agent required by PhishTank.
-- `PHISHLENS_ALLOWED_ORIGINS`: backend CORS origins. Add `chrome-extension://*` (or a specific extension origin) only when extension access is required.
-- `PHISHLENS_CHROME_EXTENSION_IDS`: comma-separated Chrome extension IDs allowed by backend CORS.
-- `PHISHLENS_ENABLE_THREAT_INTEL`: enable or disable threat intel checks.
-- `PHISHLENS_ENABLE_TLS_ANALYSIS`: enable or disable backend TLS checks.
-- `PHISHLENS_MODEL_PATH`: optional path to a trained joblib model.
-- `PHISHLENS_ENABLE_DIAGNOSTICS`: enable development diagnostics.
-- `PHISHLENS_ENABLE_RATE_LIMITING`: enable in-memory rate limits.
-- `PHISHLENS_ANALYZE_RATE_LIMIT`: per-window `/analyze` request limit.
-- `PHISHLENS_REPORT_RATE_LIMIT`: per-window `/report` request limit.
-- `PHISHLENS_RATE_LIMIT_WINDOW_SECONDS`: rate-limit window.
-- `PHISHLENS_BEHIND_PROXY`: trust `X-Forwarded-For` only when the backend is behind a trusted reverse proxy.
-- `PHISHLENS_FEEDBACK_DB_PATH`: SQLite path for feedback metadata. Set to an empty string to disable persistence.
-- `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`: localhost-only dangerous demo signal.
-
-No real keys are committed.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PHISHTANK_API_KEY` | _(empty)_ | Optional PhishTank application key. Omit to skip threat intel. |
+| `PHISHTANK_USER_AGENT` | `phishtank/phishlens-demo` | User-Agent sent with PhishTank requests (required by their API). |
+| `PHISHLENS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated CORS origins. Add `chrome-extension://*` only for local dev. |
+| `PHISHLENS_CHROME_EXTENSION_IDS` | _(empty)_ | Comma-separated Chrome extension IDs for production CORS. |
+| `PHISHLENS_ENABLE_THREAT_INTEL` | `true` | Enable/disable PhishTank lookups. |
+| `PHISHLENS_ENABLE_TLS_ANALYSIS` | `true` | Enable/disable backend TLS certificate inspection. |
+| `PHISHLENS_MODEL_PATH` | `ml/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
+| `PHISHLENS_ENABLE_DIAGNOSTICS` | `true` | Expose aggregate counters at `GET /diagnostics`. |
+| `PHISHLENS_DIAGNOSTICS_TOKEN` | _(empty)_ | When set, `GET /diagnostics` requires `X-Diagnostics-Token: <value>`. |
+| `PHISHLENS_ENABLE_RATE_LIMITING` | `true` | Enable in-memory sliding-window rate limits. |
+| `PHISHLENS_ANALYZE_RATE_LIMIT` | `60` | Max `/analyze` requests per window per IP. |
+| `PHISHLENS_REPORT_RATE_LIMIT` | `20` | Max `/report` requests per window per IP. |
+| `PHISHLENS_RATE_LIMIT_WINDOW_SECONDS` | `60` | Rate-limit window in seconds. |
+| `PHISHLENS_BEHIND_PROXY` | `false` | Trust `X-Forwarded-For` when behind nginx / Caddy / ALB. |
+| `PHISHLENS_FEEDBACK_DB_PATH` | `feedback.db` | SQLite path for feedback metadata. Set to `""` to disable. |
+| `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE` | `false` | Enable localhost-only dangerous demo signal. |
 
 Extension settings:
 
@@ -177,11 +229,11 @@ npm run build
 
 Load `extension/dist` in Chrome and visit:
 
-- `http://127.0.0.1:8080/pages/safe.html`
-- `http://127.0.0.1:8080/pages/suspicious.html`
-- `http://127.0.0.1:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
+- `http://localhost:8080/pages/safe.html`
+- `http://localhost:8080/pages/suspicious.html`
+- `http://localhost:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
 
-The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches localhost/127.0.0.1 URLs containing `phishlens-demo-dangerous`.
+The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches `localhost` URLs containing `phishlens-demo-dangerous`. Use `localhost` rather than `127.0.0.1`: the backend rejects private IP literals as an SSRF safeguard.
 
 Package the extension:
 

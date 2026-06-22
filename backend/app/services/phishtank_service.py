@@ -10,7 +10,7 @@ from app.services.diagnostics import DIAGNOSTICS
 from app.services.url_normalizer import normalize_url
 
 
-PHISHTANK_CHECK_URL = "http://checkurl.phishtank.com/checkurl/"
+PHISHTANK_CHECK_URL = "https://checkurl.phishtank.com/checkurl/"
 PHISHTANK_CACHE = TTLCache["PhishTankResult"](ttl_seconds=300)
 PHISHTANK_ERROR_CACHE = TTLCache["PhishTankResult"](ttl_seconds=30)
 
@@ -54,13 +54,14 @@ async def check_url(url: str, settings: Settings | None = None) -> PhishTankResu
         PHISHTANK_ERROR_CACHE.set(normalized_url, result)
         return result
 
-    result = payload.get("results") or {}
+    raw_results = payload.get("results")
+    result_data: dict[str, object] = raw_results if isinstance(raw_results, dict) else {}
     phishtank_result = PhishTankResult(
         checked=True,
-        in_database=_as_bool(result.get("in_database")),
-        verified=_as_bool(result.get("verified")),
-        valid=_as_bool(result.get("valid")),
-        detail_url=result.get("phish_detail_page"),
+        in_database=_as_bool(result_data.get("in_database")),
+        verified=_as_bool(result_data.get("verified")),
+        valid=_as_bool(result_data.get("valid")),
+        detail_url=str(result_data["phish_detail_page"]) if "phish_detail_page" in result_data else None,
     )
     PHISHTANK_CACHE.set(normalized_url, phishtank_result)
     return phishtank_result
@@ -77,7 +78,8 @@ async def _fetch_phishtank_payload(url: str, settings: Settings) -> dict[str, ob
     async with httpx.AsyncClient(timeout=settings.external_timeout_seconds) as client:
         response = await client.post(PHISHTANK_CHECK_URL, data=data, headers=headers)
         response.raise_for_status()
-        return response.json()
+        payload: dict[str, object] = response.json()
+        return payload
 
 
 def _as_bool(value: object) -> bool:

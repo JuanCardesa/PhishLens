@@ -1,36 +1,62 @@
 import type { AnalysisResponse, DOMFeatures, ExtensionSettings, FeedbackReport } from "../types/analysis";
 
+const MAX_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 200;
+
+function isAnalysisResponse(obj: unknown): obj is AnalysisResponse {
+  if (!obj || typeof obj !== "object") return false;
+  const r = obj as Record<string, unknown>;
+  return (
+    typeof r.risk_score === "number" &&
+    (r.label === "safe" || r.label === "suspicious" || r.label === "dangerous") &&
+    typeof r.confidence === "number" &&
+    Array.isArray(r.reasons)
+  );
+}
+
 export async function requestBackendAnalysis(
   url: string,
   domFeatures: DOMFeatures,
   settings: ExtensionSettings,
 ): Promise<AnalysisResponse | null> {
-  const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timeout = globalThis.setTimeout(() => controller.abort(), settings.requestTimeoutMs);
 
-  try {
-    const response = await fetch(`${settings.backendBaseUrl}/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        dom_features: domFeatures,
-      }),
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(`${settings.backendBaseUrl}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, dom_features: domFeatures }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      return null;
+      if (response.ok) {
+        const json: unknown = await response.json();
+        if (!isAnalysisResponse(json)) return null;
+        return json;
+      }
+      // 4xx: definitive client error (rate-limited, invalid request…) — don't retry.
+      if (response.status < 500) {
+        return null;
+      }
+      // 5xx: transient server error — fall through to retry.
+    } catch (error) {
+      // Timeouts are user-visible waits — do not add another full window on top.
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return null;
+      }
+      // Network error: fall through to retry.
+    } finally {
+      globalThis.clearTimeout(timeout);
     }
 
-    return (await response.json()) as AnalysisResponse;
-  } catch {
-    return null;
-  } finally {
-    globalThis.clearTimeout(timeout);
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise<void>((resolve) => globalThis.setTimeout(resolve, RETRY_DELAY_MS));
+    }
   }
+
+  return null;
 }
 
 export async function submitFeedbackReport(
