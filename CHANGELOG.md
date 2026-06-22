@@ -5,7 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — project stabilization
+## [Unreleased]
+
+Nothing yet.
+
+---
+
+## [0.3.0] — 2026-06-22 — stabilization, security hardening, and portfolio polish
 
 ### Added
 
@@ -13,6 +19,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Private-IP SSRF tests**: parametrized `pytest` cases cover IPv4 loopback, RFC-1918 ranges, IPv6 loopback, link-local, and a public IP allow-case.
 - **`isAnalysisResponse` runtime guard**: `analysis-api.ts` validates the `/analyze` response shape before casting — malformed backend payloads now return `null` instead of silently propagating an invalid object.
 - **Port/protocol origin check for form actions**: `hasExternalAction` in `dom-analyzer.ts` now compares the full origin (`scheme + host + port`) instead of hostname only. A form targeting `http://site.com:9999` from an `https://site.com` page is now correctly flagged as cross-origin.
+- **`SECURITY.md`**: vulnerability disclosure policy with scope, reporting contact, and a summary of the accepted risks already documented in `docs/threat-model.md`.
+- **`.github/CODEOWNERS`**: default repository ownership.
+- **Test coverage reporting**: `pytest-cov` (backend) and `vitest --coverage` (extension) wired into CI, uploaded to Codecov (`codecov/codecov-action@v5`) with a badge in the README. Backend coverage: 87%. Extension coverage: 82% (up from 59% after adding `@testing-library/react` render tests for `Popup.tsx` and `Options.tsx`).
+- **`backend/tests/test_scoring_service.py`**: regression tests for the mutually-exclusive TLS scoring fix below.
+- **`extension/src/popup/Popup.render.test.tsx` and `extension/src/options/Options.render.test.tsx`**: component-level tests covering loading states, backend-enriched/unavailable modes, feedback submission, and settings save/refresh flows.
+- Repository metadata: GitHub topics and homepage URL set to the project site.
 
 ### Changed
 
@@ -29,6 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`chrome-web-store.md`**: corrected privacy disclosure — feedback _is_ persisted in SQLite (hostname, label, note presence, request ID, timestamp), not "not durably stored".
 - **Dead imports** in `ml/datasets/build_dataset.py`: removed unused `re` and `unicodedata` imports that caused `ruff F401` failures.
+- **`pr_guardian.py`**: the sensitive-surface-docs check only recognized `.test.ts` as a test-only file, not `.test.tsx` — the first JSX test files in the repo were incorrectly flagged as undocumented sensitive-surface changes.
 
 ---
 
@@ -113,20 +126,5 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Expanded README, architecture, privacy, demo, roadmap, and release-process documentation.
 
 ## [0.1.0]
-
-- Initial public release with Chrome MV3 extension, FastAPI backend, hybrid scoring, demo ML pipeline, Docker, CI, and core documentation.
-
-## v0.2.0
-
-- Added reproducible local safe, suspicious, and dangerous demo pages.
-- Added backend request IDs, diagnostics counters, sanitized validation responses, and in-memory rate limiting.
-- Added explicit localhost-only demo threat source guarded by `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE`.
-- Improved popup status clarity for backend-enriched, local-only, cached, and backend-unavailable modes.
-- Added privacy-preserving report copy from the extension popup.
-- Added `npm run package` to generate a loadable Chrome extension zip.
-- Updated CI to validate demo linting and extension packaging.
-- Expanded README, architecture, privacy, demo, roadmap, and release-process documentation.
-
-## v0.1.0
 
 - Initial public release with Chrome MV3 extension, FastAPI backend, hybrid scoring, demo ML pipeline, Docker, CI, and core documentation.
