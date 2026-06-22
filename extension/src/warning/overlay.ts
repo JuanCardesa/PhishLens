@@ -8,6 +8,12 @@ chrome.runtime.onMessage.addListener((message) => {
     existing.remove();
   }
 
+  const dark = globalThis.matchMedia("(prefers-color-scheme: dark)").matches;
+  const panelBg = dark ? "#1f2937" : "#ffffff";
+  const panelText = dark ? "#f1f5f9" : "#172033";
+  const bodyText = dark ? "#cbd5e1" : "#344054";
+  const buttonBg = dark ? "#991b1b" : "#b42318";
+
   const overlay = document.createElement("div");
   overlay.id = "phishlens-warning-overlay";
   overlay.setAttribute("role", "dialog");
@@ -29,8 +35,8 @@ chrome.runtime.onMessage.addListener((message) => {
     "width:min(420px,calc(100vw - 32px))",
     "padding:20px",
     "border-radius:8px",
-    "background:#fff",
-    "color:#172033",
+    `background:${panelBg}`,
+    `color:${panelText}`,
     "box-shadow:0 18px 48px rgba(0,0,0,0.28)",
   ].join(";");
 
@@ -41,10 +47,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
   const score = document.createElement("p");
   score.textContent = `Risk score: ${Number(message.riskScore ?? 0)}/100`;
-  score.style.cssText = "margin:0 0 12px;color:#344054;font-size:14px";
+  score.style.cssText = `margin:0 0 12px;color:${bodyText};font-size:14px`;
 
   const list = document.createElement("ul");
-  list.style.cssText = "display:grid;gap:6px;margin:0 0 16px;padding-left:18px;color:#344054;font-size:13px";
+  list.style.cssText = `display:grid;gap:6px;margin:0 0 16px;padding-left:18px;color:${bodyText};font-size:13px`;
   for (const reason of Array.isArray(message.reasons) ? message.reasons : []) {
     const item = document.createElement("li");
     item.textContent = String(reason);
@@ -60,7 +66,7 @@ chrome.runtime.onMessage.addListener((message) => {
     "border:0",
     "border-radius:8px",
     "color:#fff",
-    "background:#b42318",
+    `background:${buttonBg}`,
     "font:inherit",
     "font-weight:700",
     "cursor:pointer",

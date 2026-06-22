@@ -30,7 +30,7 @@ The listing should match [privacy.md](privacy.md):
 - collected data is limited to current URL, derived URL features, non-sensitive DOM features, optional feedback labels, TLS metadata, threat-intel result, and aggregate diagnostics;
 - credentials, typed emails, form values, cookies, tokens, screenshots, full HTML, browser history, and private page text are not collected;
 - API keys are backend-only and never bundled with the extension;
-- feedback is not durably stored in the current MVP.
+- feedback is stored in SQLite (hostname, label, note presence, request ID, and timestamp only — no full URLs, form values, or personal data).
 
 ## Permissions Justification
 

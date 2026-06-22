@@ -229,14 +229,27 @@ async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   });
 }
 
+function isDOMFeatures(obj: unknown): obj is DOMFeatures {
+  if (typeof obj !== "object" || obj === null) return false;
+  const c = obj as Record<string, unknown>;
+  return (
+    typeof c.has_password_field === "boolean" &&
+    typeof c.num_forms === "number" &&
+    typeof c.external_form_action === "boolean" &&
+    typeof c.num_iframes === "number" &&
+    typeof c.external_links_ratio === "number" &&
+    typeof c.has_hidden_inputs === "boolean"
+  );
+}
+
 async function collectDomFeatures(tabId: number): Promise<DOMFeatures> {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, { type: "PHISHLENS_COLLECT_DOM" }, (response) => {
-      if (chrome.runtime.lastError || !response?.ok) {
+      if (chrome.runtime.lastError || !response?.ok || !isDOMFeatures(response.dom_features)) {
         resolve(EMPTY_DOM_FEATURES);
         return;
       }
-      resolve(response.dom_features as DOMFeatures);
+      resolve(response.dom_features);
     });
   });
 }
@@ -257,7 +270,7 @@ function toPopupAnalysis(
 }
 
 async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
-  const key = cacheKey(url);
+  const key = await cacheKey(url);
   return new Promise((resolve) => {
     chrome.storage.local.get([key], (items) => {
       const cached = items[key] as PopupAnalysis | undefined;
@@ -267,27 +280,45 @@ async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
       }
 
       const ageMs = Date.now() - new Date(cached.analyzedAt).getTime();
-      resolve(ageMs < 5 * 60 * 1000 ? cached : null);
+      if (ageMs >= 5 * 60 * 1000) {
+        chrome.storage.local.remove([key]);
+        resolve(null);
+        return;
+      }
+      resolve(cached);
     });
   });
 }
 
+function stripSensitiveUrlParts(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return url.split("?")[0].split("#")[0];
+  }
+}
+
 async function writeCachedAnalysis(url: string, value: PopupAnalysis): Promise<void> {
-  const key = cacheKey(url);
+  const key = await cacheKey(url);
+  // The key is already a hash of the full URL. Strip query string and fragment
+  // from the persisted value so tokens in query params are not stored at rest.
+  const sanitized: PopupAnalysis = { ...value, url: stripSensitiveUrlParts(url) };
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, () => resolve());
+    chrome.storage.local.set({ [key]: sanitized }, () => resolve());
   });
 }
 
-function cacheKey(url: string): string {
-  let hash = 0;
-  for (let index = 0; index < url.length; index += 1) {
-    hash = (hash * 31 + url.charCodeAt(index)) >>> 0;
-  }
-  return `analysis:${hash.toString(16)}`;
+export async function cacheKey(url: string): Promise<string> {
+  const data = new TextEncoder().encode(url);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hex = Array.from(new Uint8Array(hashBuffer), (b) => b.toString(16).padStart(2, "0")).join("");
+  return `analysis:${hex.slice(0, 16)}`;
 }
 
-function modeLabel(mode: AnalysisMode): string {
+export function modeLabel(mode: AnalysisMode): string {
   if (mode === "backend-enriched") {
     return "Backend enriched";
   }
@@ -303,7 +334,7 @@ function modeLabel(mode: AnalysisMode): string {
   return "Local only";
 }
 
-function modeBannerText(analysis: PopupAnalysis): string {
+export function modeBannerText(analysis: PopupAnalysis): string {
   if (analysis.mode === "backend-enriched") {
     return "Backend enrichment is active for this result.";
   }
@@ -324,7 +355,7 @@ function modeBannerText(analysis: PopupAnalysis): string {
   return "Local-only analysis. Backend enrichment is not active.";
 }
 
-function sourceList(analysis: PopupAnalysis): string[] {
+export function sourceList(analysis: PopupAnalysis): string[] {
   const sources = ["heuristics"];
   if (analysis.sources.tls) {
     sources.push("tls");
@@ -341,7 +372,7 @@ function sourceList(analysis: PopupAnalysis): string[] {
   return sources;
 }
 
-function labelText(label: RiskLabel): string {
+export function labelText(label: RiskLabel): string {
   if (label === "dangerous") {
     return "Dangerous";
   }
@@ -351,7 +382,7 @@ function labelText(label: RiskLabel): string {
   return "Safe";
 }
 
-function labelSymbol(label: RiskLabel): string {
+export function labelSymbol(label: RiskLabel): string {
   if (label === "dangerous") {
     return "✕";
   }

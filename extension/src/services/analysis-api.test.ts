@@ -3,6 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { requestBackendAnalysis, submitFeedbackReport } from "./analysis-api";
 import { DEFAULT_SETTINGS } from "./settings";
 
+const EMPTY_DOM = {
+  has_password_field: false,
+  num_forms: 0,
+  external_form_action: false,
+  num_iframes: 0,
+  external_links_ratio: 0,
+  has_hidden_inputs: false,
+};
+
 describe("analysis-api", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -59,5 +68,53 @@ describe("analysis-api", () => {
     );
 
     expect(ok).toBe(false);
+  });
+
+  it("retries once on a network error before returning null", async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        callCount += 1;
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+
+    const result = await requestBackendAnalysis("https://example.test/login", EMPTY_DOM, DEFAULT_SETTINGS);
+
+    expect(result).toBeNull();
+    expect(callCount).toBe(2);
+  });
+
+  it("does not retry on timeout (AbortError)", async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        callCount += 1;
+        throw new DOMException("The operation was aborted.", "AbortError");
+      }),
+    );
+
+    const result = await requestBackendAnalysis("https://example.test/login", EMPTY_DOM, DEFAULT_SETTINGS);
+
+    expect(result).toBeNull();
+    expect(callCount).toBe(1);
+  });
+
+  it("does not retry on a non-ok HTTP response (e.g. 429)", async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        callCount += 1;
+        return new Response(null, { status: 429 });
+      }),
+    );
+
+    const result = await requestBackendAnalysis("https://example.test/login", EMPTY_DOM, DEFAULT_SETTINGS);
+
+    expect(result).toBeNull();
+    expect(callCount).toBe(1);
   });
 });
