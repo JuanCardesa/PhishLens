@@ -14,7 +14,7 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.2.0",
+    version="0.3.0",
     description="Defensive phishing risk analysis API for the PhishLens browser extension.",
 )
 
