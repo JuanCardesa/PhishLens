@@ -69,6 +69,16 @@ describe("collectDomFeatures", () => {
     expect(result.external_links_ratio).toBeCloseTo(0.5, 2);
   });
 
+  it("excludes a link with an unparseable href without throwing", () => {
+    const anchor = document.createElement("a");
+    anchor.setAttribute("href", "https://example.com/");
+    Object.defineProperty(anchor, "href", { value: "http://[invalid", configurable: true });
+    document.body.appendChild(anchor);
+
+    expect(() => collectDomFeatures()).not.toThrow();
+    expect(collectDomFeatures().external_links_ratio).toBe(0);
+  });
+
   it("detects external form action", () => {
     document.body.innerHTML = '<form action="https://evil.example.com/steal"></form>';
     expect(collectDomFeatures().external_form_action).toBe(true);
@@ -115,8 +125,13 @@ describe("hasExternalAction", () => {
     expect(hasExternalAction(makeForm("mailto:someone@example.com"), origin)).toBe(false);
   });
 
-  it("returns false for a malformed action URL", () => {
+  it("returns false for an action that resolves to a relative path", () => {
     const origin = globalThis.location.origin;
     expect(hasExternalAction(makeForm(":::bad:::"), origin)).toBe(false);
+  });
+
+  it("returns false when the action URL cannot be parsed at all", () => {
+    const origin = globalThis.location.origin;
+    expect(hasExternalAction(makeForm("http://[invalid"), origin)).toBe(false);
   });
 });
