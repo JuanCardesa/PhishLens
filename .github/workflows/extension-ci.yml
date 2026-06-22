@@ -28,7 +28,14 @@ jobs:
       - name: Type check
         run: npm run lint
       - name: Unit tests
-        run: npm run test
+        run: npm run test:coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: extension/coverage/lcov.info
+          flags: extension
+          fail_ci_if_error: false
       - name: Build
         run: npm run build
       - name: Package
