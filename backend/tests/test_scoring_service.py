@@ -31,6 +31,20 @@ def test_label_from_score_thresholds() -> None:
     assert label_from_score(70) == "dangerous"
 
 
+def test_score_tls_expired_and_invalid_is_mutually_exclusive() -> None:
+    score, reasons = _score_tls(TLSResult(checked=True, valid=False, expired=True))
+
+    assert score == 15
+    assert reasons == ["TLS certificate appears to be expired"]
+
+
+def test_score_tls_invalid_without_expiry_data() -> None:
+    score, reasons = _score_tls(TLSResult(checked=True, valid=False, expired=False))
+
+    assert score == 10
+    assert reasons == ["TLS certificate could not be validated"]
+
+
 @pytest.mark.asyncio
 async def test_scoring_combines_url_and_dom_reasons() -> None:
     result = await analyze_url(
