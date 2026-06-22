@@ -2,6 +2,8 @@
 
 PhishLens keeps Chrome permissions narrow and documents every permission used by the Manifest V3 extension.
 
+Reviewed for v0.3.0: no permission changes. The manifest version bump is documentation-only.
+
 ## Required Permissions
 
 | Permission | Why PhishLens Uses It |
