@@ -18,6 +18,8 @@ dist/
 build/
 coverage/
 htmlcov/
+coverage.xml
+.coverage
 extension/release/
 
 # Local environment
