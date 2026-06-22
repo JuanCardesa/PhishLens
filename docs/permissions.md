@@ -42,6 +42,16 @@ The content script must not read passwords, typed emails, form values, full HTML
 
 `manifest.json` declares PNG icons at 16, 48, and 128 px (used by Chrome for the toolbar, extensions page, and Web Store). A 512 px PNG is generated alongside these for the Chrome Web Store promotional tile. Icon declarations are not permissions — they do not grant the extension any additional access to browser data or user pages.
 
+## Content Security Policy
+
+`manifest.json` declares an explicit `content_security_policy` for extension pages:
+
+```
+script-src 'self'; object-src 'none'
+```
+
+This restricts script execution to the extension's own bundled files and blocks embedded object elements. It matches and makes explicit the default MV3 security policy.
+
 ## Change Control
 
 Any pull request that changes `extension/manifest.json` must also review and update this document. `PR Guardian` enforces that coupling.

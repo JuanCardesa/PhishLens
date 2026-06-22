@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.core.config import get_settings
 from app.services.diagnostics import DIAGNOSTICS
@@ -9,10 +9,15 @@ router = APIRouter(tags=["diagnostics"])
 
 
 @router.get("/diagnostics")
-def diagnostics() -> dict[str, object]:
+def diagnostics(request: Request) -> dict[str, object]:
     settings = get_settings()
     if not settings.enable_diagnostics:
         raise HTTPException(status_code=404, detail="Diagnostics are disabled.")
+
+    if settings.diagnostics_token:
+        provided = request.headers.get("X-Diagnostics-Token", "")
+        if provided != settings.diagnostics_token:
+            raise HTTPException(status_code=401, detail="Invalid or missing diagnostics token.")
 
     snapshot = DIAGNOSTICS.snapshot()
     return {

@@ -1,5 +1,7 @@
+import pytest
+
 from app.schemas.analysis import AnalysisRequest, ReportRequest
-from app.services.url_normalizer import normalize_url
+from app.services.url_normalizer import URLNormalizationError, normalize_url
 
 
 def test_normalize_url_lowercases_scheme_host_and_removes_fragment() -> None:
@@ -24,3 +26,30 @@ def test_report_request_normalizes_url() -> None:
     )
 
     assert request.url == "http://example.test/path"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/path",
+        "http://127.0.0.1:8080/path",
+        "http://10.0.0.1/internal",
+        "http://192.168.1.1/router",
+        "http://172.16.0.1/internal",
+        "http://[::1]/ipv6-loopback",
+        "http://169.254.0.1/link-local",
+    ],
+)
+def test_normalize_url_rejects_private_ip_literals(url: str) -> None:
+    with pytest.raises(URLNormalizationError, match="private or loopback"):
+        normalize_url(url)
+
+
+def test_normalize_url_allows_public_ip() -> None:
+    assert normalize_url("https://8.8.8.8/dns") == "https://8.8.8.8/dns"
+
+
+def test_normalize_url_allows_hostname_that_resolves_privately() -> None:
+    # Hostnames like 'localhost' are NOT rejected — only IP literals are blocked.
+    # DNS-based SSRF is an accepted risk documented in docs/threat-model.md.
+    assert normalize_url("http://localhost/page") == "http://localhost/page"

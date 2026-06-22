@@ -13,10 +13,16 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test
 
 
 ROOT = Path(__file__).resolve().parent
-DATASET_PATH = ROOT / "datasets" / "demo_phishing_urls.csv"
+_REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
+_DEMO_DATASET = ROOT / "datasets" / "demo_phishing_urls.csv"
 MODEL_PATH = ROOT / "models" / "phishlens_model.joblib"
 
-MODEL_VERSION = "0.2.0-synthetic"
+# Prefer the real dataset built by ml/datasets/build_dataset.py; fall back to
+# the synthetic demo set so the pipeline stays runnable without internet access.
+DATASET_PATH, _DATASET_IS_REAL = (
+    (_REAL_DATASET, True) if _REAL_DATASET.exists() else (_DEMO_DATASET, False)
+)
+MODEL_VERSION = "0.3.0-real" if _DATASET_IS_REAL else "0.2.0-synthetic"
 
 FEATURE_COLUMNS = [
     "url_length",
@@ -51,7 +57,21 @@ def _git_hash() -> str:
 
 
 def main() -> None:
+    dataset_label = "real (PhishTank + Tranco)" if _DATASET_IS_REAL else "synthetic demo"
+    print(f"Dataset: {DATASET_PATH.name} [{dataset_label}]")
+
     data = pd.read_csv(DATASET_PATH)
+    if _DATASET_IS_REAL and len(data) < 100:
+        raise SystemExit(
+            f"Real dataset too small ({len(data)} rows). "
+            "Run `python ml/datasets/build_dataset.py` to rebuild it."
+        )
+    if not _DATASET_IS_REAL and len(data) < 4:
+        raise SystemExit(
+            f"Demo dataset too small ({len(data)} rows). "
+            "Add more rows to ml/datasets/demo_phishing_urls.csv."
+        )
+
     x = data[FEATURE_COLUMNS]
     y = data["label"]
 
@@ -99,7 +119,7 @@ def main() -> None:
             "model": model,
             "baseline_model": baseline,
             "feature_order": FEATURE_COLUMNS,
-            "dataset_note": "Synthetic demo data for pipeline validation only. Not production-ready.",
+            "dataset_note": f"{dataset_label} dataset. DOM features are 0 for URL-only rows.",
             "version": MODEL_VERSION,
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "git_hash": _git_hash(),
