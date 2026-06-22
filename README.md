@@ -3,6 +3,7 @@
 [![Backend CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/backend-ci.yml)
 [![Extension CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/extension-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/extension-ci.yml)
 [![Security CI](https://github.com/JuanCardesa/PhishLens/actions/workflows/security-ci.yml/badge.svg)](https://github.com/JuanCardesa/PhishLens/actions/workflows/security-ci.yml)
+[![codecov](https://codecov.io/gh/JuanCardesa/PhishLens/branch/main/graph/badge.svg)](https://codecov.io/gh/JuanCardesa/PhishLens)
 
 **[Project site](https://juancardesa.github.io/PhishLens/)** · [Architecture](docs/architecture.md) · [Privacy policy](docs/privacy.md) · [Threat model](docs/threat-model.md) · [ML methodology](docs/ml-methodology.md)
 
