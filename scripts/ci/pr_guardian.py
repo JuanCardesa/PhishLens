@@ -289,7 +289,7 @@ def check_sensitive_surface_docs(files: list[str], scan_all: bool) -> list[Findi
         file_path
         for file_path in changed
         if any(file_path == prefix or file_path.startswith(prefix) for prefix in SENSITIVE_SURFACE_PREFIXES)
-        and not file_path.endswith(".test.ts")
+        and not file_path.endswith((".test.ts", ".test.tsx"))
         and not file_path.startswith("backend/tests/")
     ]
 
