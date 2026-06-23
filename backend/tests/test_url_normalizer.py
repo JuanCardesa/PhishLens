@@ -53,3 +53,24 @@ def test_normalize_url_allows_hostname_that_resolves_privately() -> None:
     # Hostnames like 'localhost' are NOT rejected — only IP literals are blocked.
     # DNS-based SSRF is an accepted risk documented in docs/threat-model.md.
     assert normalize_url("http://localhost/page") == "http://localhost/page"
+
+
+def test_normalize_url_preserves_public_ipv6_literal_brackets() -> None:
+    assert normalize_url("https://[2606:4700:4700::1111]/dns-query") == "https://[2606:4700:4700::1111]/dns-query"
+
+
+def test_normalize_url_rejects_ipv6_loopback_and_unique_local() -> None:
+    for url in ("http://[::1]/", "http://[fc00::1]/"):
+        with pytest.raises(URLNormalizationError, match="private or loopback"):
+            normalize_url(url)
+
+
+def test_normalize_url_rejects_shared_address_space() -> None:
+    # 100.64.0.0/10 is the CGNAT range (RFC 6598) — not globally routable.
+    with pytest.raises(URLNormalizationError, match="private or loopback"):
+        normalize_url("http://100.64.0.1/")
+
+
+def test_normalize_url_rejects_invalid_port() -> None:
+    with pytest.raises(URLNormalizationError, match="valid port"):
+        normalize_url("http://example.test:99999/")
