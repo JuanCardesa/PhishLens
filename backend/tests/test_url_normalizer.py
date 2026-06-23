@@ -12,6 +12,19 @@ def test_normalize_url_strips_userinfo() -> None:
     assert normalize_url("https://user:pass@Example.TEST:8443/login#token") == "https://example.test:8443/login"
 
 
+def test_normalize_url_idna_encodes_unicode_hostname() -> None:
+    assert (
+        normalize_url("https://\u0430\u0440\u0440\u04cf\u0435.com/login#private")
+        == "https://xn--80ak6aa92e.com/login"
+    )
+
+
+def test_analysis_request_idna_encodes_unicode_hostname() -> None:
+    request = AnalysisRequest(url="https://g\u043e\u043egle.com/login#private", dom_features={})
+
+    assert request.url == "https://xn--ggle-55da.com/login"
+
+
 def test_analysis_request_normalizes_url() -> None:
     request = AnalysisRequest(url="HTTPS://Example.TEST/login#private", dom_features={})
 
