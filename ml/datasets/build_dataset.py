@@ -24,6 +24,7 @@ import csv
 import gzip
 import io
 import logging
+import random
 import sys
 import urllib.request
 import zipfile
@@ -49,6 +50,38 @@ TRANCO_LIST_URL = "https://tranco-list.eu/top-1m.csv.zip"
 PHISHING_SAMPLE = 600
 LEGIT_SAMPLE = 600
 TRANCO_TOP_K = 50_000
+
+# Tranco only gives bare domains. Appending realistic paths to most legitimate
+# samples avoids a trivial "has a path == phishing" shortcut: PhishTank URLs are
+# real captured phishing pages and almost always have a path/query, so leaving
+# every legitimate URL as a bare root made url_length/num_dots/num_hyphens nearly
+# perfectly separable by class instead of reflecting real phishing patterns.
+REALISTIC_PATH_TEMPLATES = (
+    "login",
+    "account/settings",
+    "en-us/support/contact-us",
+    "search?q=example+query",
+    "blog/2024/03/15/example-post-title",
+    "products/electronics?sort=price&page=2",
+    "help/faq",
+    "about-us",
+    "wp-content/uploads/2023/image.jpg",
+    "account/security/two-factor",
+    "news/world/2024-03-summary",
+    "checkout/cart?utm_source=newsletter",
+    "docs/api/v1/reference",
+    "careers/openings/software-engineer",
+    "settings/privacy",
+)
+PATH_PROBABILITY = 0.8
+
+
+def _add_realistic_path(domain_url: str, rng: random.Random) -> str:
+    if rng.random() >= PATH_PROBABILITY:
+        return domain_url
+    path = rng.choice(REALISTIC_PATH_TEMPLATES)
+    return f"{domain_url.rstrip('/')}/{path}"
+
 
 FEATURE_COLUMNS = [
     "url_length", "num_dots", "num_hyphens", "uses_ip_domain", "has_at_symbol",
@@ -167,7 +200,6 @@ def fetch_tranco_urls(n: int, top_k: int) -> list[str]:
             break
 
     logger.info("Tranco: %d legitimate domains sampled", len(domains))
-    import random
     random.seed(42)
     random.shuffle(domains)
     return domains[:n]
@@ -181,6 +213,9 @@ def main() -> int:
         logger.error("Dataset build failed — check network connectivity and try again.")
         return 1
 
+    path_rng = random.Random(42)
+    legit_urls = [_add_realistic_path(url, path_rng) for url in legit_urls]
+
     rows: list[Row] = []
     for url in phishing_urls:
         row = extract_url_features(url, label=1)
@@ -192,7 +227,6 @@ def main() -> int:
         if row:
             rows.append(row)
 
-    import random
     random.seed(42)
     random.shuffle(rows)
 

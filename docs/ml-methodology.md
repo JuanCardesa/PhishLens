@@ -36,20 +36,43 @@ URL-only rows because they require a live browser session to collect. The model 
 entirely on URL-derived signals when evaluated against this dataset. Real-world inference still
 uses DOM features from the extension's content script.
 
-### Measured performance (real dataset, 1200 rows)
+### Known limitation found and fixed: URL-length separability bias
+
+An earlier version of `build_dataset.py` built legitimate rows as bare Tranco domain
+roots (`https://example.com/`) while PhishTank phishing URLs are real captured pages that
+almost always carry a path or query string. A direct audit of the committed CSV showed
+this made the classes nearly separable on `url_length` alone — legitimate rows averaged
+~21 characters, phishing rows ~48 — meaning the model could score well by detecting
+"has a path" rather than learning phishing-specific patterns. That would have missed
+phishing hosted at a clean root domain and false-flagged legitimate pages with long,
+parameterized URLs (e.g. SSO/OAuth callbacks).
+
+Fix: `build_dataset.py` now appends a realistic path/query (`/login`, `/account/settings`,
+`/search?q=...`, etc., see `REALISTIC_PATH_TEMPLATES`) to ~80% of legitimate URLs before
+feature extraction, with the rest left as roots to reflect real traffic. This narrowed the
+mean url_length gap (legitimate ~38.5 vs. phishing ~49.3 characters after the fix, with
+overlapping ranges) and is now guarded by
+`backend/tests/test_ml_dataset_builder.py::test_real_dataset_url_length_is_not_trivially_separable_by_class`,
+which fails the build if the distributions stop overlapping.
+
+### Measured performance (real dataset, 1200 rows, post-fix)
 
 From a `train_model.py` run against the committed `real_phishing_urls.csv` (33% stratified
 hold-out, plus 5-fold stratified cross-validation on the full set):
 
-- Stratified 5-fold CV accuracy: **0.954 ± 0.009**
-- Hold-out (396 rows) accuracy: **0.95**, precision/recall/F1 all in the 0.93–0.98 range for
-  both classes (see the confusion matrix printed by `train_model.py`)
-- Top feature importances: `url_length`, `num_subdomains`, `num_dots`, `num_hyphens`, `domain_entropy`
+- Stratified 5-fold CV accuracy: **0.907 ± 0.008**
+- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99 for legitimate URLs,
+  precision 0.99/recall 0.85 for phishing URLs (see the confusion matrix printed by
+  `train_model.py`)
+- Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
+  `uses_https`
 
-These numbers reflect URL-only features (DOM features are 0 for every row, per the limitation
-above) and PhishTank/Tranco's snapshot at build time — re-running `build_dataset.py` will pull a
-different sample and produce slightly different numbers. Treat this as a baseline, not a fixed
-benchmark.
+Accuracy dropped from the pre-fix 0.954 to 0.907 once the trivial url_length shortcut was
+removed — a lower but more honest number that reflects genuine URL-structure signal rather
+than an artifact of how the dataset was assembled. These numbers reflect URL-only features
+(DOM features are 0 for every row, per the limitation above) and PhishTank/Tranco's snapshot
+at build time — re-running `build_dataset.py` will pull a different sample and produce
+slightly different numbers. Treat this as a baseline, not a fixed benchmark.
 
 ### Synthetic demo dataset (fallback)
 

@@ -45,6 +45,25 @@ describe("analyzeLocally", () => {
     const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score ?? 999;
     expect(urlScore).toBeLessThanOrEqual(35);
   });
+
+  it("reaches dangerous in local-only mode when most available signals fire", () => {
+    // Homograph domain (url score 24, capped contributors) plus a heavily flagged DOM
+    // (password + forms + external action + hidden inputs + multiple iframes, capped
+    // at 30) gives raw 24 + 30 = 54, scaled to round(54 / 65 * 100) = 83 -> dangerous.
+    // Before normalizing the local score against the backend's thresholds, "dangerous"
+    // was effectively unreachable in local-only mode (it required ~92% of the raw max).
+    const result = analyzeLocally("https://xn--ggle-55da.com", {
+      has_password_field: true,
+      num_forms: 1,
+      external_form_action: true,
+      num_iframes: 3,
+      external_links_ratio: 0,
+      has_hidden_inputs: true,
+    });
+
+    expect(result.label).toBe("dangerous");
+    expect(result.risk_score).toBeGreaterThanOrEqual(70);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -90,14 +109,16 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     expect(domScore).toBe(22);
   });
 
-  it("url 13 + dom 22 = total 35 -> suspicious", () => {
+  it("url 13 + dom 22 = raw 35, scaled to 54/100 -> suspicious", () => {
     const result = analyzeLocally("http://secure-login.example.com", {
       ...EMPTY_DOM,
       has_password_field: true,
       num_forms: 1,
       external_form_action: true,
     });
-    expect(result.risk_score).toBe(35);
+    // Raw url(13) + dom(22) = 35 out of a local max of 65 (URL_SCORE_CAP + DOM_SCORE_CAP),
+    // scaled to the same 0-100 range the backend uses: round(35 / 65 * 100) = 54.
+    expect(result.risk_score).toBe(54);
     expect(result.label).toBe("suspicious");
   });
 

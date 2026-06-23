@@ -247,7 +247,7 @@ The zip is written to `extension/release/`.
 
 ## Limitations
 
-- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows, ~0.95 hold-out accuracy — see [docs/ml-methodology.md](docs/ml-methodology.md)), but DOM features are 0 for every row since the dataset is built from URLs only, without a live browser session.
+- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows, ~0.92 hold-out accuracy — see [docs/ml-methodology.md](docs/ml-methodology.md) for a known URL-length dataset bias that was found and fixed), but DOM features are 0 for every row since the dataset is built from URLs only, without a live browser session.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.

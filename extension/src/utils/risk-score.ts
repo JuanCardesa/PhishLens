@@ -8,6 +8,14 @@ const TLS_SCORE_CAP = 15;
 const ML_MIN_ADJUSTMENT = -10;
 const ML_MAX_ADJUSTMENT = 20;
 
+// Local-only mode never has threat-intel/TLS/ML signals, so its raw max
+// (URL_SCORE_CAP + DOM_SCORE_CAP = 65) is always lower than the backend's. Scaling
+// the combined local score onto the same 0-100 range before applying the backend's
+// thresholds (label_from_score in scoring_service.py) keeps "dangerous" reachable
+// locally and makes the label mean the same thing in both modes: how much of the
+// signals that ARE available fired, not an absolute score on different scales.
+const LOCAL_MAX_SCORE = URL_SCORE_CAP + DOM_SCORE_CAP;
+
 function stripFragment(url: string): string {
   try {
     const parsed = new URL(url);
@@ -22,7 +30,8 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
   const urlFeatures = extractUrlFeatures(stripFragment(url));
   const [urlScore, urlReasons] = scoreUrl(urlFeatures);
   const [domScore, domReasons] = scoreDom(domFeatures);
-  const riskScore = Math.max(0, Math.min(100, Math.round(urlScore + domScore)));
+  const scaledScore = Math.round(((urlScore + domScore) / LOCAL_MAX_SCORE) * 100);
+  const riskScore = Math.max(0, Math.min(100, scaledScore));
   const reasons = [...urlReasons, ...domReasons];
 
   return {
@@ -42,10 +51,10 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
 }
 
 function labelFromScore(score: number): RiskLabel {
-  // Threshold kept at 60 (not 70) because the local scorer's max is
-  // URL_SCORE_CAP(35) + DOM_SCORE_CAP(30) = 65. A 70 threshold would make
-  // "dangerous" unreachable without backend data.
-  if (score >= 60) {
+  // Same thresholds as label_from_score in backend/app/services/scoring_service.py.
+  // The score passed in is already scaled to the 0-100 range (see LOCAL_MAX_SCORE),
+  // so the same absolute thresholds apply in both local-only and backend-enriched mode.
+  if (score >= 70) {
     return "dangerous";
   }
   if (score >= 35) {
