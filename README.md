@@ -195,7 +195,7 @@ Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 | `PHISHLENS_CHROME_EXTENSION_IDS` | _(empty)_ | Comma-separated Chrome extension IDs for production CORS. |
 | `PHISHLENS_ENABLE_THREAT_INTEL` | `true` | Enable/disable PhishTank lookups. |
 | `PHISHLENS_ENABLE_TLS_ANALYSIS` | `true` | Enable/disable backend TLS certificate inspection. |
-| `PHISHLENS_MODEL_PATH` | `ml/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
+| `PHISHLENS_MODEL_PATH` | `app/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
 | `PHISHLENS_ENABLE_DIAGNOSTICS` | `true` | Expose aggregate counters at `GET /diagnostics`. |
 | `PHISHLENS_DIAGNOSTICS_TOKEN` | _(empty)_ | When set, `GET /diagnostics` requires `X-Diagnostics-Token: <value>`. |
 | `PHISHLENS_ENABLE_RATE_LIMITING` | `true` | Enable in-memory sliding-window rate limits. |

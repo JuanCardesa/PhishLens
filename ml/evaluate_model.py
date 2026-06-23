@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import joblib
@@ -12,11 +13,19 @@ _REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
 _DEMO_DATASET = ROOT / "datasets" / "demo_phishing_urls.csv"
 MODEL_PATH = ROOT / "models" / "phishlens_model.joblib"
 
-# Mirrors train_model.py's dataset selection so evaluation always reflects
-# whichever dataset the currently-saved model was actually trained on.
+# Mirrors train_model.py's dataset selection, then validates the saved artifact
+# metadata so stale local models are not evaluated against a different dataset.
 DATASET_PATH, _DATASET_IS_REAL = (
     (_REAL_DATASET, True) if _REAL_DATASET.exists() else (_DEMO_DATASET, False)
 )
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -26,6 +35,26 @@ def main() -> None:
     artifact = joblib.load(MODEL_PATH)
     model = artifact["model"]
     feature_order = artifact["feature_order"]
+    dataset_name = artifact.get("dataset_name")
+    dataset_sha256 = artifact.get("dataset_sha256")
+
+    if dataset_name != DATASET_PATH.name:
+        raise SystemExit(
+            "Model artifact was trained on "
+            f"{dataset_name or 'an unknown dataset'}, but evaluation selected {DATASET_PATH.name}. "
+            "Run `python ml/train_model.py` to rebuild the artifact."
+        )
+    if not dataset_sha256:
+        raise SystemExit(
+            "Model artifact does not include dataset_sha256 metadata. "
+            "Run `python ml/train_model.py` to rebuild it."
+        )
+    current_dataset_sha256 = _file_sha256(DATASET_PATH)
+    if dataset_sha256 != current_dataset_sha256:
+        raise SystemExit(
+            "Model artifact dataset hash does not match the current CSV. "
+            "Run `python ml/train_model.py` before evaluating."
+        )
 
     version = artifact.get("version", "unknown")
     trained_at = artifact.get("trained_at", "unknown")
@@ -37,7 +66,7 @@ def main() -> None:
         import statistics
 
         mean_cv = statistics.mean(cv_scores)
-        stdev_cv = statistics.stdev(cv_scores) if len(cv_scores) > 1 else 0.0
+        stdev_cv = statistics.pstdev(cv_scores) if len(cv_scores) > 1 else 0.0
         print(f"Stored CV accuracy: {mean_cv:.3f} ± {stdev_cv:.3f} (from {len(cv_scores)} folds)")
 
     feature_importances: dict[str, float] = artifact.get("feature_importances", {})

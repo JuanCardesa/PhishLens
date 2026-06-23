@@ -8,6 +8,8 @@ verified-phishing dump (600 rows) and the Tranco top-1M list (600 rows). Contain
 `evaluate_model.py` prefer this file automatically when it is present. See
 [docs/ml-methodology.md](../../docs/ml-methodology.md) for measured accuracy. Re-run
 `python datasets/build_dataset.py` to refresh it from a current PhishTank/Tranco snapshot.
+The builder imports the backend URL feature extractor so training rows use the same URL-derived
+values as runtime inference.
 
 `demo_phishing_urls.csv` — 12 synthetic rows used exclusively to validate the
 ML pipeline end-to-end before the real dataset existed, and as an offline fallback if
