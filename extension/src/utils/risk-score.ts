@@ -107,8 +107,14 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
   }
 
   if (features.typosquat_target) {
-    score += 14;
-    reasons.push(`Domain closely resembles ${features.typosquat_target} (possible typosquatting)`);
+    const [typosquatPoints, typosquatReason] = scoreTyposquat(features.typosquat_target, features.typosquat_is_homograph);
+    score += typosquatPoints;
+    reasons.push(typosquatReason);
+  }
+
+  if (features.mixed_script_label) {
+    score += 8;
+    reasons.push("Domain label mixes multiple writing scripts (possible homograph attack)");
   }
 
   if (features.domain_entropy > 3.8) {
@@ -117,6 +123,13 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
   }
 
   return [Math.min(score, URL_SCORE_CAP), reasons];
+}
+
+function scoreTyposquat(target: string, isHomograph: boolean): [number, string] {
+  if (isHomograph) {
+    return [16, `Domain uses look-alike Unicode characters resembling ${target} (homograph attack)`];
+  }
+  return [14, `Domain closely resembles ${target} (possible typosquatting)`];
 }
 
 function scoreDom(features: DOMFeatures): [number, string[]] {

@@ -145,8 +145,19 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         reasons.append("URL uses punycode")
 
     if features.typosquat_target:
-        score += 14
-        reasons.append(f"Domain closely resembles {features.typosquat_target} (possible typosquatting)")
+        if features.typosquat_is_homograph:
+            score += 16
+            reasons.append(
+                f"Domain uses look-alike Unicode characters resembling {features.typosquat_target} "
+                "(homograph attack)"
+            )
+        else:
+            score += 14
+            reasons.append(f"Domain closely resembles {features.typosquat_target} (possible typosquatting)")
+
+    if features.mixed_script_label:
+        score += 8
+        reasons.append("Domain label mixes multiple writing scripts (possible homograph attack)")
 
     if features.domain_entropy > 3.8:
         score += 5
