@@ -22,7 +22,7 @@ Every pull request should pass the checks that match its scope:
 
 ## PR Guardian
 
-`PR Guardian` is the deterministic reviewer that replaces ad hoc Copilot review when quota or availability is a blocker. It does not judge product quality. It blocks changes that are easy to miss in manual review:
+`PR Guardian` is the deterministic reviewer that replaces ad hoc automated review when quota or availability is a blocker. It does not judge product quality. It blocks changes that are easy to miss in manual review:
 
 - Unknown workflow files under `.github/workflows/`.
 - Unexpected Chrome extension permissions or host permissions.
