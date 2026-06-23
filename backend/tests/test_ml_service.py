@@ -7,6 +7,7 @@ from app.core.config import Settings
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import extract_url_features
 from app.services.ml_service import (
+    FEATURE_LABELS,
     FEATURE_ORDER,
     _adjustment_from_probability,
     _artifact_cache_for_test,
@@ -104,6 +105,47 @@ def test_warm_up_model_is_a_no_op_when_model_is_absent() -> None:
     warm_up_model(Settings(model_path="ml/models/does-not-exist.joblib"))
 
     assert _artifact_cache_for_test() is None
+
+
+def test_predict_ml_adjustment_exposes_top_shap_factors_for_real_tree_model(tmp_path) -> None:
+    from sklearn.ensemble import RandomForestClassifier
+
+    # Synthetic but real estimator: url_length/num_subdomains correlate with the
+    # label, so a real RandomForest (not a stub) gives shap.TreeExplainer something
+    # genuine to explain for this specific prediction.
+    x_train = [
+        [10, 0, 0, 0, 0, 1, 0, 0, 0, 2.0, 0, 0, 0, 0, 0.0, 0],
+        [12, 1, 0, 0, 0, 1, 0, 0, 0, 2.1, 0, 0, 0, 0, 0.0, 0],
+        [90, 6, 5, 0, 1, 0, 6, 3, 0, 4.5, 1, 1, 1, 1, 0.5, 1],
+        [85, 5, 4, 0, 1, 0, 5, 2, 0, 4.2, 1, 1, 1, 1, 0.4, 1],
+    ]
+    y_train = [0, 0, 1, 1]
+    model = RandomForestClassifier(n_estimators=10, max_depth=3, random_state=0)
+    model.fit(x_train, y_train)
+    model_path = _dump_model(tmp_path, model)
+
+    result = predict_ml_adjustment(
+        extract_url_features("http://verify-login-secure.account.update.example.test/wallet"),
+        DOMFeatures(has_password_field=True, num_forms=1, external_form_action=True, num_iframes=1),
+        settings=Settings(model_path=str(model_path)),
+    )
+
+    assert result.available is True
+    assert len(result.top_factors) > 0
+    assert all(factor in FEATURE_LABELS.values() for factor in result.top_factors)
+
+
+def test_top_factors_falls_back_to_empty_when_explainer_unsupported(tmp_path) -> None:
+    model_path = _dump_model(tmp_path, _ProbaModel(0.9))
+
+    result = predict_ml_adjustment(
+        extract_url_features("https://example.com/login"),
+        DOMFeatures(has_password_field=True, num_forms=1),
+        settings=Settings(model_path=str(model_path)),
+    )
+
+    assert result.available is True
+    assert result.top_factors == ()
 
 
 def test_load_artifact_caches_across_calls(tmp_path) -> None:

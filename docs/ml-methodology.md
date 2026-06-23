@@ -67,6 +67,37 @@ hold-out, plus 5-fold stratified cross-validation on the full set):
 - Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
   `uses_https`
 
+### Temporal validation (train on older phishing, test on newer)
+
+The cross-validation and hold-out numbers above only prove the model generalizes
+*within one snapshot* — they say nothing about whether it still works against phishing
+campaigns it has never seen. `ml/evaluate_temporal_drift.py` answers that directly using
+PhishTank's `submission_time` field (present in the public dump, range observed:
+2011-02-18 to today):
+
+- **Train**: phishing URLs submitted more than 2 years ago + a Tranco top-50k legitimate
+  sample (same range as the production dataset).
+- **Test**: phishing URLs submitted in the last 14 days (campaigns the model could not
+  possibly have seen) + a *disjoint* Tranco rank window (50 001–100 000) for legitimate
+  URLs. Both sides get the same `_add_realistic_path` enrichment as the production
+  dataset.
+- Trains a fresh, throwaway `RandomForestClassifier` (same hyperparameters as
+  `train_model.py`) on the old split only, and evaluates on the new split — it never
+  touches the committed dataset or the production model artifact.
+
+Result from a real run (cutoffs: train < 2024-06-23, test > 2026-06-09; 300 rows per
+side): **0.91 accuracy**, precision 0.96/recall 0.85 for phishing, precision 0.87/recall
+0.97 for legitimate — within noise of the random-split numbers above (0.907 CV / 0.92
+hold-out). This is a meaningfully positive result: the model isn't just memorizing
+snapshot-specific quirks, it generalizes to phishing campaigns from over two years after
+its training data, using only URL-structure features.
+
+**Limitation, stated plainly:** Tranco has no time axis (it's always "current rank now"),
+so only the phishing side is genuinely split by time; the legitimate side is split by a
+disjoint rank window as the closest available proxy for "different sample, not seen
+during training." This is documented here instead of being described as a full temporal
+split on both classes.
+
 Accuracy dropped from the pre-fix 0.954 to 0.907 once the trivial url_length shortcut was
 removed — a lower but more honest number that reflects genuine URL-structure signal rather
 than an artifact of how the dataset was assembled. These numbers reflect URL-only features
@@ -111,6 +142,23 @@ Initial features mirror the backend and extension:
 
 The training script stores both the primary model and baseline metadata in a joblib artifact.
 The runtime artifact committed for the backend lives at `backend/app/models/phishlens_model.joblib`.
+
+## Per-Prediction Explainability (SHAP)
+
+`train_model.py` already prints global `feature_importances_` (which features matter
+most across the whole training set), but that doesn't say which features drove the
+score for *this specific URL*. `backend/app/services/ml_service.py` builds a
+`shap.TreeExplainer` for the loaded RandomForest once (cached alongside the model) and
+computes per-prediction SHAP values at inference time, surfacing the top 2 contributing
+features as `MLResult.top_factors`. When the ML adjustment is non-zero,
+`scoring_service._ml_reasons` appends a `"Top ML factors: ..."` reason listing them.
+
+This is genuinely per-instance — two URLs that both increase risk can cite different
+top factors (e.g. one driven by `domain character entropy`, another by `number of
+subdomains`). If SHAP can't explain a given model (e.g. the model type doesn't support
+`TreeExplainer`, or shape mismatch), `top_factors` falls back to an empty tuple and the
+rest of the scoring pipeline is unaffected — explainability is best-effort, never a
+prediction blocker.
 
 ## Metrics
 

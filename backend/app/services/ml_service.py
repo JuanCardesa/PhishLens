@@ -8,6 +8,8 @@ from threading import Lock
 from typing import Any
 
 import joblib
+import numpy as np
+import shap
 
 from app.core.config import Settings, get_settings
 from app.schemas.analysis import DOMFeatures
@@ -35,6 +37,28 @@ FEATURE_ORDER = [
     "has_hidden_inputs",
 ]
 
+# Short, human-readable labels for the top-contributing-factors explanation.
+FEATURE_LABELS = {
+    "url_length": "URL length",
+    "num_dots": "number of dots in the URL",
+    "num_hyphens": "number of hyphens in the URL",
+    "uses_ip_domain": "IP address used as the domain",
+    "has_at_symbol": "@ symbol in the URL",
+    "uses_https": "HTTPS usage",
+    "num_subdomains": "number of subdomains",
+    "suspicious_keyword_count": "suspicious keyword count",
+    "uses_punycode": "punycode usage",
+    "domain_entropy": "domain character entropy",
+    "has_password_field": "presence of a password field",
+    "num_forms": "number of forms",
+    "external_form_action": "form submitting to an external domain",
+    "num_iframes": "number of iframes",
+    "external_links_ratio": "ratio of external links",
+    "has_hidden_inputs": "presence of hidden form inputs",
+}
+
+_TOP_FACTOR_COUNT = 2
+
 
 @dataclass(frozen=True)
 class MLResult:
@@ -42,6 +66,7 @@ class MLResult:
     probability: float | None = None
     adjustment: int = 0
     error: str | None = None
+    top_factors: tuple[str, ...] = ()
 
 
 @dataclass
@@ -49,6 +74,7 @@ class _ModelArtifact:
     model: Any
     feature_order: list[str]
     sha256_prefix: str
+    explainer: Any | None = None
 
 
 _artifact_cache: _ModelArtifact | None = None
@@ -73,7 +99,16 @@ def _load_artifact(model_path: Path) -> _ModelArtifact:
         raw = joblib.load(model_path)
         model = raw["model"] if isinstance(raw, dict) and "model" in raw else raw
         feature_order = raw.get("feature_order", FEATURE_ORDER) if isinstance(raw, dict) else FEATURE_ORDER
-        _artifact_cache = _ModelArtifact(model=model, feature_order=feature_order, sha256_prefix=sha256_prefix)
+
+        explainer = None
+        try:
+            explainer = shap.TreeExplainer(model)
+        except Exception:  # noqa: BLE001 - not every model type supports TreeExplainer
+            logger.info("shap_explainer_unavailable model_type=%s", type(model).__name__)
+
+        _artifact_cache = _ModelArtifact(
+            model=model, feature_order=feature_order, sha256_prefix=sha256_prefix, explainer=explainer
+        )
 
     return _artifact_cache
 
@@ -115,9 +150,41 @@ def predict_ml_adjustment(
             prediction = int(artifact.model.predict(vector)[0])
             probability = 0.85 if prediction == 1 else 0.15
 
-        return MLResult(available=True, probability=probability, adjustment=_adjustment_from_probability(probability))
+        top_factors = _top_factors_for_prediction(artifact, vector)
+
+        return MLResult(
+            available=True,
+            probability=probability,
+            adjustment=_adjustment_from_probability(probability),
+            top_factors=top_factors,
+        )
     except Exception as exc:  # pragma: no cover - defensive fallback around local artifacts.
         return MLResult(available=False, error=str(exc))
+
+
+def _top_factors_for_prediction(artifact: _ModelArtifact, vector: list[list[Any]]) -> tuple[str, ...]:
+    """Return the top contributing feature labels for this single prediction.
+
+    Uses SHAP TreeExplainer values for this specific input, not the model's global
+    feature_importances_ — the explanation is for this URL/page, not the model overall.
+    Best-effort: any failure (unsupported model, shape mismatch) falls back to no
+    explanation rather than breaking the prediction that already succeeded above.
+    """
+    if artifact.explainer is None:
+        return ()
+
+    try:
+        shap_values = np.array(artifact.explainer.shap_values(np.array(vector, dtype=float)))
+        # Binary classifiers: shape (1, n_features, 2) -> take the positive class.
+        contributions = shap_values[0, :, -1] if shap_values.ndim == 3 else shap_values[0]
+        ranked = sorted(
+            zip(artifact.feature_order, contributions), key=lambda pair: abs(pair[1]), reverse=True
+        )
+        return tuple(
+            FEATURE_LABELS.get(name, name) for name, value in ranked[:_TOP_FACTOR_COUNT] if abs(value) > 0
+        )
+    except Exception:  # noqa: BLE001 - explanation is best-effort, never blocks scoring
+        return ()
 
 
 def warm_up_model(settings: Settings | None = None) -> None:

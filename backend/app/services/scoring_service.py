@@ -256,10 +256,15 @@ def _ml_reasons(result: MLResult) -> list[str]:
     if not result.available or result.probability is None or result.adjustment == 0:
         return []
 
-    if result.adjustment > 0:
-        return ["Machine learning model increased the estimated risk"]
+    reasons = (
+        ["Machine learning model increased the estimated risk"]
+        if result.adjustment > 0
+        else ["Machine learning model reduced the estimated risk"]
+    )
+    if result.top_factors:
+        reasons.append(f"Top ML factors: {', '.join(result.top_factors)}")
 
-    return ["Machine learning model reduced the estimated risk"]
+    return reasons
 
 
 def _build_risk_breakdown(

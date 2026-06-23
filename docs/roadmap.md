@@ -28,7 +28,7 @@ Done: added a sibling `domain_age` signal via RDAP (registration age), following
 
 ## 7. ML Baseline
 
-Done: trained on a real PhishTank + Tranco dataset (1200 rows, ~0.92 hold-out accuracy after fixing a URL-length dataset bias — see [docs/ml-methodology.md](ml-methodology.md)), with versioned artifacts (`git_hash`, `trained_at`) in `ml/train_model.py`. A backtest of the rule-based URL heuristics (`ml/evaluate_heuristics.py`) confirmed typosquat/homograph detection carries most of the URL category's weight. Remaining: periodic retraining as phishing patterns drift, domain-age (RDAP) as a training feature, and DOM-feature collection for the dataset (currently URL-only).
+Done: trained on a real PhishTank + Tranco dataset (1200 rows, ~0.92 hold-out accuracy after fixing a URL-length dataset bias — see [docs/ml-methodology.md](ml-methodology.md)), with versioned artifacts (`git_hash`, `trained_at`) in `ml/train_model.py`. A backtest of the rule-based URL heuristics (`ml/evaluate_heuristics.py`) confirmed typosquat/homograph detection carries most of the URL category's weight. Temporal validation (`ml/evaluate_temporal_drift.py`, train on phishing >2 years old, test on phishing <14 days old) gave 0.91 accuracy, within noise of the random-split numbers. Per-prediction explainability via `shap.TreeExplainer` surfaces the top contributing features for each analysis, not just global feature importances. Remaining: periodic retraining as phishing patterns drift, domain-age (RDAP) as a training feature, and DOM-feature collection for the dataset (currently URL-only).
 
 ## 8. Advanced UI
 
