@@ -8,8 +8,15 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 
 
 ROOT = Path(__file__).resolve().parent
-DATASET_PATH = ROOT / "datasets" / "demo_phishing_urls.csv"
+_REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
+_DEMO_DATASET = ROOT / "datasets" / "demo_phishing_urls.csv"
 MODEL_PATH = ROOT / "models" / "phishlens_model.joblib"
+
+# Mirrors train_model.py's dataset selection so evaluation always reflects
+# whichever dataset the currently-saved model was actually trained on.
+DATASET_PATH, _DATASET_IS_REAL = (
+    (_REAL_DATASET, True) if _REAL_DATASET.exists() else (_DEMO_DATASET, False)
+)
 
 
 def main() -> None:
@@ -44,10 +51,13 @@ def main() -> None:
     y = data["label"]
     predictions = model.predict(x)
 
-    # Note: this evaluates on the same data used for training because the synthetic dataset
-    # is too small for a separate holdout. For production datasets, use train_test_split or
-    # cross-validation scores from the stored artifact instead.
-    print("\nFull-dataset evaluation (training data — not a held-out test set)")
+    # This always evaluates on the full dataset the model was trained on, so it is
+    # not a held-out test set — that's what the "Stored CV accuracy" line above and
+    # train_model.py's hold-out split are for. This is a sanity check that the saved
+    # artifact still behaves as expected on its own training distribution, not a
+    # generalization estimate.
+    note = "real (PhishTank + Tranco)" if _DATASET_IS_REAL else "synthetic demo"
+    print(f"\nFull-dataset evaluation on {note} data (training data — not a held-out test set)")
     print(f"Accuracy: {accuracy_score(y, predictions):.3f}")
     print("Confusion matrix:")
     print(confusion_matrix(y, predictions))

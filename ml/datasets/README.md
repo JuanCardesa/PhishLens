@@ -1,10 +1,18 @@
 # ML Datasets
 
-## Current dataset
+## Current datasets
+
+`real_phishing_urls.csv` — 1200 rows built by `build_dataset.py` from the PhishTank
+verified-phishing dump (600 rows) and the Tranco top-1M list (600 rows). Contains only the
+16 numeric features and a label, never raw URLs or domains. `train_model.py` and
+`evaluate_model.py` prefer this file automatically when it is present. See
+[docs/ml-methodology.md](../../docs/ml-methodology.md) for measured accuracy. Re-run
+`python datasets/build_dataset.py` to refresh it from a current PhishTank/Tranco snapshot.
 
 `demo_phishing_urls.csv` — 12 synthetic rows used exclusively to validate the
-ML pipeline end-to-end. **Not suitable for production use.** Performance metrics
-from this dataset are meaningless — it is too small and not drawn from real traffic.
+ML pipeline end-to-end before the real dataset existed, and as an offline fallback if
+`build_dataset.py` cannot reach the network. **Not suitable for production use.** Performance
+metrics from this dataset are meaningless — it is too small and not drawn from real traffic.
 
 ## CSV column format
 
