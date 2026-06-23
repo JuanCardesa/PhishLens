@@ -157,6 +157,27 @@ def test_load_artifact_caches_across_calls(tmp_path) -> None:
     assert second is first
 
 
+def test_predict_ml_adjustment_reloads_when_model_path_changes(tmp_path: Path) -> None:
+    high_risk_model_path = _dump_model(tmp_path, _ProbaModel(0.9), "high-risk.joblib")
+    low_risk_model_path = _dump_model(tmp_path, _ProbaModel(0.1), "low-risk.joblib")
+    url_features = extract_url_features("https://example.com/login")
+    dom_features = DOMFeatures()
+
+    high_risk = predict_ml_adjustment(
+        url_features,
+        dom_features,
+        settings=Settings(model_path=str(high_risk_model_path)),
+    )
+    low_risk = predict_ml_adjustment(
+        url_features,
+        dom_features,
+        settings=Settings(model_path=str(low_risk_model_path)),
+    )
+
+    assert high_risk.probability == pytest.approx(0.9)
+    assert low_risk.probability == pytest.approx(0.1)
+
+
 def test_predict_ml_adjustment_falls_back_to_predict_when_no_predict_proba(tmp_path) -> None:
     model_path = _dump_model(tmp_path, _PredictOnlyModel(1))
 

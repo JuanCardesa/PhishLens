@@ -35,6 +35,39 @@ async def test_recently_registered_domain_reports_age_and_uses_cache(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_domain_age_uses_registrable_domain_for_subdomains(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    async def fake_fetch(hostname: str, settings: Settings) -> dict[str, object]:
+        calls.append(hostname)
+        return _registration_payload(days_ago=90)
+
+    monkeypatch.setattr(domain_age_service, "_fetch_rdap_payload", fake_fetch)
+    settings = Settings(enable_domain_age_lookup=True)
+
+    first = await check_domain_age("https://login.Example.co.uk/account", settings=settings)
+    second = await check_domain_age("https://www.example.co.uk/help", settings=settings)
+
+    assert first.checked is True
+    assert first.age_days == 90
+    assert second == first
+    assert calls == ["example.co.uk"]
+
+
+@pytest.mark.asyncio
+async def test_domain_age_skips_ip_address_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_fetch(hostname: str, settings: Settings) -> dict[str, object]:
+        raise AssertionError("RDAP should not be called for IP address hosts")
+
+    monkeypatch.setattr(domain_age_service, "_fetch_rdap_payload", fake_fetch)
+
+    result = await check_domain_age("https://93.184.216.34/", settings=Settings(enable_domain_age_lookup=True))
+
+    assert result.checked is False
+    assert result.error == "domain age lookup not applicable to IP addresses"
+
+
+@pytest.mark.asyncio
 async def test_old_domain_reports_large_age(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_fetch(hostname: str, settings: Settings) -> dict[str, object]:
         return _registration_payload(days_ago=3650)

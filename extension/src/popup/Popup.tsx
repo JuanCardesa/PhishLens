@@ -240,7 +240,9 @@ function isDOMFeatures(obj: unknown): obj is DOMFeatures {
     typeof c.external_form_action === "boolean" &&
     typeof c.num_iframes === "number" &&
     typeof c.external_links_ratio === "number" &&
-    typeof c.has_hidden_inputs === "boolean"
+    typeof c.has_hidden_inputs === "boolean" &&
+    typeof c.brand_text_mismatch === "boolean" &&
+    typeof c.favicon_hotlinked_brand === "boolean"
   );
 }
 
@@ -344,6 +346,7 @@ export function modeBannerText(analysis: PopupAnalysis): string {
     const skipped: string[] = [];
     if (!analysis.sources.tls) skipped.push("TLS");
     if (!analysis.sources.phishtank) skipped.push("threat intelligence");
+    if (!analysis.sources.domain_age) skipped.push("domain age");
     if (!analysis.sources.ml) skipped.push("ML");
     const suffix = skipped.length > 0 ? ` ${skipped.join(", ")} ${skipped.length === 1 ? "was" : "were"} not checked.` : "";
     return `Backend unavailable — showing local heuristic analysis.${suffix}`;
@@ -364,6 +367,9 @@ export function sourceList(analysis: PopupAnalysis): string[] {
   }
   if (analysis.sources.phishtank) {
     sources.push("phishtank");
+  }
+  if (analysis.sources.domain_age) {
+    sources.push("domain age");
   }
   if (analysis.sources.ml) {
     sources.push("ml");

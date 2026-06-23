@@ -71,6 +71,7 @@ class MLResult:
 
 @dataclass
 class _ModelArtifact:
+    path: Path
     model: Any
     feature_order: list[str]
     sha256_prefix: str
@@ -84,19 +85,20 @@ _artifact_lock = Lock()
 def _load_artifact(model_path: Path) -> _ModelArtifact:
     """Load and cache the model artifact on first call; return cached on subsequent calls."""
     global _artifact_cache
-    if _artifact_cache is not None:
+    resolved_model_path = model_path.resolve()
+    if _artifact_cache is not None and _artifact_cache.path == resolved_model_path:
         return _artifact_cache
 
     with _artifact_lock:
         # Double-checked locking: another thread may have loaded while we waited.
-        if _artifact_cache is not None:
+        if _artifact_cache is not None and _artifact_cache.path == resolved_model_path:
             return _artifact_cache
 
-        file_bytes = model_path.read_bytes()
+        file_bytes = resolved_model_path.read_bytes()
         sha256_prefix = hashlib.sha256(file_bytes).hexdigest()[:16]
-        logger.info("ml_model_loaded path=%s sha256_prefix=%s", model_path, sha256_prefix)
+        logger.info("ml_model_loaded path=%s sha256_prefix=%s", resolved_model_path, sha256_prefix)
 
-        raw = joblib.load(model_path)
+        raw = joblib.load(resolved_model_path)
         model = raw["model"] if isinstance(raw, dict) and "model" in raw else raw
         feature_order = raw.get("feature_order", FEATURE_ORDER) if isinstance(raw, dict) else FEATURE_ORDER
 
@@ -107,7 +109,11 @@ def _load_artifact(model_path: Path) -> _ModelArtifact:
             logger.info("shap_explainer_unavailable model_type=%s", type(model).__name__)
 
         _artifact_cache = _ModelArtifact(
-            model=model, feature_order=feature_order, sha256_prefix=sha256_prefix, explainer=explainer
+            path=resolved_model_path,
+            model=model,
+            feature_order=feature_order,
+            sha256_prefix=sha256_prefix,
+            explainer=explainer,
         )
 
     return _artifact_cache

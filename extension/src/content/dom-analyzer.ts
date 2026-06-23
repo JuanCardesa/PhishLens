@@ -57,7 +57,7 @@ function detectBrandImpersonation(currentHostname: string): {
     return (
       brandLabel.length >= MIN_BRAND_NAME_LENGTH &&
       visibleText.includes(brandLabel) &&
-      brandDomain !== currentDomain
+      !isSameBrandDomain(currentDomain, brandDomain)
     );
   });
 
@@ -66,13 +66,26 @@ function detectBrandImpersonation(currentHostname: string): {
   if (faviconHref) {
     try {
       const faviconDomain = getRegistrableDomain(new URL(faviconHref, globalThis.location.href).hostname);
-      faviconHotlinkedBrand = faviconDomain !== currentDomain && KNOWN_BRAND_DOMAINS.includes(faviconDomain);
+      faviconHotlinkedBrand =
+        !isSameBrandDomain(currentDomain, faviconDomain) && KNOWN_BRAND_DOMAINS.includes(faviconDomain);
     } catch {
       faviconHotlinkedBrand = false;
     }
   }
 
   return { brand_text_mismatch: brandTextMismatch, favicon_hotlinked_brand: faviconHotlinkedBrand };
+}
+
+function isSameBrandDomain(currentDomain: string, brandDomain: string): boolean {
+  if (currentDomain === brandDomain) {
+    return true;
+  }
+
+  return domainLabel(currentDomain) === domainLabel(brandDomain);
+}
+
+function domainLabel(domain: string): string {
+  return domain.split(".")[0] ?? "";
 }
 
 export function hasExternalAction(form: HTMLFormElement, currentOrigin: string): boolean {

@@ -98,16 +98,17 @@ describe("modeBannerText", () => {
     );
   });
 
-  it("lists all skipped services when all three are unavailable", () => {
+  it("lists all skipped services when all backend enrichments are unavailable", () => {
     const text = modeBannerText(
       makeAnalysis({
         mode: "backend-unavailable",
-        sources: { heuristics: true, ml: false, phishtank: false, tls: false },
+        sources: { heuristics: true, ml: false, phishtank: false, tls: false, domain_age: false },
       }),
     );
     expect(text).toContain("Backend unavailable");
     expect(text).toContain("TLS");
     expect(text).toContain("threat intelligence");
+    expect(text).toContain("domain age");
     expect(text).toContain("ML");
     expect(text).toContain("were not checked");
   });
@@ -116,7 +117,7 @@ describe("modeBannerText", () => {
     const text = modeBannerText(
       makeAnalysis({
         mode: "backend-unavailable",
-        sources: { heuristics: true, ml: false, phishtank: true, tls: true },
+        sources: { heuristics: true, ml: false, phishtank: true, tls: true, domain_age: true },
       }),
     );
     expect(text).toContain("ML was not checked");
@@ -126,7 +127,7 @@ describe("modeBannerText", () => {
     const text = modeBannerText(
       makeAnalysis({
         mode: "backend-unavailable",
-        sources: { heuristics: true, ml: true, phishtank: true, tls: true },
+        sources: { heuristics: true, ml: true, phishtank: true, tls: true, domain_age: true },
       }),
     );
     expect(text).toContain("Backend unavailable");
@@ -147,10 +148,10 @@ describe("sourceList", () => {
   it("includes optional sources when enabled", () => {
     const sources = sourceList(
       makeAnalysis({
-        sources: { heuristics: true, ml: true, phishtank: true, tls: true, demo: true },
+        sources: { heuristics: true, ml: true, phishtank: true, tls: true, domain_age: true, demo: true },
       }),
     );
-    expect(sources).toEqual(["heuristics", "tls", "phishtank", "ml", "demo"]);
+    expect(sources).toEqual(["heuristics", "tls", "phishtank", "domain age", "ml", "demo"]);
   });
 
   it("excludes disabled sources", () => {
@@ -165,11 +166,12 @@ describe("sourceList", () => {
   it("preserves ordering: tls before phishtank before ml before demo", () => {
     const sources = sourceList(
       makeAnalysis({
-        sources: { heuristics: true, ml: true, phishtank: true, tls: true, demo: true },
+        sources: { heuristics: true, ml: true, phishtank: true, tls: true, domain_age: true, demo: true },
       }),
     );
     expect(sources.indexOf("tls")).toBeLessThan(sources.indexOf("phishtank"));
-    expect(sources.indexOf("phishtank")).toBeLessThan(sources.indexOf("ml"));
+    expect(sources.indexOf("phishtank")).toBeLessThan(sources.indexOf("domain age"));
+    expect(sources.indexOf("domain age")).toBeLessThan(sources.indexOf("ml"));
     expect(sources.indexOf("ml")).toBeLessThan(sources.indexOf("demo"));
   });
 });

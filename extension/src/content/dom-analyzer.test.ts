@@ -110,6 +110,12 @@ describe("collectDomFeatures", () => {
     expect(collectDomFeatures().brand_text_mismatch).toBe(false);
   });
 
+  it("does not flag brand text mismatch on an exact brand label with a regional suffix", () => {
+    stubLocation("accounts.google.co.uk");
+    document.title = "Google";
+    expect(collectDomFeatures().brand_text_mismatch).toBe(false);
+  });
+
   it("flags brand text mismatch via og:site_name even without a matching title", () => {
     stubLocation("free-hosting-site.example");
     document.title = "Welcome";
@@ -138,6 +144,12 @@ describe("collectDomFeatures", () => {
   it("does not flag a same-domain favicon", () => {
     stubLocation("example.com");
     document.head.innerHTML = '<link rel="icon" href="/favicon.ico" />';
+    expect(collectDomFeatures().favicon_hotlinked_brand).toBe(false);
+  });
+
+  it("does not flag a favicon from an equivalent brand domain with a different suffix", () => {
+    stubLocation("google.co.uk");
+    document.head.innerHTML = '<link rel="icon" href="https://www.google.com/favicon.ico" />';
     expect(collectDomFeatures().favicon_hotlinked_brand).toBe(false);
   });
 

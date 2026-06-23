@@ -130,8 +130,8 @@ def extract_url_features(url: str) -> URLFeatures:
     hostname = (parsed.hostname or "").lower().rstrip(".")
     labels = [label for label in hostname.split(".") if label]
     uses_ip_domain = _is_ip_address(hostname)
-    registered_domain_parts = _registrable_domain_parts(labels)
-    registered_domain = ".".join(registered_domain_parts)
+    registered_domain = registrable_domain_from_hostname(hostname)
+    registered_domain_parts = registered_domain.split(".") if registered_domain else []
     decoded_labels = tuple(_idna_decode_label(label).lower() for label in labels)
     decoded_hostname = ".".join(decoded_labels)
     decoded_registered_domain_parts = (
@@ -227,6 +227,11 @@ def _registrable_domain_parts(labels: list[str]) -> list[str]:
         return labels[-3:]
 
     return labels[-2:]
+
+
+def registrable_domain_from_hostname(hostname: str) -> str:
+    labels = [label for label in hostname.lower().rstrip(".").split(".") if label]
+    return ".".join(_registrable_domain_parts(labels))
 
 
 def _detect_typosquatting(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -8,6 +9,7 @@ import httpx
 from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
 from app.services.diagnostics import DIAGNOSTICS
+from app.services.feature_extractor import registrable_domain_from_hostname
 from app.services.url_normalizer import URLNormalizationError, hostname_from_url, normalize_url
 
 
@@ -45,7 +47,16 @@ async def check_domain_age(url: str, settings: Settings | None = None) -> Domain
         DIAGNOSTICS.record_external_error("domain_age")
         return DomainAgeResult(checked=False, error="URL has no hostname")
 
-    cache_key = hostname
+    if _is_ip_hostname(hostname):
+        DIAGNOSTICS.record_external_skip("domain_age")
+        return DomainAgeResult(checked=False, error="domain age lookup not applicable to IP addresses")
+
+    lookup_domain = registrable_domain_from_hostname(hostname)
+    if not lookup_domain:
+        DIAGNOSTICS.record_external_error("domain_age")
+        return DomainAgeResult(checked=False, error="URL has no registrable domain")
+
+    cache_key = lookup_domain
     cached = DOMAIN_AGE_CACHE.get(cache_key) or DOMAIN_AGE_ERROR_CACHE.get(cache_key)
     if cached is not None:
         DIAGNOSTICS.record_cache("domain_age", hit=True)
@@ -53,7 +64,7 @@ async def check_domain_age(url: str, settings: Settings | None = None) -> Domain
     DIAGNOSTICS.record_cache("domain_age", hit=False)
 
     try:
-        payload = await _fetch_rdap_payload(hostname, settings)
+        payload = await _fetch_rdap_payload(lookup_domain, settings)
     except (httpx.HTTPError, ValueError) as exc:
         DIAGNOSTICS.record_external_error("domain_age")
         result = DomainAgeResult(checked=True, error=str(exc))
@@ -105,3 +116,11 @@ def _parse_rdap_payload(payload: dict[str, object]) -> DomainAgeResult:
 def clear_domain_age_cache() -> None:
     DOMAIN_AGE_CACHE.clear()
     DOMAIN_AGE_ERROR_CACHE.clear()
+
+
+def _is_ip_hostname(hostname: str) -> bool:
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return True
