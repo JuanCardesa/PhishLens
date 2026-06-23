@@ -132,17 +132,23 @@ def extract_url_features(url: str) -> URLFeatures:
     uses_ip_domain = _is_ip_address(hostname)
     registered_domain_parts = _registrable_domain_parts(labels)
     registered_domain = ".".join(registered_domain_parts)
-    registered_domain_label = registered_domain_parts[0] if registered_domain_parts else ""
+    decoded_labels = tuple(_idna_decode_label(label).lower() for label in labels)
+    decoded_hostname = ".".join(decoded_labels)
+    decoded_registered_domain_parts = (
+        decoded_labels[-len(registered_domain_parts) :] if registered_domain_parts else ()
+    )
+    decoded_registered_domain = ".".join(decoded_registered_domain_parts)
+    registered_domain_label = decoded_registered_domain_parts[0] if decoded_registered_domain_parts else ""
     # Limit keyword scan to hostname + path only; query strings like
     # ?q=bank+verify are common on legitimate search engines and cause
     # false positives when the full URL is checked.
     hostname_and_path = (hostname + (parsed.path or "")).lower()
+    decoded_hostname_and_path = (decoded_hostname + (parsed.path or "")).lower()
     keyword_matches = tuple(keyword for keyword in SUSPICIOUS_KEYWORDS if keyword in hostname_and_path)
 
-    decoded_label = _idna_decode_label(registered_domain_label).lower()
-    is_non_ascii_label = any(ord(char) > 127 for char in decoded_label)
-    normalized_label = _normalize_confusables(decoded_label)
-    mixed_script_label = False if uses_ip_domain else _has_mixed_script(decoded_label)
+    is_non_ascii_label = any(ord(char) > 127 for char in registered_domain_label)
+    normalized_label = _normalize_confusables(registered_domain_label)
+    mixed_script_label = False if uses_ip_domain else _has_mixed_script(registered_domain_label)
 
     typosquat_target, typosquat_distance, typosquat_is_homograph = (
         (None, None, False)
@@ -153,14 +159,14 @@ def extract_url_features(url: str) -> URLFeatures:
     return URLFeatures(
         url_length=len(url),
         num_dots=hostname_and_path.count("."),  # query string excluded to avoid false positives
-        num_hyphens=url.count("-"),
+        num_hyphens=decoded_hostname_and_path.count("-"),
         uses_ip_domain=uses_ip_domain,
         has_at_symbol="@" in url,
         uses_https=parsed.scheme == "https",
         num_subdomains=0 if uses_ip_domain else max(0, len(labels) - len(registered_domain_parts)),
         suspicious_keywords=keyword_matches,
         uses_punycode="xn--" in hostname,
-        domain_entropy=round(_shannon_entropy(registered_domain.replace(".", "")), 3),
+        domain_entropy=round(_shannon_entropy(decoded_registered_domain.replace(".", "")), 3),
         domain=hostname,
         typosquat_target=typosquat_target,
         typosquat_distance=typosquat_distance,

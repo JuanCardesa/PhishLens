@@ -118,27 +118,44 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     expect(result.reasons).toContain("Domain closely resembles paypal.com (possible typosquatting)");
   });
 
-  it("full-script homograph adds punycode plus 16 points", () => {
-    // https (+0) + punycode (+10) + homograph (+16) = 26
-    // xn--80ak6aa92e decodes to "аррӏе" (all Cyrillic look-alikes of "apple")
+  it("full-script homograph adds 16 URL points", () => {
+    // https (+0) + homograph (+16) = 16
+    // xn--80ak6aa92e decodes to a Cyrillic look-alike of "apple".
     const result = analyzeLocally("https://xn--80ak6aa92e.com", EMPTY_DOM);
     const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
-    expect(urlScore).toBe(26);
+    expect(urlScore).toBe(16);
     expect(result.reasons).toContain(
       "Domain uses look-alike Unicode characters resembling apple.com (homograph attack)",
     );
   });
 
-  it("mixed-script homograph is capped at the URL score cap", () => {
-    // hyphens (+4) + punycode (+10) + homograph (+16) + mixed-script (+8) = 38 -> capped at 35.
-    // xn--ggle-55da is the real punycode form of "gооgle" (Cyrillic look-alike "o"s),
-    // i.e. what a browser actually sends as the hostname for this domain.
+  it("mixed-script homograph adds homograph and mixed-script points", () => {
+    // homograph (+16) + mixed-script (+8) = 24.
+    // xn--ggle-55da is the real punycode form of g + two Cyrillic o's + gle.
     const result = analyzeLocally("https://xn--ggle-55da.com", EMPTY_DOM);
     const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
-    expect(urlScore).toBe(35);
+    expect(urlScore).toBe(24);
     expect(result.reasons).toContain("Domain label mixes multiple writing scripts (possible homograph attack)");
     expect(result.reasons).toContain(
       "Domain uses look-alike Unicode characters resembling google.com (homograph attack)",
     );
+  });
+
+  it("Unicode literal homograph matches punycode score", () => {
+    const unicodeResult = analyzeLocally("https://g\u043e\u043egle.com", EMPTY_DOM);
+    const punycodeResult = analyzeLocally("https://xn--ggle-55da.com", EMPTY_DOM);
+    const unicodeScore = unicodeResult.risk_breakdown?.find((item) => item.category === "url")?.score;
+    const punycodeScore = punycodeResult.risk_breakdown?.find((item) => item.category === "url")?.score;
+
+    expect(unicodeScore).toBe(punycodeScore);
+    expect(unicodeScore).toBe(24);
+    expect(unicodeResult.reasons).toEqual(punycodeResult.reasons);
+  });
+
+  it("benign IDN scores 0 URL points", () => {
+    const result = analyzeLocally("https://xn--bcher-kva.de", EMPTY_DOM);
+    const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
+    expect(urlScore).toBe(0);
+    expect(result.reasons).toEqual(["No high-risk signals were detected"]);
   });
 });

@@ -101,11 +101,6 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
     reasons.push("Domain or path contains suspicious keywords");
   }
 
-  if (features.uses_punycode) {
-    score += 10;
-    reasons.push("URL uses punycode");
-  }
-
   if (features.typosquat_target) {
     const [typosquatPoints, typosquatReason] = scoreTyposquat(features.typosquat_target, features.typosquat_is_homograph);
     score += typosquatPoints;

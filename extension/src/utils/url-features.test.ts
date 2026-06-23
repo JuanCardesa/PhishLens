@@ -80,6 +80,19 @@ describe("extractUrlFeatures", () => {
     expect(features.typosquat_distance).toBeNull();
   });
 
+  it.each([
+    ["https://xn--bcher-kva.de/", 0],
+    ["https://xn--e1afmkfd.xn--p1ai/", 0],
+    ["https://xn--tst-bc-6nf0b.com/", 1],
+  ])("counts only visible IDN hyphens: %s", (url, expectedHyphens) => {
+    const features = extractUrlFeatures(url);
+
+    expect(features.uses_punycode).toBe(true);
+    expect(features.num_hyphens).toBe(expectedHyphens);
+    expect(features.typosquat_target).toBeNull();
+    expect(features.typosquat_distance).toBeNull();
+  });
+
   it("skips the typosquat check for IP domains", () => {
     const features = extractUrlFeatures("http://192.168.0.1/login");
 

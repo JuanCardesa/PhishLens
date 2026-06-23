@@ -89,6 +89,23 @@ def test_extract_url_features_does_not_flag_unrelated_domains() -> None:
     assert features.typosquat_distance is None
 
 
+@pytest.mark.parametrize(
+    ("url", "expected_hyphens"),
+    (
+        ("https://xn--bcher-kva.de/", 0),
+        ("https://xn--e1afmkfd.xn--p1ai/", 0),
+        ("https://xn--tst-bc-6nf0b.com/", 1),
+    ),
+)
+def test_extract_url_features_counts_visible_idn_hyphens_only(url: str, expected_hyphens: int) -> None:
+    features = extract_url_features(url)
+
+    assert features.uses_punycode is True
+    assert features.num_hyphens == expected_hyphens
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+
+
 def test_extract_url_features_skips_typosquat_check_for_ip_domains() -> None:
     features = extract_url_features("http://192.168.0.1/login")
 
