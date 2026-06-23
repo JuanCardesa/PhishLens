@@ -9,11 +9,13 @@ from app.services.feature_extractor import extract_url_features
 from app.services.ml_service import (
     FEATURE_ORDER,
     _adjustment_from_probability,
+    _artifact_cache_for_test,
     _load_artifact,
     _reset_artifact_cache,
     _resolve_model_path,
     is_model_available,
     predict_ml_adjustment,
+    warm_up_model,
 )
 
 
@@ -85,6 +87,23 @@ def test_predict_ml_adjustment_uses_predict_proba(tmp_path) -> None:
     assert result.probability == pytest.approx(0.9)
     assert result.adjustment == 20
     assert result.error is None
+
+
+def test_warm_up_model_populates_cache_before_first_predict(tmp_path) -> None:
+    model_path = _dump_model(tmp_path, _ProbaModel(0.9))
+    settings = Settings(model_path=str(model_path))
+
+    assert _artifact_cache_for_test() is None
+
+    warm_up_model(settings)
+
+    assert _artifact_cache_for_test() is not None
+
+
+def test_warm_up_model_is_a_no_op_when_model_is_absent() -> None:
+    warm_up_model(Settings(model_path="ml/models/does-not-exist.joblib"))
+
+    assert _artifact_cache_for_test() is None
 
 
 def test_load_artifact_caches_across_calls(tmp_path) -> None:

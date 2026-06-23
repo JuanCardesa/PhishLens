@@ -85,6 +85,11 @@ def _reset_artifact_cache() -> None:
         _artifact_cache = None
 
 
+def _artifact_cache_for_test() -> _ModelArtifact | None:
+    """Read the in-memory model cache. Intended for tests only."""
+    return _artifact_cache
+
+
 def predict_ml_adjustment(
     url_features: URLFeatures,
     dom_features: DOMFeatures,
@@ -113,6 +118,29 @@ def predict_ml_adjustment(
         return MLResult(available=True, probability=probability, adjustment=_adjustment_from_probability(probability))
     except Exception as exc:  # pragma: no cover - defensive fallback around local artifacts.
         return MLResult(available=False, error=str(exc))
+
+
+def warm_up_model(settings: Settings | None = None) -> None:
+    """Eagerly load the model artifact so the first real request isn't slow.
+
+    Unpickling a scikit-learn estimator triggers a lazy import of sklearn's
+    compiled submodules (and transitively numpy/scipy), which can take seconds
+    on a cold process. Without this, that cost lands on whichever user request
+    happens to be first — and predict_ml_adjustment runs synchronously, so it
+    blocks the event loop for other concurrent requests too. Called once from
+    the app startup lifespan; failures are swallowed because a missing/corrupt
+    model artifact is an expected, already-handled fallback path, not a reason
+    to fail startup.
+    """
+    settings = settings or get_settings()
+    model_path = _resolve_model_path(settings.model_path)
+    if not model_path.exists():
+        return
+
+    try:
+        _load_artifact(model_path)
+    except Exception:  # noqa: BLE001 - best-effort warm-up, real errors surface on first predict
+        logger.warning("ml_model_warm_up_failed path=%s", model_path, exc_info=True)
 
 
 def is_model_available(settings: Settings | None = None) -> bool:
