@@ -1,11 +1,18 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { collectDomFeatures, hasExternalAction } from "./dom-analyzer";
 
 afterEach(() => {
   document.body.innerHTML = "";
+  document.head.innerHTML = "";
+  document.title = "";
+  vi.unstubAllGlobals();
 });
+
+function stubLocation(hostname: string): void {
+  vi.stubGlobal("location", { hostname, href: `https://${hostname}/`, origin: `https://${hostname}` });
+}
 
 function makeForm(action: string | null): HTMLFormElement {
   const form = document.createElement("form");
@@ -29,6 +36,8 @@ describe("collectDomFeatures", () => {
       num_iframes: 0,
       external_links_ratio: 0,
       has_hidden_inputs: false,
+      brand_text_mismatch: false,
+      favicon_hotlinked_brand: false,
     });
   });
 
@@ -87,6 +96,62 @@ describe("collectDomFeatures", () => {
   it("does not flag internal form action as external", () => {
     document.body.innerHTML = '<form action="/submit"></form>';
     expect(collectDomFeatures().external_form_action).toBe(false);
+  });
+
+  it("flags brand text mismatch when title names a brand on an unrelated domain", () => {
+    stubLocation("totally-unrelated-login-portal.tk");
+    document.title = "PayPal - Log In to Your Account";
+    expect(collectDomFeatures().brand_text_mismatch).toBe(true);
+  });
+
+  it("does not flag brand text mismatch on the brand's own domain", () => {
+    stubLocation("paypal.com");
+    document.title = "PayPal - Log In to Your Account";
+    expect(collectDomFeatures().brand_text_mismatch).toBe(false);
+  });
+
+  it("flags brand text mismatch via og:site_name even without a matching title", () => {
+    stubLocation("free-hosting-site.example");
+    document.title = "Welcome";
+    document.head.innerHTML = '<meta property="og:site_name" content="Microsoft" />';
+    expect(collectDomFeatures().brand_text_mismatch).toBe(true);
+  });
+
+  it("flags brand text mismatch via h1 heading text", () => {
+    stubLocation("free-hosting-site.example");
+    document.body.innerHTML = "<h1>Netflix Account Verification</h1>";
+    expect(collectDomFeatures().brand_text_mismatch).toBe(true);
+  });
+
+  it("does not flag unrelated short text as a brand match", () => {
+    stubLocation("example.com");
+    document.title = "My Personal Blog";
+    expect(collectDomFeatures().brand_text_mismatch).toBe(false);
+  });
+
+  it("flags a favicon hotlinked from a known brand's domain", () => {
+    stubLocation("totally-unrelated-login-portal.tk");
+    document.head.innerHTML = '<link rel="icon" href="https://www.paypal.com/favicon.ico" />';
+    expect(collectDomFeatures().favicon_hotlinked_brand).toBe(true);
+  });
+
+  it("does not flag a same-domain favicon", () => {
+    stubLocation("example.com");
+    document.head.innerHTML = '<link rel="icon" href="/favicon.ico" />';
+    expect(collectDomFeatures().favicon_hotlinked_brand).toBe(false);
+  });
+
+  it("does not flag a favicon hotlinked from a non-brand external domain", () => {
+    stubLocation("example.com");
+    document.head.innerHTML = '<link rel="icon" href="https://cdn.unrelated-host.example/icon.ico" />';
+    expect(collectDomFeatures().favicon_hotlinked_brand).toBe(false);
+  });
+
+  it("does not throw on a malformed favicon href", () => {
+    stubLocation("example.com");
+    document.head.innerHTML = '<link rel="icon" href="not a valid url" />';
+    expect(() => collectDomFeatures()).not.toThrow();
+    expect(collectDomFeatures().favicon_hotlinked_brand).toBe(false);
   });
 });
 

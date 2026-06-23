@@ -203,6 +203,14 @@ def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
         score += 4
         reasons.append("Page contains hidden form inputs")
 
+    if features.brand_text_mismatch:
+        score += 12
+        reasons.append("Page text references a well-known brand that does not match this domain")
+
+    if features.favicon_hotlinked_brand:
+        score += 8
+        reasons.append("Page favicon is hotlinked from a different brand's domain")
+
     return min(score, DOM_SCORE_CAP), reasons
 
 

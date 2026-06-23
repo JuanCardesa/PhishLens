@@ -16,6 +16,8 @@ Health, analysis, and report endpoints with Pydantic schemas and tests.
 
 Expand non-sensitive DOM signals while preserving the no-content and no-input-values boundary.
 
+Done: added brand-impersonation detection — a visible-text (title/`og:site_name`/`h1`) brand mismatch against a curated brand-domain list shared with typosquat detection, plus a favicon-hotlinked-from-a-brand-domain check. Both are zero-network, zero-new-permission, computed purely from already-loaded DOM state. Deliberately does not do favicon byte-hash matching (would need cross-origin image fetches and a maintained hash database) or logo/image recognition. Remaining differentials from the Fase 4 audit (Certificate Transparency log lookups, real Firefox support) are deferred to a future session.
+
 ## 5. PhishTank
 
 Add production-grade rate-limit handling, caching, and observability around lookups.

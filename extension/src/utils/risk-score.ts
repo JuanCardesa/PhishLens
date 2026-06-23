@@ -175,6 +175,16 @@ function scoreDom(features: DOMFeatures): [number, string[]] {
     reasons.push("Page contains hidden form inputs");
   }
 
+  if (features.brand_text_mismatch) {
+    score += 12;
+    reasons.push("Page text references a well-known brand that does not match this domain");
+  }
+
+  if (features.favicon_hotlinked_brand) {
+    score += 8;
+    reasons.push("Page favicon is hotlinked from a different brand's domain");
+  }
+
   return [Math.min(score, DOM_SCORE_CAP), reasons];
 }
 

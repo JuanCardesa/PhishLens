@@ -10,6 +10,8 @@ const EMPTY_DOM: DOMFeatures = {
   num_iframes: 0,
   external_links_ratio: 0,
   has_hidden_inputs: false,
+  brand_text_mismatch: false,
+  favicon_hotlinked_brand: false,
 };
 
 describe("analyzeLocally", () => {
@@ -36,6 +38,8 @@ describe("analyzeLocally", () => {
       num_iframes: 1,
       external_links_ratio: 0.2,
       has_hidden_inputs: true,
+      brand_text_mismatch: false,
+      favicon_hotlinked_brand: false,
     });
 
     expect(result.label).toBe("suspicious");
@@ -66,6 +70,8 @@ describe("analyzeLocally", () => {
       num_iframes: 3,
       external_links_ratio: 0,
       has_hidden_inputs: true,
+      brand_text_mismatch: false,
+      favicon_hotlinked_brand: false,
     });
 
     expect(result.label).toBe("dangerous");
@@ -185,5 +191,18 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
     expect(urlScore).toBe(0);
     expect(result.reasons).toEqual(["No high-risk signals were detected"]);
+  });
+
+  it("brand text mismatch + favicon hotlink = 20 DOM points", () => {
+    // brand_text_mismatch (+12) + favicon_hotlinked_brand (+8) = 20
+    const result = analyzeLocally("https://example.com", {
+      ...EMPTY_DOM,
+      brand_text_mismatch: true,
+      favicon_hotlinked_brand: true,
+    });
+    const domScore = result.risk_breakdown?.find((item) => item.category === "dom")?.score;
+    expect(domScore).toBe(20);
+    expect(result.reasons).toContain("Page text references a well-known brand that does not match this domain");
+    expect(result.reasons).toContain("Page favicon is hotlinked from a different brand's domain");
   });
 });

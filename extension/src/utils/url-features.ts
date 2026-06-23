@@ -8,7 +8,7 @@ const IPV6_HINT_PATTERN = /:/;
 // reference set for typosquatting (Levenshtein) and combosquatting
 // (brand name embedded in a longer label) detection. Keep in sync with
 // backend/app/services/feature_extractor.py::KNOWN_BRAND_DOMAINS.
-const KNOWN_BRAND_DOMAINS = [
+export const KNOWN_BRAND_DOMAINS = [
   "google.com",
   "youtube.com",
   "facebook.com",
@@ -39,7 +39,7 @@ const KNOWN_BRAND_DOMAINS = [
 
 // Brand names shorter than this produce too many coincidental matches
 // (e.g. "x.com") to be a useful typosquatting signal.
-const MIN_BRAND_NAME_LENGTH = 4;
+export const MIN_BRAND_NAME_LENGTH = 4;
 
 // Maximum Levenshtein distance still considered a plausible typosquat.
 const MAX_TYPOSQUAT_DISTANCE = 2;
@@ -246,6 +246,12 @@ function detectTyposquatting(
   }
 
   return [bestTarget, bestDistance, isNonAsciiLabel];
+}
+
+/** Lowercases a hostname and reduces it to its registrable domain (e.g. "login.paypal.com" -> "paypal.com"). */
+export function getRegistrableDomain(hostname: string): string {
+  const labels = hostname.toLowerCase().replace(/\.$/, "").split(".").filter(Boolean);
+  return getRegistrableDomainParts(labels).join(".");
 }
 
 function getRegistrableDomainParts(labels: string[]): string[] {

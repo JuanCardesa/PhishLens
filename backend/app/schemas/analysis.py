@@ -16,6 +16,8 @@ class DOMFeatures(BaseModel):
     num_iframes: int = Field(default=0, ge=0, le=200)
     external_links_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
     has_hidden_inputs: bool = False
+    brand_text_mismatch: bool = False
+    favicon_hotlinked_brand: bool = False
 
 
 class AnalysisRequest(BaseModel):

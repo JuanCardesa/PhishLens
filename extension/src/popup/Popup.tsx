@@ -15,6 +15,8 @@ const EMPTY_DOM_FEATURES: DOMFeatures = {
   num_iframes: 0,
   external_links_ratio: 0,
   has_hidden_inputs: false,
+  brand_text_mismatch: false,
+  favicon_hotlinked_brand: false,
 };
 
 export function Popup() {

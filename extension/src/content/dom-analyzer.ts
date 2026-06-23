@@ -1,4 +1,5 @@
 import type { DOMFeatures } from "../types/analysis";
+import { KNOWN_BRAND_DOMAINS, MIN_BRAND_NAME_LENGTH, getRegistrableDomain } from "../utils/url-features";
 
 export function collectDomFeatures(): DOMFeatures {
   const forms = Array.from(document.forms);
@@ -19,7 +20,59 @@ export function collectDomFeatures(): DOMFeatures {
     num_iframes: document.querySelectorAll("iframe").length,
     external_links_ratio: links.length === 0 ? 0 : Number((externalLinks.length / links.length).toFixed(3)),
     has_hidden_inputs: Boolean(document.querySelector('input[type="hidden"]')),
+    ...detectBrandImpersonation(globalThis.location.hostname),
   };
+}
+
+/**
+ * Detects two brand-impersonation patterns, both purely from already-loaded
+ * DOM state (no network fetch, no new permission):
+ *  - brand_text_mismatch: visible page text names a known brand whose real
+ *    domain differs from this page's domain (catches cloned login pages on
+ *    unrelated/throwaway domains that typosquat detection wouldn't flag,
+ *    since the domain string itself bears no lexical resemblance).
+ *  - favicon_hotlinked_brand: the favicon <link> points at a different
+ *    origin that is itself a known brand domain (a common phishing-kit
+ *    laziness pattern — hotlinking the real brand's icon instead of copying
+ *    it). This intentionally avoids fetching/hashing favicon bytes, which
+ *    would require cross-origin CORS access and a maintained hash database.
+ */
+function detectBrandImpersonation(currentHostname: string): {
+  brand_text_mismatch: boolean;
+  favicon_hotlinked_brand: boolean;
+} {
+  const currentDomain = getRegistrableDomain(currentHostname);
+  const visibleText = [
+    document.title,
+    document.querySelector('meta[property="og:site_name"]')?.getAttribute("content"),
+    document.querySelector("h1")?.textContent,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const brandTextMismatch = KNOWN_BRAND_DOMAINS.some((brandDomain) => {
+    const brandLabel = brandDomain.split(".")[0];
+    return (
+      brandLabel.length >= MIN_BRAND_NAME_LENGTH &&
+      visibleText.includes(brandLabel) &&
+      brandDomain !== currentDomain
+    );
+  });
+
+  const faviconHref = document.querySelector('link[rel~="icon"]')?.getAttribute("href");
+  let faviconHotlinkedBrand = false;
+  if (faviconHref) {
+    try {
+      const faviconDomain = getRegistrableDomain(new URL(faviconHref, globalThis.location.href).hostname);
+      faviconHotlinkedBrand = faviconDomain !== currentDomain && KNOWN_BRAND_DOMAINS.includes(faviconDomain);
+    } catch {
+      faviconHotlinkedBrand = false;
+    }
+  }
+
+  return { brand_text_mismatch: brandTextMismatch, favicon_hotlinked_brand: faviconHotlinkedBrand };
 }
 
 export function hasExternalAction(form: HTMLFormElement, currentOrigin: string): boolean {

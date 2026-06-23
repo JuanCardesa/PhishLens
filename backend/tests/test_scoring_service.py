@@ -110,6 +110,8 @@ def test_scoring_caps_are_enforced() -> None:
             num_iframes=20,
             external_links_ratio=1.0,
             has_hidden_inputs=True,
+            brand_text_mismatch=True,
+            favicon_hotlinked_brand=True,
         )
     )
     threat_score, _ = _score_threat_intel(
@@ -124,6 +126,18 @@ def test_scoring_caps_are_enforced() -> None:
     assert threat_score == THREAT_INTEL_SCORE_CAP
     assert tls_score == TLS_SCORE_CAP
     assert domain_age_score == DOMAIN_AGE_SCORE_CAP
+
+
+def test_score_dom_brand_text_mismatch_and_favicon_hotlink() -> None:
+    score, reasons = _score_dom(
+        DOMFeatures(brand_text_mismatch=True, favicon_hotlinked_brand=True)
+    )
+
+    assert score == 20
+    assert reasons == [
+        "Page text references a well-known brand that does not match this domain",
+        "Page favicon is hotlinked from a different brand's domain",
+    ]
 
 
 def test_risk_breakdown_preserves_ml_adjustment_bounds() -> None:

@@ -16,7 +16,10 @@ Browser tab
 1. The user opens the extension popup.
 2. The popup reads the active tab URL through Chrome APIs.
 3. The content script returns only technical DOM features:
-   number of forms, password field presence, external form action, iframe count, external link ratio, and hidden input presence.
+   number of forms, password field presence, external form action, iframe count, external link ratio, hidden input presence,
+   a brand-text mismatch flag (visible title/meta/heading text names a known brand whose registrable domain differs from the
+   current page), and a favicon-hotlink flag (the favicon `<link>` points at a different origin that is itself a known brand
+   domain).
 4. The popup computes a local fallback score.
 5. The popup reads backend settings from `chrome.storage.sync`.
 6. The popup calls `POST /analyze` when the configured backend is available.
@@ -36,7 +39,7 @@ Browser tab
 | Category | Score Range | Purpose |
 | --- | --- | --- |
 | `url` | `0..35` | URL length, host shape, suspicious keywords, HTTPS, punycode, and entropy. |
-| `dom` | `0..30` | Non-sensitive page structure signals such as forms, password field presence, iframes, external form action, external link ratio, and hidden input presence. |
+| `dom` | `0..30` | Non-sensitive page structure signals such as forms, password field presence, iframes, external form action, external link ratio, hidden input presence, visible-text brand mismatch, and favicon hotlinked from a known brand domain. |
 | `threat_intel` | `0..40` | Optional PhishTank or local demo threat source result. |
 | `tls` | `0..15` | Backend-side certificate validity, expiration, and controlled TLS errors. |
 | `domain_age` | `0..20` | Optional RDAP domain registration age. Domains registered in the last 30/180 days score higher; missing or privacy-protected registration data scores 0 (not treated as suspicious). |

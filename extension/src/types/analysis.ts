@@ -8,6 +8,8 @@ export interface DOMFeatures {
   num_iframes: number;
   external_links_ratio: number;
   has_hidden_inputs: boolean;
+  brand_text_mismatch: boolean;
+  favicon_hotlinked_brand: boolean;
 }
 
 export interface URLFeatures {
