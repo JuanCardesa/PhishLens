@@ -21,6 +21,13 @@ def _is_private_ip(hostname: str) -> bool:
     return addr is not None and not addr.is_global
 
 
+def _idna_encode_hostname(hostname: str) -> str:
+    try:
+        return hostname.encode("idna").decode("ascii")
+    except UnicodeError as exc:
+        raise URLNormalizationError("url must include a valid hostname") from exc
+
+
 def normalize_url(value: str) -> str:
     parsed = urlsplit(value.strip())
     scheme = parsed.scheme.lower()
@@ -29,7 +36,8 @@ def normalize_url(value: str) -> str:
     if scheme not in {"http", "https"} or not hostname:
         raise URLNormalizationError("url must be an absolute http or https URL")
 
-    if _is_private_ip(hostname):
+    ip_literal = _parse_ip_literal(hostname)
+    if ip_literal is not None and not ip_literal.is_global:
         raise URLNormalizationError("url must not target a private or loopback address")
 
     try:
@@ -40,7 +48,12 @@ def normalize_url(value: str) -> str:
     # IPv6 literals must keep their brackets in the netloc, or urlunsplit
     # produces a string that re-parses with the wrong hostname (the part
     # before the first colon).
-    netloc_host = f"[{hostname}]" if isinstance(_parse_ip_literal(hostname), IPv6Address) else hostname
+    if isinstance(ip_literal, IPv6Address):
+        netloc_host = f"[{hostname}]"
+    elif ip_literal is not None:
+        netloc_host = hostname
+    else:
+        netloc_host = _idna_encode_hostname(hostname)
     netloc = f"{netloc_host}:{port}" if port is not None else netloc_host
 
     return urlunsplit((scheme, netloc, parsed.path, parsed.query, ""))

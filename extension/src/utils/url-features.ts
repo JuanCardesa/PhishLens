@@ -99,16 +99,21 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
   const usesIpDomain = IPV4_PATTERN.test(hostname) || IPV6_HINT_PATTERN.test(hostname);
   const registeredDomainParts = getRegistrableDomainParts(labels);
   const registeredDomain = registeredDomainParts.join(".");
-  const registeredDomainLabel = registeredDomainParts[0] ?? "";
+  const decodedLabels = labels.map((label) => decodeIdnaLabel(label).toLowerCase());
+  const decodedHostname = decodedLabels.join(".");
+  const decodedRegisteredDomainParts =
+    registeredDomainParts.length > 0 ? decodedLabels.slice(-registeredDomainParts.length) : [];
+  const decodedRegisteredDomain = decodedRegisteredDomainParts.join(".");
+  const registeredDomainLabel = decodedRegisteredDomainParts[0] ?? "";
   // Limit keyword scan to hostname + path only; query strings like
   // ?q=bank+verify are common on legitimate search engines and cause
   // false positives when the full URL is checked.
   const hostnameAndPath = (hostname + parsed.pathname).toLowerCase();
+  const decodedHostnameAndPath = (decodedHostname + parsed.pathname).toLowerCase();
 
-  const decodedLabel = decodeIdnaLabel(registeredDomainLabel).toLowerCase();
-  const isNonAsciiLabel = [...decodedLabel].some((char) => char.codePointAt(0)! > 127);
-  const normalizedLabel = normalizeConfusables(decodedLabel);
-  const mixedScriptLabel = usesIpDomain ? false : hasMixedScript(decodedLabel);
+  const isNonAsciiLabel = [...registeredDomainLabel].some((char) => char.codePointAt(0)! > 127);
+  const normalizedLabel = normalizeConfusables(registeredDomainLabel);
+  const mixedScriptLabel = usesIpDomain ? false : hasMixedScript(registeredDomainLabel);
 
   const [typosquatTarget, typosquatDistance, typosquatIsHomograph] = usesIpDomain
     ? [null, null, false]
@@ -117,14 +122,14 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
   return {
     url_length: rawUrl.length,
     num_dots: count(hostnameAndPath, "."), // query string excluded to avoid false positives
-    num_hyphens: count(rawUrl, "-"),
+    num_hyphens: count(decodedHostnameAndPath, "-"),
     uses_ip_domain: usesIpDomain,
     has_at_symbol: rawUrl.includes("@"),
     uses_https: parsed.protocol === "https:",
     num_subdomains: usesIpDomain ? 0 : Math.max(0, labels.length - registeredDomainParts.length),
     suspicious_keywords: SUSPICIOUS_KEYWORDS.filter((keyword) => hostnameAndPath.includes(keyword)),
     uses_punycode: hostname.includes("xn--"),
-    domain_entropy: Number(shannonEntropy(registeredDomain.replaceAll(".", "")).toFixed(3)),
+    domain_entropy: Number(shannonEntropy(decodedRegisteredDomain.replaceAll(".", "")).toFixed(3)),
     domain: hostname,
     typosquat_target: typosquatTarget,
     typosquat_distance: typosquatDistance,

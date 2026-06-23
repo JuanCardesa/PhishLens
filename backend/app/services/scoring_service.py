@@ -140,10 +140,6 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         score += min(8, 4 * len(features.suspicious_keywords))
         reasons.append("Domain or path contains suspicious keywords")
 
-    if features.uses_punycode:
-        score += 10
-        reasons.append("URL uses punycode")
-
     if features.typosquat_target:
         if features.typosquat_is_homograph:
             score += 16
