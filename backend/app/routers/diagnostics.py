@@ -1,3 +1,5 @@
+from hmac import compare_digest
+
 from fastapi import APIRouter, HTTPException, Request
 
 from app.core.config import get_settings
@@ -16,7 +18,7 @@ def diagnostics(request: Request) -> dict[str, object]:
 
     if settings.diagnostics_token:
         provided = request.headers.get("X-Diagnostics-Token", "")
-        if provided != settings.diagnostics_token:
+        if not compare_digest(provided, settings.diagnostics_token):
             raise HTTPException(status_code=401, detail="Invalid or missing diagnostics token.")
 
     snapshot = DIAGNOSTICS.snapshot()
