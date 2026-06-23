@@ -44,19 +44,26 @@ const MIN_BRAND_NAME_LENGTH = 4;
 // Maximum Levenshtein distance still considered a plausible typosquat.
 const MAX_TYPOSQUAT_DISTANCE = 2;
 
+// Common two-label public suffixes. This is intentionally conservative rather
+// than a full PSL implementation so the extension and backend can stay in sync
+// without adding bundle/runtime dependencies.
+const COMMON_SECOND_LEVEL_PUBLIC_SUFFIX_LABELS = new Set(["ac", "co", "com", "edu", "gov", "net", "org"]);
+
 export function extractUrlFeatures(rawUrl: string): URLFeatures {
   const parsed = new URL(rawUrl);
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
   const labels = hostname.split(".").filter(Boolean);
   const usesIpDomain = IPV4_PATTERN.test(hostname) || IPV6_HINT_PATTERN.test(hostname);
-  const registeredDomain = labels.length >= 2 ? labels.slice(-2).join(".") : hostname;
+  const registeredDomainParts = getRegistrableDomainParts(labels);
+  const registeredDomain = registeredDomainParts.join(".");
+  const registeredDomainLabel = registeredDomainParts[0] ?? "";
   // Limit keyword scan to hostname + path only; query strings like
   // ?q=bank+verify are common on legitimate search engines and cause
   // false positives when the full URL is checked.
   const hostnameAndPath = (hostname + parsed.pathname).toLowerCase();
   const [typosquatTarget, typosquatDistance] = usesIpDomain
     ? [null, null]
-    : detectTyposquatting(registeredDomain);
+    : detectTyposquatting(registeredDomain, registeredDomainLabel);
 
   return {
     url_length: rawUrl.length,
@@ -65,7 +72,7 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
     uses_ip_domain: usesIpDomain,
     has_at_symbol: rawUrl.includes("@"),
     uses_https: parsed.protocol === "https:",
-    num_subdomains: usesIpDomain ? 0 : Math.max(0, labels.length - 2),
+    num_subdomains: usesIpDomain ? 0 : Math.max(0, labels.length - registeredDomainParts.length),
     suspicious_keywords: SUSPICIOUS_KEYWORDS.filter((keyword) => hostnameAndPath.includes(keyword)),
     uses_punycode: hostname.includes("xn--"),
     domain_entropy: Number(shannonEntropy(registeredDomain.replaceAll(".", "")).toFixed(3)),
@@ -77,16 +84,21 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
 
 /**
  * Compare the registered domain against known brand domains. Catches both
- * classic typosquatting (small Levenshtein distance, e.g. "paypa1.com") and
- * combosquatting (brand name embedded in a longer label, e.g.
- * "paypal-secure.com"). Returns [null, null] if no plausible match is found.
+ * classic typosquatting (small Levenshtein distance between the registrable
+ * label and brand label, e.g. "paypa1.net") and combosquatting (brand name as
+ * a hyphen-delimited token in a longer label, e.g. "paypal-secure.com").
+ * Returns [null, null] if no plausible match is found.
  */
-function detectTyposquatting(registeredDomain: string): [string | null, number | null] {
-  if (!registeredDomain || KNOWN_BRAND_DOMAINS.includes(registeredDomain)) {
+function detectTyposquatting(registeredDomain: string, domainLabel: string): [string | null, number | null] {
+  if (
+    !registeredDomain ||
+    KNOWN_BRAND_DOMAINS.includes(registeredDomain) ||
+    !domainLabel ||
+    domainLabel.length < MIN_BRAND_NAME_LENGTH
+  ) {
     return [null, null];
   }
 
-  const domainLabel = registeredDomain.split(".")[0];
   let bestTarget: string | null = null;
   let bestDistance: number | null = null;
 
@@ -96,10 +108,15 @@ function detectTyposquatting(registeredDomain: string): [string | null, number |
       continue;
     }
 
-    const distance =
-      brandLabel !== domainLabel && domainLabel.includes(brandLabel)
-        ? 1 // combosquatting: brand name embedded with extra characters
-        : levenshteinDistance(registeredDomain, brandDomain);
+    let distance: number;
+    if (isHyphenDelimitedCombo(domainLabel, brandLabel)) {
+      distance = 1;
+    } else {
+      distance = levenshteinDistance(domainLabel, brandLabel);
+      if (distance === 0) {
+        continue;
+      }
+    }
 
     if (distance <= MAX_TYPOSQUAT_DISTANCE && (bestDistance === null || distance < bestDistance)) {
       bestDistance = distance;
@@ -108,6 +125,30 @@ function detectTyposquatting(registeredDomain: string): [string | null, number |
   }
 
   return [bestTarget, bestDistance];
+}
+
+function getRegistrableDomainParts(labels: string[]): string[] {
+  if (labels.length < 2) {
+    return labels;
+  }
+
+  if (
+    labels.length >= 3 &&
+    (labels.at(-1)?.length ?? 0) === 2 &&
+    COMMON_SECOND_LEVEL_PUBLIC_SUFFIX_LABELS.has(labels.at(-2) ?? "")
+  ) {
+    return labels.slice(-3);
+  }
+
+  return labels.slice(-2);
+}
+
+function isHyphenDelimitedCombo(domainLabel: string, brandLabel: string): boolean {
+  if (domainLabel === brandLabel || !domainLabel.includes("-")) {
+    return false;
+  }
+
+  return domainLabel.split("-").filter(Boolean).includes(brandLabel);
 }
 
 function levenshteinDistance(a: string, b: string): number {
