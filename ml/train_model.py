@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 _REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
 _DEMO_DATASET = ROOT / "datasets" / "demo_phishing_urls.csv"
 MODEL_PATH = ROOT / "models" / "phishlens_model.joblib"
+RUNTIME_MODEL_PATH = ROOT.parent / "backend" / "app" / "models" / "phishlens_model.joblib"
 
 # Prefer the real dataset built by ml/datasets/build_dataset.py; fall back to
 # the synthetic demo set so the pipeline stays runnable without internet access.
@@ -54,6 +57,14 @@ def _git_hash() -> str:
         ).strip()
     except Exception:  # noqa: BLE001
         return "unknown"
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -113,22 +124,26 @@ def main() -> None:
     for feat, imp in sorted(feature_importances.items(), key=lambda kv: kv[1], reverse=True)[:5]:
         print(f"  {feat}: {imp:.4f}")
 
+    artifact = {
+        "model": model,
+        "baseline_model": baseline,
+        "feature_order": FEATURE_COLUMNS,
+        "dataset_name": DATASET_PATH.name,
+        "dataset_sha256": _file_sha256(DATASET_PATH),
+        "dataset_note": f"{dataset_label} dataset. DOM features are 0 for URL-only rows.",
+        "version": MODEL_VERSION,
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "git_hash": _git_hash(),
+        "cv_scores": cv_scores.tolist(),
+        "feature_importances": feature_importances,
+    }
+
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(
-        {
-            "model": model,
-            "baseline_model": baseline,
-            "feature_order": FEATURE_COLUMNS,
-            "dataset_note": f"{dataset_label} dataset. DOM features are 0 for URL-only rows.",
-            "version": MODEL_VERSION,
-            "trained_at": datetime.now(timezone.utc).isoformat(),
-            "git_hash": _git_hash(),
-            "cv_scores": cv_scores.tolist(),
-            "feature_importances": feature_importances,
-        },
-        MODEL_PATH,
-    )
+    joblib.dump(artifact, MODEL_PATH)
+    RUNTIME_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(MODEL_PATH, RUNTIME_MODEL_PATH)
     print(f"\nSaved model v{MODEL_VERSION} to {MODEL_PATH}")
+    print(f"Copied runtime model to {RUNTIME_MODEL_PATH}")
 
 
 if __name__ == "__main__":

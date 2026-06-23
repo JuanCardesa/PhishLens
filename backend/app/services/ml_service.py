@@ -129,6 +129,11 @@ def _resolve_model_path(configured_path: str) -> Path:
     if cwd_candidate.exists():
         return cwd_candidate
 
+    backend_root = Path(__file__).resolve().parents[2]
+    backend_candidate = backend_root / path
+    if backend_candidate.exists():
+        return backend_candidate
+
     repo_root = Path(__file__).resolve().parents[3]
     return repo_root / path
 

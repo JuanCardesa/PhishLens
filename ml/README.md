@@ -2,7 +2,7 @@
 
 This folder contains the first machine learning pipeline for PhishLens.
 
-The dataset included in `datasets/demo_phishing_urls.csv` is synthetic and only exists to validate the training and inference flow. It is not representative enough for production decisions.
+`datasets/real_phishing_urls.csv` is the preferred committed training dataset. It contains only numeric features and labels. `datasets/demo_phishing_urls.csv` remains as a small offline fallback for validating the training and inference flow.
 
 ## Train
 
@@ -10,7 +10,7 @@ The dataset included in `datasets/demo_phishing_urls.csv` is synthetic and only 
 python ml/train_model.py
 ```
 
-The script trains a Logistic Regression baseline and a RandomForestClassifier, then writes the selected model to `ml/models/phishlens_model.joblib`.
+The script trains a Logistic Regression baseline and a RandomForestClassifier, writes the selected model to `ml/models/phishlens_model.joblib`, and copies the runtime artifact to `backend/app/models/phishlens_model.joblib` so the backend image includes the trained model.
 
 ## Evaluate
 
@@ -18,4 +18,4 @@ The script trains a Logistic Regression baseline and a RandomForestClassifier, t
 python ml/evaluate_model.py
 ```
 
-Replace the demo CSV with a curated, legally usable dataset before treating model metrics as meaningful.
+`evaluate_model.py` validates the saved artifact's dataset name and SHA-256 before reporting metrics, so stale local models fail fast instead of being evaluated against the wrong CSV.
