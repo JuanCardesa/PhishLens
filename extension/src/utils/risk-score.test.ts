@@ -109,4 +109,12 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     const dotsWithout = withoutQs.risk_breakdown?.find((i) => i.category === "url")?.score;
     expect(dotsWithQs).toBe(dotsWithout);
   });
+
+  it("typosquat domain adds 14 URL points", () => {
+    // https (+0) + typosquat (+14) = 14
+    const result = analyzeLocally("https://paypa1.com", EMPTY_DOM);
+    const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
+    expect(urlScore).toBe(14);
+    expect(result.reasons).toContain("Domain closely resembles paypal.com (possible typosquatting)");
+  });
 });

@@ -22,6 +22,8 @@ export interface URLFeatures {
   uses_punycode: boolean;
   domain_entropy: number;
   domain: string;
+  typosquat_target: string | null;
+  typosquat_distance: number | null;
 }
 
 export interface AnalysisSources {
