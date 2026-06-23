@@ -144,6 +144,10 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         score += 10
         reasons.append("URL uses punycode")
 
+    if features.typosquat_target:
+        score += 14
+        reasons.append(f"Domain closely resembles {features.typosquat_target} (possible typosquatting)")
+
     if features.domain_entropy > 3.8:
         score += 5
         reasons.append("Domain has high character entropy")

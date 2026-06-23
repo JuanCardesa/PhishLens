@@ -68,6 +68,14 @@ def test_num_dots_excludes_query_string() -> None:
     assert with_qs.num_dots == without_qs.num_dots
 
 
+def test_typosquat_domain_adds_fourteen_points() -> None:
+    # https (+0) + typosquat (+14) = 14
+    features = extract_url_features("https://paypa1.com")
+    score, reasons = _score_url(features)
+    assert score == 14
+    assert "Domain closely resembles paypal.com (possible typosquatting)" in reasons
+
+
 def test_url_score_cap_is_35() -> None:
     features = extract_url_features(
         "http://secure-login-verify-account-update-password-bank.attacker.phishing.scam.evil.bad.com/wallet"

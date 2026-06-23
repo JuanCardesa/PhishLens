@@ -4,6 +4,46 @@ const SUSPICIOUS_KEYWORDS = ["login", "verify", "account", "secure", "update", "
 const IPV4_PATTERN = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 const IPV6_HINT_PATTERN = /:/;
 
+// Curated list of frequently-impersonated brand domains. Used as the
+// reference set for typosquatting (Levenshtein) and combosquatting
+// (brand name embedded in a longer label) detection. Keep in sync with
+// backend/app/services/feature_extractor.py::KNOWN_BRAND_DOMAINS.
+const KNOWN_BRAND_DOMAINS = [
+  "google.com",
+  "youtube.com",
+  "facebook.com",
+  "instagram.com",
+  "whatsapp.com",
+  "amazon.com",
+  "apple.com",
+  "icloud.com",
+  "microsoft.com",
+  "outlook.com",
+  "office.com",
+  "netflix.com",
+  "paypal.com",
+  "ebay.com",
+  "linkedin.com",
+  "twitter.com",
+  "github.com",
+  "dropbox.com",
+  "yahoo.com",
+  "bankofamerica.com",
+  "chase.com",
+  "wellsfargo.com",
+  "americanexpress.com",
+  "coinbase.com",
+  "binance.com",
+  "adobe.com",
+];
+
+// Brand names shorter than this produce too many coincidental matches
+// (e.g. "x.com") to be a useful typosquatting signal.
+const MIN_BRAND_NAME_LENGTH = 4;
+
+// Maximum Levenshtein distance still considered a plausible typosquat.
+const MAX_TYPOSQUAT_DISTANCE = 2;
+
 export function extractUrlFeatures(rawUrl: string): URLFeatures {
   const parsed = new URL(rawUrl);
   const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
@@ -14,6 +54,9 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
   // ?q=bank+verify are common on legitimate search engines and cause
   // false positives when the full URL is checked.
   const hostnameAndPath = (hostname + parsed.pathname).toLowerCase();
+  const [typosquatTarget, typosquatDistance] = usesIpDomain
+    ? [null, null]
+    : detectTyposquatting(registeredDomain);
 
   return {
     url_length: rawUrl.length,
@@ -27,7 +70,73 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
     uses_punycode: hostname.includes("xn--"),
     domain_entropy: Number(shannonEntropy(registeredDomain.replaceAll(".", "")).toFixed(3)),
     domain: hostname,
+    typosquat_target: typosquatTarget,
+    typosquat_distance: typosquatDistance,
   };
+}
+
+/**
+ * Compare the registered domain against known brand domains. Catches both
+ * classic typosquatting (small Levenshtein distance, e.g. "paypa1.com") and
+ * combosquatting (brand name embedded in a longer label, e.g.
+ * "paypal-secure.com"). Returns [null, null] if no plausible match is found.
+ */
+function detectTyposquatting(registeredDomain: string): [string | null, number | null] {
+  if (!registeredDomain || KNOWN_BRAND_DOMAINS.includes(registeredDomain)) {
+    return [null, null];
+  }
+
+  const domainLabel = registeredDomain.split(".")[0];
+  let bestTarget: string | null = null;
+  let bestDistance: number | null = null;
+
+  for (const brandDomain of KNOWN_BRAND_DOMAINS) {
+    const brandLabel = brandDomain.split(".")[0];
+    if (brandLabel.length < MIN_BRAND_NAME_LENGTH) {
+      continue;
+    }
+
+    const distance =
+      brandLabel !== domainLabel && domainLabel.includes(brandLabel)
+        ? 1 // combosquatting: brand name embedded with extra characters
+        : levenshteinDistance(registeredDomain, brandDomain);
+
+    if (distance <= MAX_TYPOSQUAT_DISTANCE && (bestDistance === null || distance < bestDistance)) {
+      bestDistance = distance;
+      bestTarget = brandDomain;
+    }
+  }
+
+  return [bestTarget, bestDistance];
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  if (!a) {
+    return b.length;
+  }
+  if (!b) {
+    return a.length;
+  }
+
+  let previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
+
+  for (let i = 1; i <= a.length; i++) {
+    const currentRow = [i, ...new Array<number>(b.length).fill(0)];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      currentRow[j] = Math.min(
+        previousRow[j] + 1, // deletion
+        currentRow[j - 1] + 1, // insertion
+        previousRow[j - 1] + cost, // substitution
+      );
+    }
+    previousRow = currentRow;
+  }
+
+  return previousRow.at(-1) as number;
 }
 
 function count(value: string, needle: string): number {
