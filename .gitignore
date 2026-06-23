@@ -30,6 +30,7 @@ extension/release/
 # ML artifacts generated from local training
 ml/models/*.joblib
 backend/app/models/*.joblib
+!backend/app/models/phishlens_model.joblib
 
 # SQLite feedback database (runtime data, not source)
 feedback.db

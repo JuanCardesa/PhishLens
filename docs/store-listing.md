@@ -66,7 +66,7 @@ LIMITATIONS
 
 PhishLens is a risk-assistance tool, not a definitive phishing detector. It may produce false positives on legitimate pages and can miss novel or obfuscated phishing campaigns. Always apply your own judgement.
 
-The ML model shipped with the companion API is trained on a synthetic demo dataset and should be replaced with a curated dataset before relying on it in production.
+The ML model shipped with the companion API is trained on a real PhishTank + Tranco dataset, but that dataset has no DOM features (URLs only, no live browser session) and reflects a single snapshot in time — phishing campaigns evolve quickly, so the model should be retrained periodically.
 
 SELF-HOSTING
 

@@ -15,7 +15,7 @@ Usage:
     python datasets/build_dataset.py
 
 Requirements (already in backend/requirements.txt or standard library):
-    pandas (unused at runtime), math, ipaddress, urllib
+    backend app package, urllib
 """
 
 from __future__ import annotations
@@ -23,31 +23,32 @@ from __future__ import annotations
 import csv
 import gzip
 import io
-import ipaddress
 import logging
-import math
 import sys
 import urllib.request
+import zipfile
 from pathlib import Path
 from typing import TypedDict
+
+ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parent
+sys.path.insert(0, str(REPO_ROOT / "backend"))
+
+from app.services.feature_extractor import extract_url_features as extract_backend_url_features  # noqa: E402
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-ROOT = Path(__file__).resolve().parents[1]
 OUT_PATH = ROOT / "datasets" / "real_phishing_urls.csv"
 
-PHISHTANK_DUMP_URL = "http://data.phishtank.com/data/online-valid.csv.gz"
-TRANCO_LIST_URL = "https://tranco-list.eu/download/latest/full"
+PHISHTANK_DUMP_URL = "https://data.phishtank.com/data/online-valid.csv.gz"
+# Tranco's "latest/full" alias was retired; this endpoint redirects to the
+# current daily list, packaged as a zip containing a headerless rank,domain CSV.
+TRANCO_LIST_URL = "https://tranco-list.eu/top-1m.csv.zip"
 
 PHISHING_SAMPLE = 600
 LEGIT_SAMPLE = 600
 TRANCO_TOP_K = 50_000
-
-SUSPICIOUS_KEYWORDS = [
-    "login", "signin", "verify", "secure", "account",
-    "update", "confirm", "banking", "paypal", "password",
-]
 
 FEATURE_COLUMNS = [
     "url_length", "num_dots", "num_hyphens", "uses_ip_domain", "has_at_symbol",
@@ -80,56 +81,24 @@ class Row(TypedDict):
     label: int
 
 
-def _shannon_entropy(s: str) -> float:
-    if not s:
-        return 0.0
-    freq = {c: s.count(c) / len(s) for c in set(s)}
-    return -sum(p * math.log2(p) for p in freq.values())
-
-
-def _uses_ip_domain(hostname: str) -> bool:
-    try:
-        ipaddress.ip_address(hostname)
-        return True
-    except ValueError:
-        return False
-
-
-def _is_punycode(hostname: str) -> bool:
-    return "xn--" in hostname.lower()
-
-
-def _count_subdomains(hostname: str) -> int:
-    parts = hostname.rstrip(".").split(".")
-    return max(0, len(parts) - 2)
-
-
 def extract_url_features(url: str, label: int) -> Row | None:
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         return None
     try:
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url)
-        hostname = parsed.hostname or ""
-        path = parsed.path or ""
-        uses_https = int(parsed.scheme == "https")
-        host_and_path = hostname + path
-        keyword_count = sum(1 for kw in SUSPICIOUS_KEYWORDS if kw in host_and_path.lower())
-        punycode = int(_is_punycode(hostname))
+        features = extract_backend_url_features(url)
 
         return {
-            "url_length": len(url),
-            "num_dots": hostname.count("."),
-            "num_hyphens": hostname.count("-"),
-            "uses_ip_domain": int(_uses_ip_domain(hostname)),
-            "has_at_symbol": int("@" in url),
-            "uses_https": uses_https,
-            "num_subdomains": _count_subdomains(hostname),
-            "suspicious_keyword_count": keyword_count,
-            "uses_punycode": punycode,
-            "domain_entropy": round(_shannon_entropy(hostname), 4),
+            "url_length": features.url_length,
+            "num_dots": features.num_dots,
+            "num_hyphens": features.num_hyphens,
+            "uses_ip_domain": int(features.uses_ip_domain),
+            "has_at_symbol": int(features.has_at_symbol),
+            "uses_https": int(features.uses_https),
+            "num_subdomains": features.num_subdomains,
+            "suspicious_keyword_count": len(features.suspicious_keywords),
+            "uses_punycode": int(features.uses_punycode),
+            "domain_entropy": features.domain_entropy,
             # DOM features not available without browser — set to 0.
             "has_password_field": 0,
             "num_forms": 0,
@@ -172,7 +141,10 @@ def fetch_tranco_urls(n: int, top_k: int) -> list[str]:
     logger.info("Downloading Tranco top-%d list…", top_k)
     try:
         with urllib.request.urlopen(TRANCO_LIST_URL, timeout=60) as resp:
-            text = resp.read().decode("utf-8", errors="replace")
+            raw = resp.read()
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            csv_name = next(name for name in archive.namelist() if name.endswith(".csv"))
+            text = archive.read(csv_name).decode("utf-8", errors="replace")
     except Exception as exc:
         logger.error("Failed to download Tranco list: %s", exc)
         return []

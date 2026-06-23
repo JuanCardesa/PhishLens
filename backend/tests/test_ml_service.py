@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import joblib
 import pytest
 
@@ -146,3 +148,10 @@ def test_resolve_model_path_relative_to_cwd(tmp_path, monkeypatch) -> None:
     candidate.write_bytes(b"stub")
 
     assert _resolve_model_path("model.joblib") == candidate
+
+
+def test_resolve_model_path_relative_to_backend_root() -> None:
+    backend_root = Path(__file__).resolve().parents[1]
+    expected = backend_root / "app" / "models" / "phishlens_model.joblib"
+
+    assert _resolve_model_path("app/models/phishlens_model.joblib") == expected

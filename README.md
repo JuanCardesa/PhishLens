@@ -195,7 +195,7 @@ Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 | `PHISHLENS_CHROME_EXTENSION_IDS` | _(empty)_ | Comma-separated Chrome extension IDs for production CORS. |
 | `PHISHLENS_ENABLE_THREAT_INTEL` | `true` | Enable/disable PhishTank lookups. |
 | `PHISHLENS_ENABLE_TLS_ANALYSIS` | `true` | Enable/disable backend TLS certificate inspection. |
-| `PHISHLENS_MODEL_PATH` | `ml/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
+| `PHISHLENS_MODEL_PATH` | `app/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
 | `PHISHLENS_ENABLE_DIAGNOSTICS` | `true` | Expose aggregate counters at `GET /diagnostics`. |
 | `PHISHLENS_DIAGNOSTICS_TOKEN` | _(empty)_ | When set, `GET /diagnostics` requires `X-Diagnostics-Token: <value>`. |
 | `PHISHLENS_ENABLE_RATE_LIMITING` | `true` | Enable in-memory sliding-window rate limits. |
@@ -247,7 +247,7 @@ The zip is written to `extension/release/`.
 
 ## Limitations
 
-- The included ML dataset is synthetic demo data only.
+- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows, ~0.95 hold-out accuracy — see [docs/ml-methodology.md](docs/ml-methodology.md)), but DOM features are 0 for every row since the dataset is built from URLs only, without a live browser session.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
