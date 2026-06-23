@@ -1,3 +1,5 @@
+import pytest
+
 from app.services.feature_extractor import extract_url_features
 
 
@@ -28,6 +30,13 @@ def test_extract_url_features_detects_typosquatting_via_levenshtein() -> None:
     assert features.typosquat_distance == 1
 
 
+def test_extract_url_features_detects_typosquatting_across_tlds() -> None:
+    features = extract_url_features("https://paypa1.net/login")
+
+    assert features.typosquat_target == "paypal.com"
+    assert features.typosquat_distance == 1
+
+
 def test_extract_url_features_detects_combosquatting() -> None:
     features = extract_url_features("https://paypal-secure-login.com/account")
 
@@ -35,8 +44,39 @@ def test_extract_url_features_detects_combosquatting() -> None:
     assert features.typosquat_distance == 1
 
 
+def test_extract_url_features_detects_combosquatting_on_two_label_public_suffix() -> None:
+    features = extract_url_features("https://paypal-secure.co.uk/account")
+
+    assert features.typosquat_target == "paypal.com"
+    assert features.typosquat_distance == 1
+    assert features.num_subdomains == 0
+
+
 def test_extract_url_features_does_not_flag_the_real_brand_domain() -> None:
     features = extract_url_features("https://paypal.com/login")
+
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+
+
+def test_extract_url_features_does_not_flag_exact_brand_label_on_alternate_suffix() -> None:
+    features = extract_url_features("https://accounts.google.co.uk/login")
+
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+    assert features.num_subdomains == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://raw.githubusercontent.com/JuanCardesa/PhishLens/main/README.md",
+        "https://storage.googleapis.com/example-bucket/file.txt",
+        "https://appleton.com/",
+    ),
+)
+def test_extract_url_features_does_not_flag_brand_substrings_without_separator(url: str) -> None:
+    features = extract_url_features(url)
 
     assert features.typosquat_target is None
     assert features.typosquat_distance is None

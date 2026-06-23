@@ -57,6 +57,11 @@ MIN_BRAND_NAME_LENGTH = 4
 # Maximum Levenshtein distance still considered a plausible typosquat.
 MAX_TYPOSQUAT_DISTANCE = 2
 
+# Common two-label public suffixes. This is intentionally conservative rather
+# than a full PSL implementation so the extension and backend can stay in sync
+# without adding bundle/runtime dependencies.
+COMMON_SECOND_LEVEL_PUBLIC_SUFFIX_LABELS = frozenset({"ac", "co", "com", "edu", "gov", "net", "org"})
+
 
 @dataclass(frozen=True)
 class URLFeatures:
@@ -80,15 +85,16 @@ def extract_url_features(url: str) -> URLFeatures:
     hostname = (parsed.hostname or "").lower().rstrip(".")
     labels = [label for label in hostname.split(".") if label]
     uses_ip_domain = _is_ip_address(hostname)
-    registered_domain_parts = labels[-2:] if len(labels) >= 2 else labels
+    registered_domain_parts = _registrable_domain_parts(labels)
     registered_domain = ".".join(registered_domain_parts)
+    registered_domain_label = registered_domain_parts[0] if registered_domain_parts else ""
     # Limit keyword scan to hostname + path only; query strings like
     # ?q=bank+verify are common on legitimate search engines and cause
     # false positives when the full URL is checked.
     hostname_and_path = (hostname + (parsed.path or "")).lower()
     keyword_matches = tuple(keyword for keyword in SUSPICIOUS_KEYWORDS if keyword in hostname_and_path)
     typosquat_target, typosquat_distance = (
-        (None, None) if uses_ip_domain else _detect_typosquatting(registered_domain)
+        (None, None) if uses_ip_domain else _detect_typosquatting(registered_domain, registered_domain_label)
     )
 
     return URLFeatures(
@@ -98,7 +104,7 @@ def extract_url_features(url: str) -> URLFeatures:
         uses_ip_domain=uses_ip_domain,
         has_at_symbol="@" in url,
         uses_https=parsed.scheme == "https",
-        num_subdomains=0 if uses_ip_domain else max(0, len(labels) - 2),
+        num_subdomains=0 if uses_ip_domain else max(0, len(labels) - len(registered_domain_parts)),
         suspicious_keywords=keyword_matches,
         uses_punycode="xn--" in hostname,
         domain_entropy=round(_shannon_entropy(registered_domain.replace(".", "")), 3),
@@ -108,19 +114,37 @@ def extract_url_features(url: str) -> URLFeatures:
     )
 
 
-def _detect_typosquatting(registered_domain: str) -> tuple[str | None, int | None]:
+def _registrable_domain_parts(labels: list[str]) -> list[str]:
+    if len(labels) < 2:
+        return labels
+
+    if (
+        len(labels) >= 3
+        and len(labels[-1]) == 2
+        and labels[-2] in COMMON_SECOND_LEVEL_PUBLIC_SUFFIX_LABELS
+    ):
+        return labels[-3:]
+
+    return labels[-2:]
+
+
+def _detect_typosquatting(registered_domain: str, domain_label: str) -> tuple[str | None, int | None]:
     """Compare the registered domain against known brand domains.
 
     Catches two patterns: classic typosquatting (a small Levenshtein edit
-    distance, e.g. "paypa1.com") and combosquatting (the brand name embedded
-    in a longer label, e.g. "paypal-secure.com"). Returns the closest brand
-    domain and the distance used to flag it, or (None, None) if no plausible
-    match is found.
+    distance between the registrable label and brand label, e.g. "paypa1.net")
+    and combosquatting (the brand name as a hyphen-delimited token in a longer
+    label, e.g. "paypal-secure.com"). Returns the closest brand domain and the
+    distance used to flag it, or (None, None) if no plausible match is found.
     """
-    if not registered_domain or registered_domain in KNOWN_BRAND_DOMAINS:
+    if (
+        not registered_domain
+        or registered_domain in KNOWN_BRAND_DOMAINS
+        or not domain_label
+        or len(domain_label) < MIN_BRAND_NAME_LENGTH
+    ):
         return None, None
 
-    domain_label = registered_domain.split(".")[0]
     best_target: str | None = None
     best_distance: int | None = None
 
@@ -129,16 +153,25 @@ def _detect_typosquatting(registered_domain: str) -> tuple[str | None, int | Non
         if len(brand_label) < MIN_BRAND_NAME_LENGTH:
             continue
 
-        if brand_label != domain_label and brand_label in domain_label:
-            distance = 1  # combosquatting: brand name embedded with extra characters
+        if _is_hyphen_delimited_combo(domain_label, brand_label):
+            distance = 1
         else:
-            distance = _levenshtein_distance(registered_domain, brand_domain)
+            distance = _levenshtein_distance(domain_label, brand_label)
+            if distance == 0:
+                continue
 
         if distance <= MAX_TYPOSQUAT_DISTANCE and (best_distance is None or distance < best_distance):
             best_distance = distance
             best_target = brand_domain
 
     return best_target, best_distance
+
+
+def _is_hyphen_delimited_combo(domain_label: str, brand_label: str) -> bool:
+    if domain_label == brand_label or "-" not in domain_label:
+        return False
+
+    return brand_label in (token for token in domain_label.split("-") if token)
 
 
 def _levenshtein_distance(a: str, b: str) -> int:
