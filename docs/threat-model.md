@@ -40,6 +40,7 @@
 - Explicit docs for limitations and privacy boundaries.
 - Tests around scoring and schemas.
 - Conventional commits and reviewable changes.
+- Constant-time comparison (`hmac.compare_digest`) for the `X-Diagnostics-Token` check, avoiding a timing side-channel on token validation.
 
 ## Accepted Risks And Limitations
 
