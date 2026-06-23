@@ -106,6 +106,11 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
     reasons.push("URL uses punycode");
   }
 
+  if (features.typosquat_target) {
+    score += 14;
+    reasons.push(`Domain closely resembles ${features.typosquat_target} (possible typosquatting)`);
+  }
+
   if (features.domain_entropy > 3.8) {
     score += 5;
     reasons.push("Domain has high character entropy");

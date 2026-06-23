@@ -7,7 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Typosquatting and combosquatting detection**: `feature_extractor.py` (backend) and `url-features.ts` (extension) now compare the registered domain against a curated list of frequently-impersonated brand domains using Levenshtein distance (catches near-misses like `paypa1.com`) and substring matching (catches combosquats like `paypal-secure-login.com`). A match adds 14 URL risk points and surfaces a `"Domain closely resembles <brand> (possible typosquatting)"` reason. Mirrored identically between backend and extension fallback scoring, with parity tests in both `test_scoring_parity.py` and `risk-score.test.ts`.
 
 ---
 
