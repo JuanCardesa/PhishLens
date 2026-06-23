@@ -44,8 +44,9 @@ Implemented product capabilities:
 - FastAPI backend with `/health`, `/analyze`, and `/report`.
 - PhishTank integration prepared through environment variables.
 - TLS inspection implemented in the backend.
-- URL normalization and in-memory TTL cache for PhishTank and TLS checks.
-- Demo ML training and evaluation pipeline.
+- RDAP domain registration age lookup (free `rdap.org` bootstrap, no API key).
+- URL normalization and in-memory TTL cache for PhishTank, TLS, and RDAP checks.
+- ML training and evaluation pipeline on a real PhishTank + Tranco dataset.
 - Docker Compose and GitHub Actions workflows.
 - Privacy, threat model, architecture, ML methodology, and roadmap docs.
 - Reproducible local demo pages.
@@ -55,7 +56,7 @@ Implemented product capabilities:
 - PR Guardian, security CI, and automated extension release workflow.
 - Backend status diagnostics in the extension options page.
 - Chrome Web Store readiness and permission documentation.
-- Structured risk breakdown by URL, DOM, threat intelligence, TLS, and ML categories.
+- Structured risk breakdown by URL, DOM, threat intelligence, TLS, domain age, and ML categories.
 - SQLite feedback persistence for host-level label metadata only.
 
 ## Screenshots
@@ -254,6 +255,36 @@ The zip is written to `extension/release/`.
 - Diagnostics are development counters only and should not be treated as production telemetry.
 - In-memory rate limiting is process-local and resets when the backend restarts.
 - The current build prioritizes explainability and safe defaults over coverage.
+
+## Lessons Learned
+
+A few things found during a deliberate self-audit of this project, kept here instead of
+quietly fixed and forgotten, because how a bug was found and corrected is often more
+informative than the fact that the code is now clean:
+
+- **A 95% ML accuracy number was hiding a trivial shortcut.** The training dataset built
+  legitimate URLs as bare domain roots (`https://example.com/`) while phishing URLs from
+  PhishTank carry real paths, so `url_length` alone separated the two classes almost
+  perfectly — the model was learning "has a path" instead of phishing patterns. Fixed by
+  adding realistic paths to legitimate URLs; honest accuracy dropped to ~91% CV. Detailed
+  in [docs/ml-methodology.md](docs/ml-methodology.md#known-limitation-found-and-fixed-url-length-separability-bias).
+- **The offline fallback's "dangerous" label was effectively unreachable.** It needed
+  ~92% of its own maximum possible score because the threshold (60) was hand-picked
+  against a smaller scale than the backend's (70) without reconciling the two. Fixed by
+  scaling the local score onto the backend's 0-100 range before applying the same
+  threshold.
+- **Backtesting the URL heuristic weights surfaced their own blind spot.** Without
+  typosquat/homograph signals (which need the raw domain — not stored in the dataset for
+  privacy), the remaining numeric-only heuristics never reach the scoring cap on this
+  dataset. That's not a miscalibration; it confirms typosquat/homograph detection carries
+  most of the URL category's weight in practice. See
+  [docs/ml-methodology.md](docs/ml-methodology.md#heuristic-engine-backtest-rule-based-scoring-no-ml).
+- **A new external call (RDAP) silently exceeded the extension's request timeout.**
+  Adding domain-age lookups didn't itself cause this — profiling showed the real cost was
+  a one-time, multi-second `sklearn` import triggered by lazily unpickling the ML model on
+  the first request, which also blocked the event loop for concurrent requests. Fixed by
+  warming up the model from a FastAPI `lifespan` handler at startup; first-request latency
+  dropped from ~5.5s to ~1.4s.
 
 ## Roadmap
 

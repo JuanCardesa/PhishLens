@@ -24,9 +24,11 @@ Add production-grade rate-limit handling, caching, and observability around look
 
 Improve certificate chain metadata, issuer normalization, and timeout reporting.
 
+Done: added a sibling `domain_age` signal via RDAP (registration age), following the same cache/diagnostics pattern as TLS and PhishTank.
+
 ## 7. ML Baseline
 
-Done: trained on a real PhishTank + Tranco dataset (1200 rows, ~0.95 hold-out accuracy), with versioned artifacts (`git_hash`, `trained_at`) in `ml/train_model.py`. Remaining: periodic retraining as phishing patterns drift, and DOM-feature collection for the dataset (currently URL-only).
+Done: trained on a real PhishTank + Tranco dataset (1200 rows, ~0.92 hold-out accuracy after fixing a URL-length dataset bias — see [docs/ml-methodology.md](ml-methodology.md)), with versioned artifacts (`git_hash`, `trained_at`) in `ml/train_model.py`. A backtest of the rule-based URL heuristics (`ml/evaluate_heuristics.py`) confirmed typosquat/homograph detection carries most of the URL category's weight. Remaining: periodic retraining as phishing patterns drift, domain-age (RDAP) as a training feature, and DOM-feature collection for the dataset (currently URL-only).
 
 ## 8. Advanced UI
 
