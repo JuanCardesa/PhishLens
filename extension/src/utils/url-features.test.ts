@@ -85,5 +85,45 @@ describe("extractUrlFeatures", () => {
 
     expect(features.typosquat_target).toBeNull();
     expect(features.typosquat_distance).toBeNull();
+    expect(features.mixed_script_label).toBe(false);
+  });
+
+  it("detects a full-script homograph", () => {
+    // xn--80ak6aa92e decodes to "аррӏе" (all Cyrillic look-alikes of "apple")
+    const features = extractUrlFeatures("https://xn--80ak6aa92e.com/login");
+
+    expect(features.typosquat_target).toBe("apple.com");
+    expect(features.typosquat_distance).toBe(0);
+    expect(features.typosquat_is_homograph).toBe(true);
+    // A single, consistently Cyrillic label is not "mixed" script.
+    expect(features.mixed_script_label).toBe(false);
+  });
+
+  it("detects a mixed-script homograph", () => {
+    // "gооgle.com": the two "o"s are Cyrillic look-alikes (U+043E).
+    const features = extractUrlFeatures("https://gооgle.com/login");
+
+    expect(features.typosquat_target).toBe("google.com");
+    expect(features.typosquat_distance).toBe(0);
+    expect(features.typosquat_is_homograph).toBe(true);
+    expect(features.mixed_script_label).toBe(true);
+  });
+
+  it("flags mixed-script labels even without a brand match", () => {
+    // "tеst-аbc.com": Cyrillic "е" and "а" mixed into an otherwise
+    // Latin label that does not resemble any known brand.
+    const features = extractUrlFeatures("https://tеst-аbc.com/");
+
+    expect(features.mixed_script_label).toBe(true);
+    expect(features.typosquat_target).toBeNull();
+    expect(features.typosquat_distance).toBeNull();
+    expect(features.typosquat_is_homograph).toBe(false);
+  });
+
+  it("does not flag an ASCII typosquat as a homograph", () => {
+    const features = extractUrlFeatures("https://paypa1.com/login");
+
+    expect(features.typosquat_is_homograph).toBe(false);
+    expect(features.mixed_script_label).toBe(false);
   });
 });

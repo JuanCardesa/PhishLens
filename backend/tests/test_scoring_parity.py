@@ -76,6 +76,26 @@ def test_typosquat_domain_adds_fourteen_points() -> None:
     assert "Domain closely resembles paypal.com (possible typosquatting)" in reasons
 
 
+def test_full_script_homograph_adds_punycode_plus_sixteen_points() -> None:
+    # https (+0) + punycode (+10) + homograph (+16) = 26
+    # xn--80ak6aa92e decodes to "аррӏе" (all Cyrillic look-alikes of "apple")
+    features = extract_url_features("https://xn--80ak6aa92e.com")
+    score, reasons = _score_url(features)
+    assert score == 26
+    assert "Domain uses look-alike Unicode characters resembling apple.com (homograph attack)" in reasons
+
+
+def test_mixed_script_homograph_is_capped_at_url_score_cap() -> None:
+    # hyphens (+4) + punycode (+10) + homograph (+16) + mixed-script (+8) = 38 -> capped at 35.
+    # xn--ggle-55da is the real punycode form of "gооgle" (Cyrillic look-alike "o"s),
+    # i.e. what a browser actually sends as the hostname for this domain.
+    features = extract_url_features("https://xn--ggle-55da.com")
+    score, reasons = _score_url(features)
+    assert score == 35
+    assert "Domain label mixes multiple writing scripts (possible homograph attack)" in reasons
+    assert "Domain uses look-alike Unicode characters resembling google.com (homograph attack)" in reasons
+
+
 def test_url_score_cap_is_35() -> None:
     features = extract_url_features(
         "http://secure-login-verify-account-update-password-bank.attacker.phishing.scam.evil.bad.com/wallet"

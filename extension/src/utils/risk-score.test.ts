@@ -117,4 +117,28 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     expect(urlScore).toBe(14);
     expect(result.reasons).toContain("Domain closely resembles paypal.com (possible typosquatting)");
   });
+
+  it("full-script homograph adds punycode plus 16 points", () => {
+    // https (+0) + punycode (+10) + homograph (+16) = 26
+    // xn--80ak6aa92e decodes to "аррӏе" (all Cyrillic look-alikes of "apple")
+    const result = analyzeLocally("https://xn--80ak6aa92e.com", EMPTY_DOM);
+    const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
+    expect(urlScore).toBe(26);
+    expect(result.reasons).toContain(
+      "Domain uses look-alike Unicode characters resembling apple.com (homograph attack)",
+    );
+  });
+
+  it("mixed-script homograph is capped at the URL score cap", () => {
+    // hyphens (+4) + punycode (+10) + homograph (+16) + mixed-script (+8) = 38 -> capped at 35.
+    // xn--ggle-55da is the real punycode form of "gооgle" (Cyrillic look-alike "o"s),
+    // i.e. what a browser actually sends as the hostname for this domain.
+    const result = analyzeLocally("https://xn--ggle-55da.com", EMPTY_DOM);
+    const urlScore = result.risk_breakdown?.find((item) => item.category === "url")?.score;
+    expect(urlScore).toBe(35);
+    expect(result.reasons).toContain("Domain label mixes multiple writing scripts (possible homograph attack)");
+    expect(result.reasons).toContain(
+      "Domain uses look-alike Unicode characters resembling google.com (homograph attack)",
+    );
+  });
 });
