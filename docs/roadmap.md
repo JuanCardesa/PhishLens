@@ -26,7 +26,7 @@ Improve certificate chain metadata, issuer normalization, and timeout reporting.
 
 ## 7. ML Baseline
 
-Replace demo data with a curated dataset, add reproducible experiments, and track model versions.
+Done: trained on a real PhishTank + Tranco dataset (1200 rows, ~0.95 hold-out accuracy), with versioned artifacts (`git_hash`, `trained_at`) in `ml/train_model.py`. Remaining: periodic retraining as phishing patterns drift, and DOM-feature collection for the dataset (currently URL-only).
 
 ## 8. Advanced UI
 

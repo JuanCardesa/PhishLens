@@ -28,6 +28,7 @@ import logging
 import math
 import sys
 import urllib.request
+import zipfile
 from pathlib import Path
 from typing import TypedDict
 
@@ -37,8 +38,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 ROOT = Path(__file__).resolve().parents[1]
 OUT_PATH = ROOT / "datasets" / "real_phishing_urls.csv"
 
-PHISHTANK_DUMP_URL = "http://data.phishtank.com/data/online-valid.csv.gz"
-TRANCO_LIST_URL = "https://tranco-list.eu/download/latest/full"
+PHISHTANK_DUMP_URL = "https://data.phishtank.com/data/online-valid.csv.gz"
+# Tranco's "latest/full" alias was retired; this endpoint redirects to the
+# current daily list, packaged as a zip containing a headerless rank,domain CSV.
+TRANCO_LIST_URL = "https://tranco-list.eu/top-1m.csv.zip"
 
 PHISHING_SAMPLE = 600
 LEGIT_SAMPLE = 600
@@ -172,7 +175,10 @@ def fetch_tranco_urls(n: int, top_k: int) -> list[str]:
     logger.info("Downloading Tranco top-%d list…", top_k)
     try:
         with urllib.request.urlopen(TRANCO_LIST_URL, timeout=60) as resp:
-            text = resp.read().decode("utf-8", errors="replace")
+            raw = resp.read()
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            csv_name = next(name for name in archive.namelist() if name.endswith(".csv"))
+            text = archive.read(csv_name).decode("utf-8", errors="replace")
     except Exception as exc:
         logger.error("Failed to download Tranco list: %s", exc)
         return []

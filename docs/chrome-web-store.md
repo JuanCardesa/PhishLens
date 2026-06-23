@@ -51,7 +51,7 @@ Document these points for reviewers:
 - The demo threat source is localhost-only and disabled by default.
 - Backend diagnostics are aggregate counters and do not expose full URLs or page content.
 - TLS analysis is performed from the backend and may differ from browser certificate state behind proxies or TLS inspection.
-- The ML dataset and model are demo-grade unless replaced by a curated dataset.
+- The ML model is trained on a real PhishTank + Tranco dataset (see docs/ml-methodology.md), but it has no DOM features and reflects a single point-in-time snapshot; it should be retrained periodically.
 
 ## Release Flow
 
