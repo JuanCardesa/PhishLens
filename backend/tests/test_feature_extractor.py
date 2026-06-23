@@ -89,8 +89,72 @@ def test_extract_url_features_does_not_flag_unrelated_domains() -> None:
     assert features.typosquat_distance is None
 
 
+@pytest.mark.parametrize(
+    ("url", "expected_hyphens"),
+    (
+        ("https://xn--bcher-kva.de/", 0),
+        ("https://xn--e1afmkfd.xn--p1ai/", 0),
+        ("https://xn--tst-bc-6nf0b.com/", 1),
+    ),
+)
+def test_extract_url_features_counts_visible_idn_hyphens_only(url: str, expected_hyphens: int) -> None:
+    features = extract_url_features(url)
+
+    assert features.uses_punycode is True
+    assert features.num_hyphens == expected_hyphens
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+
+
 def test_extract_url_features_skips_typosquat_check_for_ip_domains() -> None:
     features = extract_url_features("http://192.168.0.1/login")
+
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+    assert features.mixed_script_label is False
+
+
+def test_extract_url_features_detects_full_script_homograph() -> None:
+    # xn--80ak6aa92e decodes to "аррӏе" (all Cyrillic look-alikes of "apple")
+    features = extract_url_features("https://xn--80ak6aa92e.com/login")
+
+    assert features.typosquat_target == "apple.com"
+    assert features.typosquat_distance == 0
+    assert features.typosquat_is_homograph is True
+    # A single, consistently Cyrillic label is not "mixed" script.
+    assert features.mixed_script_label is False
+
+
+def test_extract_url_features_detects_mixed_script_homograph() -> None:
+    # "gооgle.com": the two "o"s are Cyrillic look-alikes (U+043E).
+    features = extract_url_features("https://gооgle.com/login")
+
+    assert features.typosquat_target == "google.com"
+    assert features.typosquat_distance == 0
+    assert features.typosquat_is_homograph is True
+    assert features.mixed_script_label is True
+
+
+def test_extract_url_features_flags_mixed_script_without_brand_match() -> None:
+    # "tеst-аbc.com": Cyrillic "е" and "а" mixed into an otherwise
+    # Latin label that does not resemble any known brand.
+    features = extract_url_features("https://tеst-аbc.com/")
+
+    assert features.mixed_script_label is True
+    assert features.typosquat_target is None
+    assert features.typosquat_distance is None
+    assert features.typosquat_is_homograph is False
+
+
+def test_extract_url_features_does_not_flag_ascii_typosquat_as_homograph() -> None:
+    features = extract_url_features("https://paypa1.com/login")
+
+    assert features.typosquat_is_homograph is False
+    assert features.mixed_script_label is False
+
+
+def test_extract_url_features_handles_malformed_punycode_without_crashing() -> None:
+    features = extract_url_features("https://xn--invalid-punycode-zzzzzzzzzzzzz.com/")
 
     assert features.typosquat_target is None
     assert features.typosquat_distance is None
