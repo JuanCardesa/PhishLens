@@ -13,6 +13,7 @@ from app.schemas.analysis import (
     RiskLabel,
 )
 from app.services.demo_threat_service import DemoThreatResult, check_demo_threat_source
+from app.services.domain_age_service import DomainAgeResult, check_domain_age
 from app.services.feature_extractor import URLFeatures, extract_url_features
 from app.services.ml_service import MLResult, predict_ml_adjustment
 from app.services.phishtank_service import PhishTankResult, check_url
@@ -25,6 +26,7 @@ URL_SCORE_CAP = 35
 DOM_SCORE_CAP = 30
 THREAT_INTEL_SCORE_CAP = 40
 TLS_SCORE_CAP = 15
+DOMAIN_AGE_SCORE_CAP = 20
 ML_MIN_ADJUSTMENT = -10
 ML_MAX_ADJUSTMENT = 20
 
@@ -46,14 +48,15 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     # running in sequence from exceeding a combined wall-clock budget.
     gather_timeout = settings.external_timeout_seconds * 2.5
     try:
-        phishtank_result, tls_result = await asyncio.wait_for(
-            asyncio.gather(check_url(request.url), inspect_tls(request.url)),
+        phishtank_result, tls_result, domain_age_result = await asyncio.wait_for(
+            asyncio.gather(check_url(request.url), inspect_tls(request.url), check_domain_age(request.url)),
             timeout=gather_timeout,
         )
     except asyncio.TimeoutError:
         logger.warning("external_services_timeout", extra={"timeout_seconds": gather_timeout})
         phishtank_result = PhishTankResult(checked=False, in_database=False, verified=False, valid=False)
         tls_result = TLSResult(checked=False)
+        domain_age_result = DomainAgeResult(checked=False)
 
     ml_result = predict_ml_adjustment(url_features, request.dom_features)
 
@@ -61,9 +64,12 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     dom_score, dom_reasons = _score_dom(request.dom_features)
     threat_score, threat_reasons = _score_threat_intel(phishtank_result, demo_threat_result)
     tls_score, tls_reasons = _score_tls(tls_result)
+    domain_age_score, domain_age_reasons = _score_domain_age(domain_age_result)
     ml_reasons = _ml_reasons(ml_result)
 
-    raw_score = url_score + dom_score + threat_score + tls_score + ml_result.adjustment
+    raw_score = (
+        url_score + dom_score + threat_score + tls_score + domain_age_score + ml_result.adjustment
+    )
     risk_score = max(0, min(100, round(raw_score)))
     risk_breakdown = _build_risk_breakdown(
         url_score=url_score,
@@ -77,10 +83,13 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
         tls_result=tls_result,
         tls_score=tls_score,
         tls_reasons=tls_reasons,
+        domain_age_result=domain_age_result,
+        domain_age_score=domain_age_score,
+        domain_age_reasons=domain_age_reasons,
         ml_result=ml_result,
         ml_reasons=ml_reasons,
     )
-    reasons = url_reasons + dom_reasons + threat_reasons + tls_reasons + ml_reasons
+    reasons = url_reasons + dom_reasons + threat_reasons + tls_reasons + domain_age_reasons + ml_reasons
 
     if not reasons:
         reasons = ["No high-risk signals were detected"]
@@ -95,6 +104,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
             ml=ml_result.available,
             phishtank=phishtank_result.checked,
             tls=tls_result.checked,
+            domain_age=domain_age_result.checked,
             demo=demo_threat_result.matched,
         ),
         risk_breakdown=risk_breakdown,
@@ -230,6 +240,18 @@ def _score_tls(result: TLSResult) -> tuple[int, list[str]]:
     return min(score, TLS_SCORE_CAP), reasons
 
 
+def _score_domain_age(result: DomainAgeResult) -> tuple[int, list[str]]:
+    if not result.checked or result.age_days is None:
+        return 0, []
+
+    if result.age_days < 30:
+        return DOMAIN_AGE_SCORE_CAP, ["Domain was registered within the last 30 days"]
+    if result.age_days < 180:
+        return 10, ["Domain was registered recently (under 6 months ago)"]
+
+    return 0, []
+
+
 def _ml_reasons(result: MLResult) -> list[str]:
     if not result.available or result.probability is None or result.adjustment == 0:
         return []
@@ -253,6 +275,9 @@ def _build_risk_breakdown(
     tls_result: TLSResult,
     tls_score: int,
     tls_reasons: list[str],
+    domain_age_result: DomainAgeResult,
+    domain_age_score: int,
+    domain_age_reasons: list[str],
     ml_result: MLResult,
     ml_reasons: list[str],
 ) -> list[RiskBreakdownItem]:
@@ -284,6 +309,13 @@ def _build_risk_breakdown(
             max_score=TLS_SCORE_CAP,
             reasons=tls_reasons,
             source="tls" if tls_result.checked else "fallback",
+        ),
+        RiskBreakdownItem(
+            category="domain_age",
+            score=domain_age_score,
+            max_score=DOMAIN_AGE_SCORE_CAP,
+            reasons=domain_age_reasons,
+            source="rdap" if domain_age_result.checked else "fallback",
         ),
         RiskBreakdownItem(
             category="ml",

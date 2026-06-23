@@ -8,6 +8,7 @@ os.environ["PHISHLENS_FEEDBACK_DB_PATH"] = ""
 
 from app.core.config import get_settings
 from app.services.diagnostics import clear_diagnostics
+from app.services.domain_age_service import clear_domain_age_cache
 from app.services.phishtank_service import clear_phishtank_cache
 from app.services.rate_limiter import clear_rate_limiter
 from app.services.tls_service import clear_tls_cache
@@ -19,16 +20,21 @@ def isolate_runtime_settings(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PHISHLENS_ENABLE_RATE_LIMITING", "true")
     monkeypatch.setenv("PHISHLENS_ENABLE_DIAGNOSTICS", "true")
     monkeypatch.setenv("PHISHLENS_FEEDBACK_DB_PATH", "")
+    # Disabled by default so tests exercising /analyze do not make a real outbound
+    # RDAP lookup. test_domain_age_service.py re-enables it via its own Settings(...).
+    monkeypatch.setenv("PHISHLENS_ENABLE_DOMAIN_AGE_LOOKUP", "false")
     monkeypatch.delenv("PHISHLENS_ENABLE_DEMO_THREAT_SOURCE", raising=False)
     monkeypatch.delenv("PHISHTANK_API_KEY", raising=False)
     clear_diagnostics()
     clear_phishtank_cache()
     clear_rate_limiter()
     clear_tls_cache()
+    clear_domain_age_cache()
     get_settings.cache_clear()
     yield
     clear_diagnostics()
     clear_phishtank_cache()
     clear_rate_limiter()
     clear_tls_cache()
+    clear_domain_age_cache()
     get_settings.cache_clear()

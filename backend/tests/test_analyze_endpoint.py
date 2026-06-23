@@ -30,10 +30,17 @@ def test_analyze_returns_explainable_score_without_external_dependencies() -> No
     assert payload["sources"]["ml"] is False
     assert payload["sources"]["phishtank"] is False
     assert "Page contains a password field" in payload["reasons"]
-    assert [item["category"] for item in payload["risk_breakdown"]] == ["url", "dom", "threat_intel", "tls", "ml"]
+    assert [item["category"] for item in payload["risk_breakdown"]] == [
+        "url",
+        "dom",
+        "threat_intel",
+        "tls",
+        "domain_age",
+        "ml",
+    ]
     assert payload["risk_breakdown"][0]["max_score"] == 35
     assert payload["risk_breakdown"][1]["max_score"] == 30
-    assert payload["risk_breakdown"][4]["min_score"] == -10
+    assert payload["risk_breakdown"][5]["min_score"] == -10
 
 
 def test_analyze_rejects_non_http_url() -> None:

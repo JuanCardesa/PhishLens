@@ -1,6 +1,6 @@
 import type { AnalysisSources, RiskBreakdownCategory, RiskBreakdownItem } from "../types/analysis";
 
-export type SignalCategoryId = "url" | "dom" | "threat-intel" | "tls" | "ml" | "general";
+export type SignalCategoryId = "url" | "dom" | "threat-intel" | "tls" | "domain-age" | "ml" | "general";
 
 export interface SignalGroup {
   id: SignalCategoryId;
@@ -17,6 +17,7 @@ const CATEGORY_TITLES: Record<SignalCategoryId, string> = {
   dom: "Page structure",
   "threat-intel": "Threat intelligence",
   tls: "TLS",
+  "domain-age": "Domain age",
   ml: "ML",
   general: "General",
 };
@@ -53,11 +54,15 @@ export function groupReasonsBySignal(
     grouped.set("tls", ["TLS certificate checks did not add high-risk signals"]);
   }
 
+  if (sources.domain_age && !grouped.has("domain-age")) {
+    grouped.set("domain-age", ["Domain age lookup did not add high-risk signals"]);
+  }
+
   if (sources.ml && !grouped.has("ml")) {
     grouped.set("ml", ["Machine learning model was available without changing the score"]);
   }
 
-  return (["url", "dom", "threat-intel", "tls", "ml", "general"] as SignalCategoryId[])
+  return (["url", "dom", "threat-intel", "tls", "domain-age", "ml", "general"] as SignalCategoryId[])
     .filter((id) => grouped.has(id))
     .map((id) => ({
       id,
@@ -94,6 +99,9 @@ function signalIdFromBreakdownCategory(category: RiskBreakdownCategory): SignalC
   if (category === "threat_intel") {
     return "threat-intel";
   }
+  if (category === "domain_age") {
+    return "domain-age";
+  }
   return category;
 }
 
@@ -106,6 +114,12 @@ function neutralReason(item: RiskBreakdownItem): string {
 
   if (item.category === "tls") {
     return item.source === "fallback" ? "TLS analysis was not available for this result" : "TLS did not add high-risk signals";
+  }
+
+  if (item.category === "domain_age") {
+    return item.source === "fallback"
+      ? "Domain age lookup was not available for this result"
+      : "Domain age did not add high-risk signals";
   }
 
   if (item.category === "ml") {
@@ -126,6 +140,10 @@ function categorizeReason(reason: string): SignalCategoryId {
     normalized.includes("hidden")
   ) {
     return "dom";
+  }
+
+  if (normalized.includes("domain was registered") || normalized.includes("domain age")) {
+    return "domain-age";
   }
 
   if (normalized.includes("url") || normalized.includes("domain") || normalized.includes("https")) {

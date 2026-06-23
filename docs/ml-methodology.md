@@ -116,6 +116,40 @@ The runtime artifact committed for the backend lives at `backend/app/models/phis
 
 Track accuracy, precision, recall, F1-score, and confusion matrix. In future datasets, prioritize recall for malicious URLs while controlling false positives for normal login and banking pages.
 
+## Heuristic engine backtest (rule-based scoring, no ML)
+
+`ml/evaluate_heuristics.py` backtests `_score_url`'s point weights
+(`backend/app/services/scoring_service.py`) against the committed
+`real_phishing_urls.csv`, independent of the ML model.
+
+**Limitation:** the committed CSV does not store raw domains (privacy decision, see
+above), so this backtest can only reconstruct the columns present in the file —
+`url_length`, `num_dots`, `num_hyphens`, `uses_ip_domain`, `has_at_symbol`,
+`uses_https`, `num_subdomains`, `suspicious_keyword_count`, `uses_punycode`,
+`domain_entropy`. It **cannot** backtest typosquatting, homograph, or mixed-script
+detection, which require the actual domain string and contribute the largest single
+point values in `_score_url` (+14 to +16). Treat these numbers as a partial backtest
+of the numeric-only weights, not a full evaluation of the URL heuristic engine.
+
+Result from a run against the 1200-row dataset (`python ml/evaluate_heuristics.py`):
+
+| Score threshold | Precision | Recall | F1 |
+|---|---|---|---|
+| ≥ 1 | 0.759 | 0.468 | 0.579 |
+| ≥ 8 | 1.000 | 0.162 | 0.278 |
+| ≥ 14 | 1.000 | 0.033 | 0.065 |
+| ≥ 20 | 1.000 | 0.007 | 0.013 |
+| ≥ 30 | 0.000 | 0.000 | 0.000 |
+
+0% of rows in either class reach the 35-point `URL_SCORE_CAP` using only these
+numeric signals. This is expected, not a bug: it confirms that typosquatting/homograph
+detection (excluded from this backtest) carries most of the weight needed to reach the
+cap in practice — the numeric-only signals are a low-recall, high-precision secondary
+layer, not the primary URL-based detector. No weights were changed based on this
+result; it is documented here as a baseline for future backtesting once a privacy-safe
+way to include domain-string-dependent features is found (e.g. backtesting in-memory
+against freshly fetched URLs without persisting them to disk).
+
 ## Future Data Sources
 
 Use legally available, documented datasets only. Candidate sources include public phishing URL feeds, benign URL corpora, internally generated safe examples, and browser telemetry only if collected with explicit consent and strict privacy controls.

@@ -6,7 +6,7 @@ from app.services.url_normalizer import URLNormalizationError, normalize_url
 
 
 RiskLabel = Literal["safe", "suspicious", "dangerous"]
-RiskCategory = Literal["url", "dom", "threat_intel", "tls", "ml"]
+RiskCategory = Literal["url", "dom", "threat_intel", "tls", "domain_age", "ml"]
 
 
 class DOMFeatures(BaseModel):
@@ -36,6 +36,7 @@ class AnalysisSources(BaseModel):
     ml: bool
     phishtank: bool
     tls: bool
+    domain_age: bool = False
     demo: bool = False
 
 

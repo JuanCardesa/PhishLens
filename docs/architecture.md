@@ -7,7 +7,7 @@ Browser tab
   -> content script
   -> popup UI and options page
   -> FastAPI backend
-  -> optional PhishTank, TLS socket inspection, and local ML model
+  -> optional PhishTank, TLS socket inspection, RDAP domain age, and local ML model
   -> development diagnostics and rate limiting
 ```
 
@@ -20,8 +20,8 @@ Browser tab
 4. The popup computes a local fallback score.
 5. The popup reads backend settings from `chrome.storage.sync`.
 6. The popup calls `POST /analyze` when the configured backend is available.
-7. The backend normalizes the URL, removes fragments, and combines URL heuristics, DOM signals, optional PhishTank, TLS checks, and optional ML adjustment.
-8. PhishTank and TLS checks use short in-memory TTL caches to reduce repeated external calls.
+7. The backend normalizes the URL, removes fragments, and combines URL heuristics, DOM signals, optional PhishTank, TLS checks, RDAP domain age, and optional ML adjustment.
+8. PhishTank, TLS, and RDAP domain age checks use short in-memory TTL caches to reduce repeated external calls (domain age is cached for 24h since registration dates do not change minute to minute).
 9. In development demo mode, localhost URLs containing `phishlens-demo-dangerous` can trigger an explicit demo threat signal.
 10. The backend returns both compatibility `reasons` and structured `risk_breakdown` items by category.
 11. The popup displays score, label, confidence, risk breakdown, source mode, and feedback controls.
@@ -39,6 +39,7 @@ Browser tab
 | `dom` | `0..30` | Non-sensitive page structure signals such as forms, password field presence, iframes, external form action, external link ratio, and hidden input presence. |
 | `threat_intel` | `0..40` | Optional PhishTank or local demo threat source result. |
 | `tls` | `0..15` | Backend-side certificate validity, expiration, and controlled TLS errors. |
+| `domain_age` | `0..20` | Optional RDAP domain registration age. Domains registered in the last 30/180 days score higher; missing or privacy-protected registration data scores 0 (not treated as suspicious). |
 | `ml` | `-10..20` | Optional model adjustment. Missing model artifacts use a neutral fallback. |
 
 The top-level `reasons` list remains for compatibility. New UI should prefer `risk_breakdown` because it includes category, score, cap, source, and reasons.
@@ -75,6 +76,15 @@ Chrome extensions cannot reliably inspect full certificate details from page scr
 
 This can differ from what the browser sees when the user is behind a corporate proxy, local antivirus TLS inspection, captive portal, or custom trust store.
 
+## Domain Age In Backend
+
+PhishLens looks up domain registration age via the public RDAP bootstrap service
+(`rdap.org`), which redirects to the domain's authoritative registry RDAP server. Only
+the hostname is sent, no path or query string. A missing registration event (common with
+privacy-protected WHOIS records) is not treated as suspicious — it is just as common for
+legitimate domains as for phishing domains, so it contributes 0 to the score rather than
+being penalized.
+
 ## Text Diagram
 
 ```text
@@ -91,10 +101,10 @@ This can differ from what the browser sees when the user is behind a corporate p
                                      | POST /analyze
                                      v
                              [FastAPI backend]
-                              |      |       |        |
-                              v      v       v        v
-                         [PhishTank] [TLS] [ML model] [Diagnostics]
-                              ^      ^
-                              |      |
+                              |      |      |       |        |
+                              v      v      v       v        v
+                         [PhishTank] [TLS] [RDAP] [ML model] [Diagnostics]
+                              ^      ^      ^
+                              |      |      |
                             TTL cache
 ```

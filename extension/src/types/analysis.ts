@@ -33,10 +33,11 @@ export interface AnalysisSources {
   ml: boolean;
   phishtank: boolean;
   tls: boolean;
+  domain_age?: boolean;
   demo?: boolean;
 }
 
-export type RiskBreakdownCategory = "url" | "dom" | "threat_intel" | "tls" | "ml";
+export type RiskBreakdownCategory = "url" | "dom" | "threat_intel" | "tls" | "domain_age" | "ml";
 
 export interface RiskBreakdownItem {
   category: RiskBreakdownCategory;
@@ -86,6 +87,7 @@ export interface DiagnosticsCapabilities {
   rate_limiting_enabled: boolean;
   threat_intel_enabled: boolean;
   tls_analysis_enabled: boolean;
+  domain_age_lookup_enabled: boolean;
   ml_model_available: boolean;
   demo_threat_source_enabled: boolean;
 }

@@ -30,8 +30,8 @@ _BENIGN_URL = "http://www.example.test/"
 # ---------------------------------------------------------------------------
 
 VALID_LABELS = {"safe", "suspicious", "dangerous"}
-VALID_CATEGORIES = {"url", "dom", "threat_intel", "tls", "ml"}
-EXPECTED_CATEGORY_ORDER = ["url", "dom", "threat_intel", "tls", "ml"]
+VALID_CATEGORIES = {"url", "dom", "threat_intel", "tls", "domain_age", "ml"}
+EXPECTED_CATEGORY_ORDER = ["url", "dom", "threat_intel", "tls", "domain_age", "ml"]
 
 
 def _post_analyze(url: str, dom_features: dict | None = None) -> dict:
@@ -63,12 +63,13 @@ def _assert_analysis_contract(body: dict) -> None:
     assert isinstance(sources["ml"], bool)
     assert isinstance(sources["phishtank"], bool)
     assert isinstance(sources["tls"], bool)
+    assert isinstance(sources.get("domain_age", False), bool)
     assert isinstance(sources.get("demo", False), bool)
 
-    # risk_breakdown: exactly 5 items in the documented order
+    # risk_breakdown: exactly 6 items in the documented order
     breakdown = body["risk_breakdown"]
     assert isinstance(breakdown, list), "risk_breakdown must be a list"
-    assert len(breakdown) == 5, f"expected 5 breakdown items, got {len(breakdown)}"
+    assert len(breakdown) == 6, f"expected 6 breakdown items, got {len(breakdown)}"
     assert [item["category"] for item in breakdown] == EXPECTED_CATEGORY_ORDER
 
     for item in breakdown:

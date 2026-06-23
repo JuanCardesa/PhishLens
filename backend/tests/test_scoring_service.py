@@ -2,11 +2,13 @@ import pytest
 
 from app.schemas.analysis import AnalysisRequest, DOMFeatures
 from app.services.demo_threat_service import DemoThreatResult
+from app.services.domain_age_service import DomainAgeResult
 from app.services.feature_extractor import URLFeatures
 from app.services.ml_service import MLResult
 from app.services.phishtank_service import PhishTankResult
 from app.services.scoring_service import (
     DOM_SCORE_CAP,
+    DOMAIN_AGE_SCORE_CAP,
     ML_MAX_ADJUSTMENT,
     ML_MIN_ADJUSTMENT,
     THREAT_INTEL_SCORE_CAP,
@@ -14,6 +16,7 @@ from app.services.scoring_service import (
     URL_SCORE_CAP,
     _build_risk_breakdown,
     _score_dom,
+    _score_domain_age,
     _score_threat_intel,
     _score_tls,
     _score_url,
@@ -65,7 +68,14 @@ async def test_scoring_combines_url_and_dom_reasons() -> None:
     assert result.label in {"suspicious", "dangerous"}
     assert "Domain or path contains suspicious keywords" in result.reasons
     assert "Page contains a password field" in result.reasons
-    assert {item.category for item in result.risk_breakdown} == {"url", "dom", "threat_intel", "tls", "ml"}
+    assert {item.category for item in result.risk_breakdown} == {
+        "url",
+        "dom",
+        "threat_intel",
+        "tls",
+        "domain_age",
+        "ml",
+    }
     # The raw sum of breakdown scores equals risk_score only when the total is
     # below 100; at or above the cap they diverge because risk_score is clamped.
     raw_sum = sum(item.score for item in result.risk_breakdown)
@@ -107,11 +117,13 @@ def test_scoring_caps_are_enforced() -> None:
         DemoThreatResult(checked=False),
     )
     tls_score, _ = _score_tls(TLSResult(checked=True, valid=False, expired=True))
+    domain_age_score, _ = _score_domain_age(DomainAgeResult(checked=True, age_days=1))
 
     assert url_score == URL_SCORE_CAP
     assert dom_score == DOM_SCORE_CAP
     assert threat_score == THREAT_INTEL_SCORE_CAP
     assert tls_score == TLS_SCORE_CAP
+    assert domain_age_score == DOMAIN_AGE_SCORE_CAP
 
 
 def test_risk_breakdown_preserves_ml_adjustment_bounds() -> None:
@@ -127,6 +139,9 @@ def test_risk_breakdown_preserves_ml_adjustment_bounds() -> None:
         tls_result=TLSResult(checked=False),
         tls_score=0,
         tls_reasons=[],
+        domain_age_result=DomainAgeResult(checked=False),
+        domain_age_score=0,
+        domain_age_reasons=[],
         ml_result=MLResult(available=True, probability=0.99, adjustment=200),
         ml_reasons=["Machine learning model increased the estimated risk"],
     )
@@ -142,6 +157,9 @@ def test_risk_breakdown_preserves_ml_adjustment_bounds() -> None:
         tls_result=TLSResult(checked=False),
         tls_score=0,
         tls_reasons=[],
+        domain_age_result=DomainAgeResult(checked=False),
+        domain_age_score=0,
+        domain_age_reasons=[],
         ml_result=MLResult(available=True, probability=0.01, adjustment=-200),
         ml_reasons=["Machine learning model reduced the estimated risk"],
     )

@@ -27,6 +27,7 @@ describe("backend-status", () => {
                 rate_limiting_enabled: true,
                 threat_intel_enabled: true,
                 tls_analysis_enabled: true,
+                domain_age_lookup_enabled: true,
                 ml_model_available: false,
                 demo_threat_source_enabled: false,
               },

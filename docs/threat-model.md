@@ -24,6 +24,10 @@
 - The backend is controlled by the project owner.
 - PhishTank availability and rate limits are not guaranteed.
 - TLS analysis from the backend may not match the user's browser path.
+- RDAP domain age lookups go to a fixed third-party bootstrap host (`rdap.org`), not to
+  the analyzed hostname directly, so they do not share the TLS service's DNS-rebinding
+  SSRF exposure described above. Availability and per-registry rate limits are not
+  guaranteed.
 
 ## Possible Abuse
 

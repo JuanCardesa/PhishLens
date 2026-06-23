@@ -18,7 +18,14 @@ describe("analyzeLocally", () => {
 
     expect(result.label).toBe("safe");
     expect(result.risk_score).toBeLessThan(35);
-    expect(result.risk_breakdown?.map((item) => item.category)).toEqual(["url", "dom", "threat_intel", "tls", "ml"]);
+    expect(result.risk_breakdown?.map((item) => item.category)).toEqual([
+      "url",
+      "dom",
+      "threat_intel",
+      "tls",
+      "domain_age",
+      "ml",
+    ]);
   });
 
   it("combines URL and DOM signals into suspicious risk", () => {

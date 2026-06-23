@@ -5,6 +5,7 @@ const URL_SCORE_CAP = 35;
 const DOM_SCORE_CAP = 30;
 const THREAT_INTEL_SCORE_CAP = 40;
 const TLS_SCORE_CAP = 15;
+const DOMAIN_AGE_SCORE_CAP = 20;
 const ML_MIN_ADJUSTMENT = -10;
 const ML_MAX_ADJUSTMENT = 20;
 
@@ -44,6 +45,7 @@ export function analyzeLocally(url: string, domFeatures: DOMFeatures): AnalysisR
       ml: false,
       phishtank: false,
       tls: false,
+      domain_age: false,
       demo: false,
     },
     risk_breakdown: buildLocalRiskBreakdown(urlScore, urlReasons, domScore, domReasons),
@@ -212,6 +214,14 @@ function buildLocalRiskBreakdown(
       score: 0,
       min_score: 0,
       max_score: TLS_SCORE_CAP,
+      reasons: [],
+      source: "fallback",
+    },
+    {
+      category: "domain_age",
+      score: 0,
+      min_score: 0,
+      max_score: DOMAIN_AGE_SCORE_CAP,
       reasons: [],
       source: "fallback",
     },
