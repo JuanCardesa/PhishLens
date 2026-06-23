@@ -86,6 +86,8 @@ def test_scoring_caps_are_enforced() -> None:
             uses_punycode=True,
             domain_entropy=4.5,
             domain="xn--secure-login.example.test",
+            typosquat_target=None,
+            typosquat_distance=None,
         )
     )
     dom_score, _ = _score_dom(
