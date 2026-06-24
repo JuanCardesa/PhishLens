@@ -36,9 +36,13 @@ The content script runs on HTTP and HTTPS pages to collect technical DOM counts 
 - external form action presence,
 - iframe count,
 - external link ratio,
-- hidden input presence.
+- hidden input presence,
+- a local brand-text mismatch boolean derived from document title, `og:site_name`, and first `h1`,
+- a local favicon-hotlink boolean derived from the favicon URL.
 
-The content script must not read passwords, typed emails, form values, full HTML, cookies, tokens, screenshots, or private page text.
+On page load, the content script can send the current URL and these derived booleans/counts to the extension service worker for local badge scoring. This does not call the backend; backend enrichment runs from the popup.
+
+The content script must not read passwords, typed emails, form values, full HTML, cookies, tokens, or screenshots. It may inspect the limited page metadata listed above only to derive booleans; raw page text is never transmitted, stored, logged, or included in reports.
 
 ## Extension Icons
 

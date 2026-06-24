@@ -28,7 +28,7 @@ Avoid claims that PhishLens is a definitive phishing detector. It is an explaina
 The listing should match [privacy.md](privacy.md):
 
 - collected data is limited to current URL, derived URL features, non-sensitive DOM features, optional feedback labels, TLS metadata, threat-intel result, and aggregate diagnostics;
-- credentials, typed emails, form values, cookies, tokens, screenshots, full HTML, browser history, and private page text are not collected;
+- credentials, typed emails, form values, cookies, tokens, screenshots, full HTML, browser history, and raw private page text are not collected, transmitted, logged, or stored;
 - API keys are backend-only and never bundled with the extension;
 - feedback is stored in SQLite (hostname, label, note presence, request ID, and timestamp only — no full URLs, form values, or personal data).
 
