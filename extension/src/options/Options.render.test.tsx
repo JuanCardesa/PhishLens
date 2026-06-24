@@ -66,4 +66,14 @@ describe("Options", () => {
     await waitFor(() => expect(screen.getByText("Backend is unreachable.")).toBeInTheDocument());
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
   });
+
+  it("shows a plain-language tooltip on jargon capability labels", async () => {
+    render(<Options />);
+
+    await waitFor(() => expect(screen.getByText("Settings loaded")).toBeInTheDocument());
+    expect(screen.getByText("TLS")).toHaveAttribute("title", expect.stringContaining("security certificate"));
+    expect(screen.getByText("ML")).toHaveAttribute("title", expect.stringContaining("machine learning"));
+    expect(screen.getByText("Threat intel")).toHaveAttribute("title", expect.stringContaining("reported as phishing"));
+    expect(screen.getByText("CT logs")).toHaveAttribute("title", expect.stringContaining("Certificate Transparency"));
+  });
 });

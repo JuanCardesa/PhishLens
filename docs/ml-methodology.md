@@ -34,7 +34,9 @@ copies the runtime artifact to `backend/app/models/phishlens_model.joblib` for b
 **Limitation:** DOM features (`has_password_field`, `num_forms`, etc.) are set to `0` for all
 URL-only rows because they require a live browser session to collect. The model therefore relies
 entirely on URL-derived signals when evaluated against this dataset. Real-world inference still
-uses DOM features from the extension's content script.
+uses DOM features from the extension's content script — see
+[Train/inference feature mismatch](#traininference-feature-mismatch-important-caveat-on-the-numbers-above)
+for why this means the metrics below describe a URL-only model, not the full production vector.
 
 ### Known limitation found and fixed: URL-length separability bias
 
@@ -61,11 +63,52 @@ From a `train_model.py` run against the committed `real_phishing_urls.csv` (33% 
 hold-out, plus 5-fold stratified cross-validation on the full set):
 
 - Stratified 5-fold CV accuracy: **0.907 ± 0.008**
-- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99 for legitimate URLs,
-  precision 0.99/recall 0.85 for phishing URLs (see the confusion matrix printed by
-  `train_model.py`)
+- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99/F1 0.93 for legitimate
+  URLs, precision 0.99/recall 0.85/F1 0.92 for phishing URLs. Confusion matrix (rows/cols = legitimate,
+  phishing), from a `python ml/train_model.py` run against the committed CSV:
+
+  |               | Predicted legit | Predicted phishing |
+  |---------------|-----------------:|--------------------:|
+  | **Actual legit**     | 197 | 1   |
+  | **Actual phishing**  | 29  | 169 |
+
 - Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
   `uses_https`
+
+### Train/inference feature mismatch (important caveat on the numbers above)
+
+All the metrics above are computed on the 10 URL-derived features only — the 6 DOM
+columns (`has_password_field`, `num_forms`, `external_form_action`, `num_iframes`,
+`external_links_ratio`, `has_hidden_inputs`) are hardcoded to `0` for every row in
+`real_phishing_urls.csv` (`ml/datasets/build_dataset.py`, `FEATURE_COLUMNS`/
+`extract_url_features`), because building the dataset never opens a browser. The trained
+`RandomForestClassifier` therefore never saw real variation in those 6 columns during
+training or cross-validation.
+
+At inference time, `backend/app/services/ml_service.py::_feature_values` builds the same
+16-feature vector but fills the DOM columns with **real** values collected by the
+extension's content script (`extension/src/content/dom-analyzer.ts`). This means:
+
+- The 0.907 CV / 0.92 hold-out accuracy figures describe a model evaluated on a
+  URL-only vector. They say nothing about how the model behaves on the full
+  16-feature vector it actually receives in production, because that combination
+  (real URL features + real DOM features) was never present during training or
+  evaluation.
+- Any split the trees learned on a DOM column (if `RandomForest` happened to use one,
+  e.g. `has_password_field`) was learned from a constant value of `0` — it cannot encode
+  a meaningful relationship between that feature and the label, so in practice those
+  features are inert at inference too. The risk is not "the model overreacts to DOM
+  features" but "the model is structurally unable to use them," which is a silent
+  capability gap rather than a correctness bug: `MLResult.top_factors` (SHAP) has never
+  been observed citing a DOM feature in practice, consistent with this.
+- This was not fixed by retraining on synthetic DOM values, because synthetic
+  password-field/iframe/form data fabricated without a real page would be a second,
+  unvalidated assumption layered on top of the first — it would make the metrics
+  *look* more complete without actually testing anything real. The honest fix is the one
+  applied elsewhere in this project: keep DOM signals in the **rule-based** scoring layer
+  (`scoring_service._score_dom`, with its own explicit point weights and tests) where
+  their effect is transparent and tested, and treat the ML adjustment as a URL-only
+  signal until a labeled dataset with real captured DOM snapshots exists.
 
 ### Temporal validation (train on older phishing, test on newer)
 
@@ -159,6 +202,48 @@ subdomains`). If SHAP can't explain a given model (e.g. the model type doesn't s
 `TreeExplainer`, or shape mismatch), `top_factors` falls back to an empty tuple and the
 rest of the scoring pipeline is unaffected — explainability is best-effort, never a
 prediction blocker.
+
+## Heuristic-only confidence calibration (reliability diagram)
+
+`scoring_service._confidence()` falls back to `0.55 + abs(score - 50) / 100`
+(capped at 0.9) whenever the ML model is unavailable — a linear proxy for "how
+far this result is from the middle of the score range," explicitly never
+described as a calibrated probability. `ml/evaluate_confidence_calibration.py`
+checks exactly how far off it is from one, by reconstructing the URL-only
+heuristic score for every row of the committed dataset (same reconstruction
+limits as the heuristic backtest above: no typosquat/homograph, DOM features
+fixed at 0), computing `_confidence()` on it, and binning predicted confidence
+against the empirical accuracy of the resulting safe/not-safe call:
+
+```bash
+cd ml
+python evaluate_confidence_calibration.py
+```
+
+Result from a run against the committed dataset (1200 rows):
+
+| Confidence bin | Mean confidence | Empirical accuracy | n |
+|---|---:|---:|---:|
+| [0.70, 0.75) | 0.723 | 0.250 | 4 |
+| [0.75, 0.80) | 0.790 | 0.000 | 1 |
+| [0.80, 0.85) | 0.809 | 0.000 | 15 |
+| [0.85, 0.90) | 0.873 | 0.000 | 23 |
+| [0.90, 0.95) | 0.900 | 0.519 | 1157 |
+
+Mean calibration error (weighted `|confidence - accuracy|` across bins): **0.397**.
+
+![Reliability diagram: heuristic-only confidence sits well below the perfectly-calibrated diagonal across every bin](calibration_reliability_diagram.png)
+
+**Finding, stated plainly:** the heuristic-only confidence is not just "uncalibrated" in
+the harmless sense of being a rough proxy — on this dataset it is systematically
+*overconfident*. Every bin sits below the diagonal, and the bin holding 96% of the rows
+(confidence ≈ 0.90) is only ~52% accurate, barely better than a coin flip. This was not
+"fixed" by adding a counter-bias or a temperature-scaling correction in this round,
+because doing so against a dataset that itself can't exercise typosquat/homograph/DOM/
+TLS/domain-age/threat-intel signals would calibrate the formula to this benchmark's blind
+spots, not to real-world accuracy. The honest takeaway is narrower: treat the heuristic-only
+confidence number as a tie-breaker between results, not as a probability, until it can be
+calibrated against a dataset that exercises the full signal set the live backend actually uses.
 
 ## Metrics
 

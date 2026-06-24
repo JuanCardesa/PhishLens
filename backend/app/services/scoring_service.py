@@ -245,6 +245,10 @@ def _score_tls(result: TLSResult) -> tuple[int, list[str]]:
         score += 4
         reasons.append("TLS certificate check returned an error")
 
+    if result.ct_logs_checked and result.ct_first_seen_days_ago is not None and result.ct_first_seen_days_ago < 7:
+        score += 6
+        reasons.append("Certificate Transparency logs show the domain's first certificate is less than a week old")
+
     return min(score, TLS_SCORE_CAP), reasons
 
 

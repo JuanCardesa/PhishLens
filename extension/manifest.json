@@ -11,6 +11,12 @@
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["http://localhost:8000/*", "http://127.0.0.1:8000/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{a8987913-e459-4a15-888c-d5cc426d560d}",
+      "strict_min_version": "115.0"
+    }
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },

@@ -44,6 +44,10 @@ On page load, the content script can send the current URL and these derived bool
 
 The content script must not read passwords, typed emails, form values, full HTML, cookies, tokens, or screenshots. It may inspect the limited page metadata listed above only to derive booleans; raw page text is never transmitted, stored, logged, or included in reports.
 
+## Browser-Specific Settings (Firefox)
+
+`manifest.json` declares `browser_specific_settings.gecko` (an extension ID and minimum Firefox version). This is metadata Firefox uses to recognize and sign the extension consistently across updates — it does not grant any additional permission and Chrome ignores the key entirely. It is required for `browser.storage.sync` to work correctly in Firefox, which keys synced storage by extension ID.
+
 ## Extension Icons
 
 `manifest.json` declares PNG icons at 16, 48, and 128 px (used by Chrome for the toolbar, extensions page, and Web Store). A 512 px PNG is generated alongside these for the Chrome Web Store promotional tile. Icon declarations are not permissions — they do not grant the extension any additional access to browser data or user pages.

@@ -31,47 +31,63 @@ function createStorageArea(): StorageArea {
   };
 }
 
-// Stub chrome at top-level so modules that register listeners at import time
-// (e.g. dom-analyzer.ts) can safely access chrome.runtime.
-vi.stubGlobal("chrome", {
-  permissions: { request: vi.fn((_permissions, callback: (granted: boolean) => void) => callback(true)) },
+// webextension-polyfill is a singleton CJS module: it builds its wrapped
+// `browser` object exactly once per worker process, the first time any test
+// file imports it, by capturing a reference to `globalThis.chrome` and its
+// sub-objects (chrome.runtime, chrome.runtime.onMessage, chrome.tabs, ...) at
+// that moment. If `beforeEach` replaced the whole `chrome` object with a
+// brand-new one every test (as this file used to), the polyfill would keep
+// calling methods on the stale, orphaned first-test object forever, and the
+// freshly stubbed object the current test inspects would silently see zero
+// calls. So `chrome` and all its nested namespace objects are created ONCE
+// here at module scope with stable identity; only their leaf vi.fn()
+// properties get reset per test, which the polyfill reads dynamically on
+// every call (see wrapEvent/wrapObject internals — target.addListener(...)
+// resolves the method fresh on each invocation, not at wrap time).
+const chromeStub = {
+  permissions: {
+    request: vi.fn((_permissions: unknown, callback?: (granted: boolean) => void) => callback?.(true)),
+  },
   runtime: {
-    lastError: null,
+    id: "phishlens-test-extension-id",
+    lastError: null as unknown,
     openOptionsPage: vi.fn(),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     onMessage: { addListener: vi.fn() },
+    onInstalled: { addListener: vi.fn() },
   },
-  storage: { sync: createStorageArea(), local: createStorageArea() },
-  tabs: { query: vi.fn(), sendMessage: vi.fn() },
-  scripting: { executeScript: vi.fn() },
-});
+  storage: {
+    sync: createStorageArea(),
+    local: createStorageArea(),
+  },
+  tabs: {
+    query: vi.fn(),
+    sendMessage: vi.fn(),
+  },
+  scripting: {
+    executeScript: vi.fn(),
+  },
+};
+
+vi.stubGlobal("chrome", chromeStub);
 
 beforeEach(() => {
-  const sync = createStorageArea();
-  const local = createStorageArea();
-
-  vi.stubGlobal("chrome", {
-    permissions: {
-      request: vi.fn((_permissions, callback) => callback(true)),
-    },
-    runtime: {
-      lastError: null,
-      openOptionsPage: vi.fn(),
-      sendMessage: vi.fn().mockResolvedValue(undefined),
-      onMessage: { addListener: vi.fn() },
-    },
-    storage: {
-      sync,
-      local,
-    },
-    tabs: {
-      query: vi.fn(),
-      sendMessage: vi.fn(),
-    },
-    scripting: {
-      executeScript: vi.fn(),
-    },
-  });
+  chromeStub.permissions.request = vi.fn((_permissions: unknown, callback?: (granted: boolean) => void) =>
+    callback?.(true),
+  );
+  chromeStub.runtime.lastError = null;
+  chromeStub.runtime.openOptionsPage = vi.fn();
+  chromeStub.runtime.sendMessage = vi.fn().mockResolvedValue(undefined);
+  // onMessage/onInstalled addListener are deliberately NOT reset here: source
+  // modules (dom-analyzer.ts, overlay.ts, service-worker.ts) register exactly
+  // one listener at module-load time, same as in a real browser, and several
+  // tests retrieve that registered listener via .mock.calls[0][0]. Resetting
+  // the mock per test would erase that recorded call before any test ran.
+  chromeStub.storage.sync = createStorageArea();
+  chromeStub.storage.local = createStorageArea();
+  chromeStub.tabs.query = vi.fn();
+  chromeStub.tabs.sendMessage = vi.fn();
+  chromeStub.scripting.executeScript = vi.fn();
 });
 
 afterEach(() => {

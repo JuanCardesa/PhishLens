@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill";
+
 import type { DOMFeatures, RiskLabel } from "../types/analysis";
 import { analyzeLocally } from "../utils/risk-score";
 
@@ -19,20 +21,25 @@ function updateActionBadge(tabId: number, label: RiskLabel): void {
     dangerous: { text: "!", color: "#ef4444" },
   };
   const { text, color } = config[label];
-  void chrome.action.setBadgeText({ tabId, text });
-  void chrome.action.setBadgeBackgroundColor({ tabId, color });
+  // webextension-polyfill predates the MV3-only `action` namespace, so it
+  // passes `browser.action` through to the underlying engine's own API
+  // unwrapped. Both Chrome (native Promise support since MV96) and Firefox
+  // (native `browser.action`) already return promises here without a callback.
+  void browser.action.setBadgeText({ tabId, text });
+  void browser.action.setBadgeBackgroundColor({ tabId, color });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({
+browser.runtime.onInstalled.addListener(() => {
+  void browser.storage.local.set({
     phishlensInstalledAt: new Date().toISOString(),
   });
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((rawMessage: unknown, sender: { tab?: { id?: number } }) => {
+  const message = rawMessage as { type?: string; url?: unknown; dom_features?: unknown };
+
   if (message?.type === "PHISHLENS_PING") {
-    sendResponse({ ok: true });
-    return false;
+    return Promise.resolve({ ok: true });
   }
 
   if (message?.type === "PHISHLENS_PAGE_READY" && sender.tab?.id !== undefined) {
@@ -42,9 +49,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       message.dom_features != null ? (message.dom_features as DOMFeatures) : EMPTY_DOM_FEATURES;
     const result = analyzeLocally(url, domFeatures);
     updateActionBadge(tabId, result.label);
-    sendResponse({ ok: true });
-    return false;
+    return Promise.resolve({ ok: true });
   }
 
-  return false;
+  return undefined;
 });

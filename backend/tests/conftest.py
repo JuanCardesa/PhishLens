@@ -23,6 +23,9 @@ def isolate_runtime_settings(monkeypatch: pytest.MonkeyPatch):
     # Disabled by default so tests exercising /analyze do not make a real outbound
     # RDAP lookup. test_domain_age_service.py re-enables it via its own Settings(...).
     monkeypatch.setenv("PHISHLENS_ENABLE_DOMAIN_AGE_LOOKUP", "false")
+    # Same reasoning as the RDAP lookup above, but for the crt.sh CT log query.
+    # test_tls_service.py re-enables it via its own Settings(...).
+    monkeypatch.setenv("PHISHLENS_ENABLE_CT_LOG_LOOKUP", "false")
     monkeypatch.delenv("PHISHLENS_ENABLE_DEMO_THREAT_SOURCE", raising=False)
     monkeypatch.delenv("PHISHTANK_API_KEY", raising=False)
     clear_diagnostics()

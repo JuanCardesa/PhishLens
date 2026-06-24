@@ -5,6 +5,9 @@ PhishLens is designed to minimize data collection.
 ## Processed Data
 
 - Current page URL, used for popup analysis and local badge scoring. Page-load badge scoring stays inside the extension; backend enrichment is requested from the popup.
+  - **What crosses the network to the configured backend (`/analyze`, `/report`):** the full URL *excluding the fragment* — scheme, host, path, and query string. The query string is sent because it is part of the URL-heuristics surface (length, special-character ratio, suspicious keywords); the fragment is stripped client-side before the request is built (`stripFragment()` in `risk-score.ts`, applied in `Popup.tsx`) because the backend has no use for it and fragments routinely carry OAuth implicit-flow tokens or password-reset secrets that should never leave the browser.
+  - **Where that backend is:** whatever host the user configured in Options (`localhost` by default, or a self-hosted/own deployment). This is not a third-party service — see the RDAP/PhishTank bullets below for the only requests that leave the user's own infrastructure.
+  - The backend itself does not persist `/analyze` request bodies (see Storage below), but the URL (with query string) is present in memory for the duration of that request and is part of what TLS/structured-feature analysis operates on.
 - Structured URL features derived from that URL.
 - DOM counts and booleans:
   forms, password field presence, external form action, iframes, external link ratio, and hidden input presence.

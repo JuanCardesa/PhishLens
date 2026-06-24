@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { extractUrlFeatures } from "./url-features";
+import { KNOWN_BRAND_DOMAINS, extractUrlFeatures } from "./url-features";
+
+describe("KNOWN_BRAND_DOMAINS", () => {
+  it("loads the seed brand list from data/brand-domains.json", () => {
+    expect(KNOWN_BRAND_DOMAINS).toContain("paypal.com");
+    expect(KNOWN_BRAND_DOMAINS).toContain("google.com");
+    expect(KNOWN_BRAND_DOMAINS.length).toBe(26);
+  });
+});
 
 describe("extractUrlFeatures", () => {
   it("detects suspicious URL features", () => {

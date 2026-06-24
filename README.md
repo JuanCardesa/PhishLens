@@ -11,6 +11,8 @@ PhishLens is a defensive Chrome extension and FastAPI backend for explainable ph
 
 It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
 
+![PhishLens end-to-end demo: a safe page, a suspicious page, and a dangerous page triggering the warning overlay](docs/screenshots/demo.gif)
+
 ## Quick Start
 
 ```bash
@@ -248,7 +250,7 @@ The zip is written to `extension/release/`.
 
 ## Limitations
 
-- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows, ~0.92 hold-out accuracy — see [docs/ml-methodology.md](docs/ml-methodology.md) for a known URL-length dataset bias that was found and fixed), but DOM features are 0 for every row since the dataset is built from URLs only, without a live browser session.
+- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows; 5-fold CV accuracy 0.907 ± 0.008, hold-out accuracy 0.92 on 396 rows — precision 0.87/recall 0.99/F1 0.93 for legitimate URLs, precision 0.99/recall 0.85/F1 0.92 for phishing, confusion matrix `[[197, 1], [29, 169]]`; see [docs/ml-methodology.md](docs/ml-methodology.md) for a known URL-length dataset bias that was found and fixed and the full classification report). **These numbers do not describe the model's production behavior**: DOM features (`has_password_field`, `num_forms`, etc.) are hardcoded to `0` for every training row because the dataset is built from URLs only, without a live browser session — but `backend/app/services/ml_service.py` feeds real DOM features from the extension's content script at inference time. The reported accuracy/precision/recall reflect a URL-only model; the 6 DOM columns it sees in production were never exercised with real variation during training, so any influence they have on live predictions is unvalidated extrapolation, not something these metrics back up.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
@@ -262,6 +264,7 @@ A few things found during a deliberate self-audit of this project, kept here ins
 quietly fixed and forgotten, because how a bug was found and corrected is often more
 informative than the fact that the code is now clean:
 
+- **The content script and danger overlay were silently broken in real Chrome, while every automated check stayed green.** Adding Firefox support introduced an ES `import` statement into two files that execute as classic, non-module scripts (MV3 content scripts and `chrome.scripting.executeScript`-injected files can't be modules). `tsc`, `vitest`, and `vite build` all passed, because none of them load the bundle in an actual browser — Vitest mocks the module graph, and Vite's build doesn't check runtime module-format compatibility. Found by recording this README's demo GIF with a real Playwright + Chromium session instead of a screen recording tool, which surfaced "Could not establish connection" the moment the popup tried to collect DOM features. Fixed by splitting the build into two Rollup passes — ES modules for popup/options/the service worker, IIFE for the content script and overlay. The lesson: a green test suite proves the code you tested, not the environment you didn't.
 - **A 95% ML accuracy number was hiding a trivial shortcut.** The training dataset built
   legitimate URLs as bare domain roots (`https://example.com/`) while phishing URLs from
   PhishTank carry real paths, so `url_length` alone separated the two classes almost
@@ -285,6 +288,15 @@ informative than the fact that the code is now clean:
   the first request, which also blocked the event loop for concurrent requests. Fixed by
   warming up the model from a FastAPI `lifespan` handler at startup; first-request latency
   dropped from ~5.5s to ~1.4s.
+- **The heuristic-only "confidence" number is overconfident, not just unproven.** A
+  reliability diagram against the committed dataset showed every confidence bin sitting
+  below the perfectly-calibrated line, and the bin holding 96% of rows (confidence ≈ 0.90)
+  was only ~52% accurate — barely better than guessing. Not "fixed" with a quick correction
+  factor in this round, because calibrating against a dataset that can't exercise
+  typosquat/homograph/DOM/TLS/domain-age/threat-intel signals would just calibrate to this
+  benchmark's blind spots. Documented as a known limitation instead: treat the heuristic-only
+  confidence as a tie-breaker, not a probability. See
+  [docs/ml-methodology.md](docs/ml-methodology.md#heuristic-only-confidence-calibration-reliability-diagram).
 
 ## Roadmap
 
