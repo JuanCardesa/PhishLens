@@ -20,8 +20,12 @@ class Settings(BaseSettings):
     )
     enable_threat_intel: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_THREAT_INTEL")
     enable_tls_analysis: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_TLS_ANALYSIS")
+    enable_ct_log_lookup: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_CT_LOG_LOOKUP")
     enable_domain_age_lookup: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_DOMAIN_AGE_LOOKUP")
     model_path: str = Field(default="app/models/phishlens_model.joblib", validation_alias="PHISHLENS_MODEL_PATH")
+    brand_domains_path: str = Field(
+        default="app/data/brand_domains.json", validation_alias="PHISHLENS_BRAND_DOMAINS_PATH"
+    )
     external_timeout_seconds: float = Field(default=4.0, validation_alias="PHISHLENS_EXTERNAL_TIMEOUT_SECONDS")
     enable_diagnostics: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_DIAGNOSTICS")
     enable_rate_limiting: bool = Field(default=True, validation_alias="PHISHLENS_ENABLE_RATE_LIMITING")

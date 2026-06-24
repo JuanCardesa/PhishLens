@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import browser from "webextension-polyfill";
 
 import { requestBackendAnalysis, submitFeedbackReport } from "../services/analysis-api";
 import { DEFAULT_SETTINGS, getExtensionSettings } from "../services/settings";
 import type { AnalysisMode, AnalysisResponse, DOMFeatures, ExtensionSettings, PopupAnalysis, RiskLabel } from "../types/analysis";
+import { SIGNAL_GLOSSARY } from "../utils/glossary";
 import { buildReportSummary } from "../utils/report-summary";
-import { analyzeLocally } from "../utils/risk-score";
+import { analyzeLocally, stripFragment } from "../utils/risk-score";
 import { formatSignalScore, groupReasonsBySignal, primarySignalReason } from "../utils/signal-categories";
 import "./popup.css";
 
@@ -56,13 +58,16 @@ export function Popup() {
         setAnalysis({ ...cached, mode: "cached" });
       }
 
+      // The fragment never reaches the backend: it has no analytical value there
+      // and can carry OAuth/reset tokens that should stay in the browser.
+      const networkUrl = stripFragment(url);
       const domFeatures = await collectDomFeatures(tab.id);
-      const localAnalysis = toPopupAnalysis(url, analyzeLocally(url, domFeatures), false, "local-only");
+      const localAnalysis = toPopupAnalysis(networkUrl, analyzeLocally(url, domFeatures), false, "local-only");
       setAnalysis(localAnalysis);
 
-      const backendAnalysis = await requestBackendAnalysis(url, domFeatures, currentSettings);
+      const backendAnalysis = await requestBackendAnalysis(networkUrl, domFeatures, currentSettings);
       if (backendAnalysis) {
-        const nextAnalysis = toPopupAnalysis(url, backendAnalysis, true, "backend-enriched");
+        const nextAnalysis = toPopupAnalysis(networkUrl, backendAnalysis, true, "backend-enriched");
         setAnalysis(nextAnalysis);
         await writeCachedAnalysis(url, nextAnalysis);
         await showDangerOverlay(tab.id, nextAnalysis, currentSettings);
@@ -114,7 +119,7 @@ export function Popup() {
   }
 
   function openOptionsPage() {
-    chrome.runtime.openOptionsPage();
+    void browser.runtime.openOptionsPage();
   }
 
   return (
@@ -186,7 +191,7 @@ export function Popup() {
           {signalGroups.map((group) => (
             <section className="signal-group" key={group.id}>
               <h3>
-                <span>{group.title}</span>
+                <span title={SIGNAL_GLOSSARY[group.id]}>{group.title}</span>
                 <strong>{formatSignalScore(group)}</strong>
               </h3>
               <ul>
@@ -223,12 +228,12 @@ export function Popup() {
   );
 }
 
+// Tab type comes from @types/chrome (kept alongside the polyfill purely for
+// this MV3-shaped type — the value itself comes from browser.tabs at runtime,
+// which is interchangeable in both engines).
 async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
-  return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      resolve(tabs[0]);
-    });
-  });
+  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  return tabs[0] as chrome.tabs.Tab | undefined;
 }
 
 function isDOMFeatures(obj: unknown): obj is DOMFeatures {
@@ -247,15 +252,20 @@ function isDOMFeatures(obj: unknown): obj is DOMFeatures {
 }
 
 async function collectDomFeatures(tabId: number): Promise<DOMFeatures> {
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, { type: "PHISHLENS_COLLECT_DOM" }, (response) => {
-      if (chrome.runtime.lastError || !response?.ok || !isDOMFeatures(response.dom_features)) {
-        resolve(EMPTY_DOM_FEATURES);
-        return;
-      }
-      resolve(response.dom_features);
-    });
-  });
+  try {
+    const response = (await browser.tabs.sendMessage(tabId, { type: "PHISHLENS_COLLECT_DOM" })) as
+      | { ok?: boolean; dom_features?: unknown }
+      | undefined;
+    if (!response?.ok || !isDOMFeatures(response.dom_features)) {
+      return EMPTY_DOM_FEATURES;
+    }
+    return response.dom_features;
+  } catch {
+    // The content script isn't injected on this page (e.g. chrome://, the
+    // Web Store) — browser.tabs.sendMessage rejects instead of setting
+    // chrome.runtime.lastError when promise-based.
+    return EMPTY_DOM_FEATURES;
+  }
 }
 
 function toPopupAnalysis(
@@ -275,23 +285,18 @@ function toPopupAnalysis(
 
 async function readCachedAnalysis(url: string): Promise<PopupAnalysis | null> {
   const key = await cacheKey(url);
-  return new Promise((resolve) => {
-    chrome.storage.local.get([key], (items) => {
-      const cached = items[key] as PopupAnalysis | undefined;
-      if (!cached) {
-        resolve(null);
-        return;
-      }
+  const items = await browser.storage.local.get([key]);
+  const cached = items[key] as PopupAnalysis | undefined;
+  if (!cached) {
+    return null;
+  }
 
-      const ageMs = Date.now() - new Date(cached.analyzedAt).getTime();
-      if (ageMs >= 5 * 60 * 1000) {
-        chrome.storage.local.remove([key]);
-        resolve(null);
-        return;
-      }
-      resolve(cached);
-    });
-  });
+  const ageMs = Date.now() - new Date(cached.analyzedAt).getTime();
+  if (ageMs >= 5 * 60 * 1000) {
+    await browser.storage.local.remove([key]);
+    return null;
+  }
+  return cached;
 }
 
 function stripSensitiveUrlParts(url: string): string {
@@ -310,9 +315,7 @@ async function writeCachedAnalysis(url: string, value: PopupAnalysis): Promise<v
   // The key is already a hash of the full URL. Strip query string and fragment
   // from the persisted value so tokens in query params are not stored at rest.
   const sanitized: PopupAnalysis = { ...value, url: stripSensitiveUrlParts(url) };
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: sanitized }, () => resolve());
-  });
+  await browser.storage.local.set({ [key]: sanitized });
 }
 
 export async function cacheKey(url: string): Promise<string> {
@@ -418,17 +421,12 @@ async function showDangerOverlay(
 }
 
 async function executeScript(tabId: number, file: string): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.scripting.executeScript({ target: { tabId }, files: [file] }, () => {
-      resolve();
-    });
-  });
+  // Same passthrough situation as browser.action: webextension-polyfill
+  // predates `scripting`, but both engines support it as a native Promise
+  // API already.
+  await browser.scripting.executeScript({ target: { tabId }, files: [file] });
 }
 
 async function sendOverlayMessage(tabId: number, message: unknown): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.tabs.sendMessage(tabId, message, () => {
-      resolve();
-    });
-  });
+  await browser.tabs.sendMessage(tabId, message);
 }

@@ -17,7 +17,10 @@ const ML_MAX_ADJUSTMENT = 20;
 // signals that ARE available fired, not an absolute score on different scales.
 const LOCAL_MAX_SCORE = URL_SCORE_CAP + DOM_SCORE_CAP;
 
-function stripFragment(url: string): string {
+// Exported so the popup can strip the fragment before the URL ever leaves the
+// browser (the backend never uses it, and fragments routinely carry OAuth
+// implicit-flow tokens or password-reset secrets that should not cross the network).
+export function stripFragment(url: string): string {
   try {
     const parsed = new URL(url);
     parsed.hash = "";

@@ -1,5 +1,6 @@
 import ssl
 import unittest.mock as mock
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -35,9 +36,10 @@ async def test_tls_returns_expired_certificate_and_uses_cache(monkeypatch: pytes
         return TLSResult(checked=True, valid=False, expired=True, days_until_expiration=-2, issuer="CN=test")
 
     monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
+    settings = Settings(enable_ct_log_lookup=False)
 
-    first = await inspect_tls("HTTPS://Example.Test/login#fragment", settings=Settings())
-    second = await inspect_tls("https://example.test/other", settings=Settings())
+    first = await inspect_tls("HTTPS://Example.Test/login#fragment", settings=settings)
+    second = await inspect_tls("https://example.test/other", settings=settings)
 
     assert first.checked is True
     assert first.expired is True
@@ -73,7 +75,7 @@ async def test_tls_returns_controlled_error(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
 
-    result = await inspect_tls("https://example.test", settings=Settings())
+    result = await inspect_tls("https://example.test", settings=Settings(enable_ct_log_lookup=False))
 
     assert result.checked is True
     assert result.valid is False
@@ -204,6 +206,90 @@ def test_format_issuer_returns_none_for_non_tuple_input() -> None:
 
 def test_format_issuer_returns_none_for_empty_issuer() -> None:
     assert _format_issuer(()) is None
+
+
+def _ct_payload(*days_ago: int) -> list[dict[str, object]]:
+    return [
+        {"not_before": (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")}
+        for days in days_ago
+    ]
+
+
+@pytest.mark.asyncio
+async def test_inspect_tls_reports_earliest_ct_log_entry(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_inspect(hostname: str, timeout: float) -> TLSResult:
+        return TLSResult(checked=True, valid=True, days_until_expiration=300, issuer="CN=test")
+
+    async def fake_fetch(hostname: str, settings: Settings) -> list[dict[str, object]]:
+        assert hostname == "example.test"
+        return _ct_payload(2, 30, 365)
+
+    monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
+    monkeypatch.setattr(tls_service, "_fetch_ct_log_payload", fake_fetch)
+
+    result = await inspect_tls("https://example.test", settings=Settings(enable_ct_log_lookup=True))
+
+    # "First seen" is the domain's oldest CT log entry (when its certificate
+    # history began), not its most recent one.
+    assert result.ct_logs_checked is True
+    assert result.ct_first_seen_days_ago == 365
+    assert result.ct_error is None
+
+
+@pytest.mark.asyncio
+async def test_inspect_tls_skips_ct_logs_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_inspect(hostname: str, timeout: float) -> TLSResult:
+        return TLSResult(checked=True, valid=True)
+
+    monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
+
+    result = await inspect_tls("https://example.test", settings=Settings(enable_ct_log_lookup=False))
+
+    assert result.ct_logs_checked is False
+    assert result.ct_first_seen_days_ago is None
+    assert result.ct_error == "CT log lookup disabled"
+
+
+@pytest.mark.asyncio
+async def test_inspect_tls_handles_ct_log_lookup_failure_without_blocking_tls_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_inspect(hostname: str, timeout: float) -> TLSResult:
+        return TLSResult(checked=True, valid=True, days_until_expiration=300)
+
+    async def fake_fetch(hostname: str, settings: Settings) -> list[dict[str, object]]:
+        raise ValueError("crt.sh returned an unexpected shape")
+
+    monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
+    monkeypatch.setattr(tls_service, "_fetch_ct_log_payload", fake_fetch)
+
+    result = await inspect_tls("https://example.test", settings=Settings(enable_ct_log_lookup=True))
+
+    assert result.checked is True
+    assert result.valid is True
+    assert result.ct_logs_checked is False
+    assert result.ct_first_seen_days_ago is None
+    assert result.ct_error == "crt.sh returned an unexpected shape"
+
+
+@pytest.mark.asyncio
+async def test_inspect_tls_ct_logs_with_no_entries_reports_checked_but_no_date(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_inspect(hostname: str, timeout: float) -> TLSResult:
+        return TLSResult(checked=True, valid=True)
+
+    async def fake_fetch(hostname: str, settings: Settings) -> list[dict[str, object]]:
+        return []
+
+    monkeypatch.setattr(tls_service, "_inspect_tls_sync", fake_inspect)
+    monkeypatch.setattr(tls_service, "_fetch_ct_log_payload", fake_fetch)
+
+    result = await inspect_tls("https://example.test", settings=Settings(enable_ct_log_lookup=True))
+
+    assert result.ct_logs_checked is True
+    assert result.ct_first_seen_days_ago is None
+    assert result.ct_error is None
 
 
 def test_format_issuer_skips_non_tuple_relative_names() -> None:

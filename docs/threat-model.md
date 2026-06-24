@@ -28,6 +28,11 @@
   the analyzed hostname directly, so they do not share the TLS service's DNS-rebinding
   SSRF exposure described above. Availability and per-registry rate limits are not
   guaranteed.
+- Certificate Transparency log lookups go to a fixed third-party host (`crt.sh`) with the
+  hostname passed as a query parameter, not as a connection target — same SSRF-avoidance
+  property as the RDAP lookup above. crt.sh availability and rate limits are not
+  guaranteed; a failed or slow lookup degrades to `ct_logs_checked=False` without blocking
+  the rest of the TLS result.
 
 ## Possible Abuse
 

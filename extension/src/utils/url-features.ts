@@ -1,3 +1,4 @@
+import brandDomainsSeed from "../data/brand-domains.json";
 import type { URLFeatures } from "../types/analysis";
 
 const SUSPICIOUS_KEYWORDS = ["login", "verify", "account", "secure", "update", "password", "bank", "wallet"];
@@ -6,36 +7,14 @@ const IPV6_HINT_PATTERN = /:/;
 
 // Curated list of frequently-impersonated brand domains. Used as the
 // reference set for typosquatting (Levenshtein) and combosquatting
-// (brand name embedded in a longer label) detection. Keep in sync with
-// backend/app/services/feature_extractor.py::KNOWN_BRAND_DOMAINS.
-export const KNOWN_BRAND_DOMAINS = [
-  "google.com",
-  "youtube.com",
-  "facebook.com",
-  "instagram.com",
-  "whatsapp.com",
-  "amazon.com",
-  "apple.com",
-  "icloud.com",
-  "microsoft.com",
-  "outlook.com",
-  "office.com",
-  "netflix.com",
-  "paypal.com",
-  "ebay.com",
-  "linkedin.com",
-  "twitter.com",
-  "github.com",
-  "dropbox.com",
-  "yahoo.com",
-  "bankofamerica.com",
-  "chase.com",
-  "wellsfargo.com",
-  "americanexpress.com",
-  "coinbase.com",
-  "binance.com",
-  "adobe.com",
-];
+// (brand name embedded in a longer label) detection. Loaded from
+// data/brand-domains.json (a data file, not logic) so the list can be
+// extended by editing one JSON array; kept in sync with the backend's
+// own copy at backend/app/data/brand_domains.json. Deliberately NOT
+// fetched from a live endpoint: that would add a network dependency and
+// an extra permission to a signal that today works fully offline, for a
+// list that changes rarely enough to ship with each release.
+export const KNOWN_BRAND_DOMAINS: readonly string[] = brandDomainsSeed;
 
 // Brand names shorter than this produce too many coincidental matches
 // (e.g. "x.com") to be a useful typosquatting signal.

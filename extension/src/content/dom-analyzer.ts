@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill";
+
 import type { DOMFeatures } from "../types/analysis";
 import { KNOWN_BRAND_DOMAINS, MIN_BRAND_NAME_LENGTH, getRegistrableDomain } from "../utils/url-features";
 
@@ -102,26 +104,61 @@ export function hasExternalAction(form: HTMLFormElement, currentOrigin: string):
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === "PHISHLENS_COLLECT_DOM") {
-    sendResponse({ ok: true, dom_features: collectDomFeatures() });
+browser.runtime.onMessage.addListener((rawMessage: unknown) => {
+  if ((rawMessage as { type?: string })?.type === "PHISHLENS_COLLECT_DOM") {
+    return Promise.resolve({ ok: true, dom_features: collectDomFeatures() });
   }
-  return false;
+  return undefined;
 });
 
-// Notify the service worker on page load so the badge updates without the popup.
+// Notify the service worker so the badge updates without the popup.
 // MV3 content scripts are declared without "type": "module" in manifest.json and
 // therefore run as classic scripts. Top-level await is a syntax error in classic
 // scripts, so an async IIFE is the correct pattern here.
 // NOSONAR S7785 — intentional: top-level await would break MV3 classic script loading.
-void (async () => {
-  try {
-    await chrome.runtime.sendMessage({
-      type: "PHISHLENS_PAGE_READY",
-      url: globalThis.location.href,
-      dom_features: collectDomFeatures(),
-    });
-  } catch {
-    // Service worker may not be active yet (e.g. fresh install). Ignored.
+function notifyPageReady(): void {
+  void (async () => {
+    try {
+      await browser.runtime.sendMessage({
+        type: "PHISHLENS_PAGE_READY",
+        url: globalThis.location.href,
+        dom_features: collectDomFeatures(),
+      });
+    } catch {
+      // Service worker may not be active yet (e.g. fresh install). Ignored.
+    }
+  })();
+}
+
+notifyPageReady();
+
+// SPA routers change the URL via history.pushState/replaceState without a full
+// page (re)load, so the document_idle injection above only ever fires once per
+// real navigation and the badge goes stale. Patching the History API and
+// listening for popstate re-notifies on every URL change without requesting
+// the "webNavigation" permission this would otherwise need from the background
+// service worker.
+function watchSpaNavigation(): void {
+  let lastUrl = globalThis.location.href;
+
+  function reportIfUrlChanged(): void {
+    if (globalThis.location.href === lastUrl) {
+      return;
+    }
+    lastUrl = globalThis.location.href;
+    notifyPageReady();
   }
-})();
+
+  for (const method of ["pushState", "replaceState"] as const) {
+    const original = history[method];
+    history[method] = function (...args: Parameters<History[typeof method]>) {
+      const result = (original as (...a: typeof args) => unknown).apply(this, args);
+      reportIfUrlChanged();
+      return result;
+    };
+  }
+
+  globalThis.addEventListener("popstate", reportIfUrlChanged);
+}
+
+watchSpaNavigation();

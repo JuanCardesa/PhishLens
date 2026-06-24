@@ -1,3 +1,5 @@
+import browser from "webextension-polyfill";
+
 import type { ExtensionSettings } from "../types/analysis";
 
 const SETTINGS_KEY = "phishlens:settings";
@@ -9,11 +11,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 };
 
 export async function getExtensionSettings(): Promise<ExtensionSettings> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get([SETTINGS_KEY], (items) => {
-      resolve(normalizeSettings(items[SETTINGS_KEY]));
-    });
-  });
+  const items = await browser.storage.sync.get([SETTINGS_KEY]);
+  return normalizeSettings(items[SETTINGS_KEY]);
 }
 
 export async function saveExtensionSettings(settings: ExtensionSettings): Promise<ExtensionSettings> {
@@ -23,11 +22,8 @@ export async function saveExtensionSettings(settings: ExtensionSettings): Promis
     ? normalized
     : { ...normalized, backendBaseUrl: DEFAULT_SETTINGS.backendBaseUrl };
 
-  return new Promise((resolve) => {
-    chrome.storage.sync.set({ [SETTINGS_KEY]: settingsToStore }, () => {
-      resolve(settingsToStore);
-    });
-  });
+  await browser.storage.sync.set({ [SETTINGS_KEY]: settingsToStore });
+  return settingsToStore;
 }
 
 export function normalizeSettings(value: unknown): ExtensionSettings {
@@ -59,15 +55,11 @@ export function normalizeBackendBaseUrl(value: string): string {
 
 export async function requestBackendOriginPermission(baseUrl: string): Promise<boolean> {
   const origin = backendOriginPattern(baseUrl);
-  if (!origin || isDefaultLocalBackend(baseUrl) || !chrome.permissions?.request) {
+  if (!origin || isDefaultLocalBackend(baseUrl) || !browser.permissions?.request) {
     return true;
   }
 
-  return new Promise((resolve) => {
-    chrome.permissions.request({ origins: [origin] }, (granted) => {
-      resolve(Boolean(granted));
-    });
-  });
+  return Boolean(await browser.permissions.request({ origins: [origin] }));
 }
 
 function backendOriginPattern(baseUrl: string): string | null {

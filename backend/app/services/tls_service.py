@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import socket
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from urllib.parse import urlparse
+
+import httpx
 
 from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
@@ -18,6 +20,12 @@ TLS_CACHE = TTLCache["TLSResult"](ttl_seconds=300)
 # OpenSSL verify error code for an expired certificate.
 _OPENSSL_ERR_CERT_HAS_EXPIRED = 10
 
+# crt.sh queries a fixed third-party host with the hostname as a query
+# parameter — like the RDAP domain-age lookup, it never connects to the
+# analyzed host directly, so it does not share the raw socket TLS check's
+# DNS-rebinding SSRF exposure (see docs/threat-model.md).
+CT_LOG_QUERY_URL = "https://crt.sh/?q={domain}&output=json"
+
 
 @dataclass(frozen=True)
 class TLSResult:
@@ -27,6 +35,9 @@ class TLSResult:
     issuer: str | None = None
     expired: bool = False
     error: str | None = None
+    ct_logs_checked: bool = False
+    ct_first_seen_days_ago: int | None = None
+    ct_error: str | None = None
 
 
 async def inspect_tls(url: str, settings: Settings | None = None) -> TLSResult:
@@ -54,7 +65,17 @@ async def inspect_tls(url: str, settings: Settings | None = None) -> TLSResult:
         return cached
     DIAGNOSTICS.record_cache("tls", hit=False)
 
-    result = await asyncio.to_thread(_inspect_tls_sync, hostname, settings.external_timeout_seconds)
+    cert_result, ct_result = await asyncio.gather(
+        asyncio.to_thread(_inspect_tls_sync, hostname, settings.external_timeout_seconds),
+        _check_ct_logs(hostname, settings),
+    )
+    ct_logs_checked, ct_first_seen_days_ago, ct_error = ct_result
+    result = replace(
+        cert_result,
+        ct_logs_checked=ct_logs_checked,
+        ct_first_seen_days_ago=ct_first_seen_days_ago,
+        ct_error=ct_error,
+    )
     if result.error:
         DIAGNOSTICS.record_external_error("tls")
     TLS_CACHE.set(cache_key, result)
@@ -113,6 +134,56 @@ def _format_issuer(issuer_parts: object) -> str | None:
                 flattened.append(f"{key_value[0]}={key_value[1]}")
 
     return ", ".join(flattened) if flattened else None
+
+
+async def _check_ct_logs(hostname: str, settings: Settings) -> tuple[bool, int | None, str | None]:
+    """Returns (checked, first_seen_days_ago, error). Best-effort: any failure
+    here must never block the rest of the TLS result, since CT log coverage
+    and crt.sh availability are not guaranteed (see docs/threat-model.md)."""
+    if not settings.enable_ct_log_lookup:
+        return False, None, "CT log lookup disabled"
+
+    try:
+        payload = await _fetch_ct_log_payload(hostname, settings)
+    except (httpx.HTTPError, ValueError) as exc:
+        return False, None, str(exc)
+
+    return True, _earliest_ct_entry_days_ago(payload), None
+
+
+async def _fetch_ct_log_payload(hostname: str, settings: Settings) -> list[dict[str, object]]:
+    async with httpx.AsyncClient(timeout=settings.external_timeout_seconds, follow_redirects=True) as client:
+        response = await client.get(CT_LOG_QUERY_URL.format(domain=hostname))
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise ValueError("unexpected crt.sh response shape")
+        return payload
+
+
+def _earliest_ct_entry_days_ago(entries: list[dict[str, object]]) -> int | None:
+    earliest: datetime | None = None
+
+    for entry in entries:
+        not_before = entry.get("not_before") if isinstance(entry, dict) else None
+        if not isinstance(not_before, str):
+            continue
+
+        try:
+            issued_at = datetime.fromisoformat(not_before.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+
+        if issued_at.tzinfo is None:
+            issued_at = issued_at.replace(tzinfo=timezone.utc)
+
+        if earliest is None or issued_at < earliest:
+            earliest = issued_at
+
+    if earliest is None:
+        return None
+
+    return (datetime.now(timezone.utc) - earliest).days
 
 
 def clear_tls_cache() -> None:

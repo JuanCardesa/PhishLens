@@ -36,9 +36,17 @@ The content script runs on HTTP and HTTPS pages to collect technical DOM counts 
 - external form action presence,
 - iframe count,
 - external link ratio,
-- hidden input presence.
+- hidden input presence,
+- a local brand-text mismatch boolean derived from document title, `og:site_name`, and first `h1`,
+- a local favicon-hotlink boolean derived from the favicon URL.
 
-The content script must not read passwords, typed emails, form values, full HTML, cookies, tokens, screenshots, or private page text.
+On page load, the content script can send the current URL and these derived booleans/counts to the extension service worker for local badge scoring. This does not call the backend; backend enrichment runs from the popup.
+
+The content script must not read passwords, typed emails, form values, full HTML, cookies, tokens, or screenshots. It may inspect the limited page metadata listed above only to derive booleans; raw page text is never transmitted, stored, logged, or included in reports.
+
+## Browser-Specific Settings (Firefox)
+
+`manifest.json` declares `browser_specific_settings.gecko` (an extension ID and minimum Firefox version). This is metadata Firefox uses to recognize and sign the extension consistently across updates — it does not grant any additional permission and Chrome ignores the key entirely. It is required for `browser.storage.sync` to work correctly in Firefox, which keys synced storage by extension ID.
 
 ## Extension Icons
 
