@@ -15,4 +15,5 @@ export const CAPABILITY_GLOSSARY: Record<string, string> = {
   TLS: SIGNAL_GLOSSARY.tls!,
   ML: SIGNAL_GLOSSARY.ml!,
   "Domain age": SIGNAL_GLOSSARY["domain-age"]!,
+  "CT logs": "Certificate Transparency logs: a public record of issued certificates, used to check how long ago this site's first certificate appeared.",
 };

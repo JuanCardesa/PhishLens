@@ -74,5 +74,6 @@ describe("Options", () => {
     expect(screen.getByText("TLS")).toHaveAttribute("title", expect.stringContaining("security certificate"));
     expect(screen.getByText("ML")).toHaveAttribute("title", expect.stringContaining("machine learning"));
     expect(screen.getByText("Threat intel")).toHaveAttribute("title", expect.stringContaining("reported as phishing"));
+    expect(screen.getByText("CT logs")).toHaveAttribute("title", expect.stringContaining("Certificate Transparency"));
   });
 });

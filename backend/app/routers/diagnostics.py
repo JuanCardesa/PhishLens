@@ -31,6 +31,7 @@ def diagnostics(request: Request) -> dict[str, object]:
             "rate_limiting_enabled": settings.enable_rate_limiting,
             "threat_intel_enabled": settings.enable_threat_intel,
             "tls_analysis_enabled": settings.enable_tls_analysis,
+            "ct_log_lookup_enabled": settings.enable_ct_log_lookup,
             "domain_age_lookup_enabled": settings.enable_domain_age_lookup,
             "ml_model_available": is_model_available(settings),
             "demo_threat_source_enabled": settings.enable_demo_threat_source,

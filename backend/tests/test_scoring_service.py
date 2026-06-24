@@ -48,6 +48,36 @@ def test_score_tls_invalid_without_expiry_data() -> None:
     assert reasons == ["TLS certificate could not be validated"]
 
 
+def test_score_tls_adds_points_for_a_brand_new_ct_log_entry() -> None:
+    score, reasons = _score_tls(
+        TLSResult(checked=True, valid=True, ct_logs_checked=True, ct_first_seen_days_ago=2)
+    )
+
+    assert score == 6
+    assert reasons == ["Certificate Transparency logs show the domain's first certificate is less than a week old"]
+
+
+def test_score_tls_does_not_flag_an_established_ct_log_entry() -> None:
+    score, reasons = _score_tls(
+        TLSResult(checked=True, valid=True, ct_logs_checked=True, ct_first_seen_days_ago=400)
+    )
+
+    assert score == 0
+    assert reasons == []
+
+
+def test_score_tls_combines_expired_certificate_and_new_ct_entry() -> None:
+    score, reasons = _score_tls(
+        TLSResult(checked=True, valid=False, expired=True, ct_logs_checked=True, ct_first_seen_days_ago=1)
+    )
+
+    assert score == TLS_SCORE_CAP
+    assert reasons == [
+        "TLS certificate appears to be expired",
+        "Certificate Transparency logs show the domain's first certificate is less than a week old",
+    ]
+
+
 @pytest.mark.asyncio
 async def test_scoring_combines_url_and_dom_reasons() -> None:
     result = await analyze_url(

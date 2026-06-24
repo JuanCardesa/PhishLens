@@ -143,6 +143,10 @@ function CapabilityGrid({ capabilities }: { capabilities: DiagnosticsCapabilitie
         value={capabilities ? capabilityLabel(capabilities.tls_analysis_enabled, "Enabled", "Disabled") : "Unknown"}
       />
       <StatusItem
+        label="CT logs"
+        value={capabilities ? capabilityLabel(capabilities.ct_log_lookup_enabled, "Enabled", "Disabled") : "Unknown"}
+      />
+      <StatusItem
         label="Domain age"
         value={capabilities ? capabilityLabel(capabilities.domain_age_lookup_enabled, "Enabled", "Disabled") : "Unknown"}
       />

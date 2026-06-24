@@ -203,6 +203,48 @@ subdomains`). If SHAP can't explain a given model (e.g. the model type doesn't s
 rest of the scoring pipeline is unaffected — explainability is best-effort, never a
 prediction blocker.
 
+## Heuristic-only confidence calibration (reliability diagram)
+
+`scoring_service._confidence()` falls back to `0.55 + abs(score - 50) / 100`
+(capped at 0.9) whenever the ML model is unavailable — a linear proxy for "how
+far this result is from the middle of the score range," explicitly never
+described as a calibrated probability. `ml/evaluate_confidence_calibration.py`
+checks exactly how far off it is from one, by reconstructing the URL-only
+heuristic score for every row of the committed dataset (same reconstruction
+limits as the heuristic backtest above: no typosquat/homograph, DOM features
+fixed at 0), computing `_confidence()` on it, and binning predicted confidence
+against the empirical accuracy of the resulting safe/not-safe call:
+
+```bash
+cd ml
+python evaluate_confidence_calibration.py
+```
+
+Result from a run against the committed dataset (1200 rows):
+
+| Confidence bin | Mean confidence | Empirical accuracy | n |
+|---|---:|---:|---:|
+| [0.70, 0.75) | 0.723 | 0.250 | 4 |
+| [0.75, 0.80) | 0.790 | 0.000 | 1 |
+| [0.80, 0.85) | 0.809 | 0.000 | 15 |
+| [0.85, 0.90) | 0.873 | 0.000 | 23 |
+| [0.90, 0.95) | 0.900 | 0.519 | 1157 |
+
+Mean calibration error (weighted `|confidence - accuracy|` across bins): **0.397**.
+
+![Reliability diagram: heuristic-only confidence sits well below the perfectly-calibrated diagonal across every bin](calibration_reliability_diagram.png)
+
+**Finding, stated plainly:** the heuristic-only confidence is not just "uncalibrated" in
+the harmless sense of being a rough proxy — on this dataset it is systematically
+*overconfident*. Every bin sits below the diagonal, and the bin holding 96% of the rows
+(confidence ≈ 0.90) is only ~52% accurate, barely better than a coin flip. This was not
+"fixed" by adding a counter-bias or a temperature-scaling correction in this round,
+because doing so against a dataset that itself can't exercise typosquat/homograph/DOM/
+TLS/domain-age/threat-intel signals would calibrate the formula to this benchmark's blind
+spots, not to real-world accuracy. The honest takeaway is narrower: treat the heuristic-only
+confidence number as a tie-breaker between results, not as a probability, until it can be
+calibrated against a dataset that exercises the full signal set the live backend actually uses.
+
 ## Metrics
 
 Track accuracy, precision, recall, F1-score, and confusion matrix. In future datasets, prioritize recall for malicious URLs while controlling false positives for normal login and banking pages.

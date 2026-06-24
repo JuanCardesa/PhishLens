@@ -7,6 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from app.services.brand_domains import KNOWN_BRAND_DOMAINS
 
 SUSPICIOUS_KEYWORDS = (
     "login",
@@ -17,38 +18,6 @@ SUSPICIOUS_KEYWORDS = (
     "password",
     "bank",
     "wallet",
-)
-
-# Curated list of frequently-impersonated brand domains. Used as the
-# reference set for typosquatting (Levenshtein) and combosquatting
-# (brand name embedded in a longer label) detection.
-KNOWN_BRAND_DOMAINS = (
-    "google.com",
-    "youtube.com",
-    "facebook.com",
-    "instagram.com",
-    "whatsapp.com",
-    "amazon.com",
-    "apple.com",
-    "icloud.com",
-    "microsoft.com",
-    "outlook.com",
-    "office.com",
-    "netflix.com",
-    "paypal.com",
-    "ebay.com",
-    "linkedin.com",
-    "twitter.com",
-    "github.com",
-    "dropbox.com",
-    "yahoo.com",
-    "bankofamerica.com",
-    "chase.com",
-    "wellsfargo.com",
-    "americanexpress.com",
-    "coinbase.com",
-    "binance.com",
-    "adobe.com",
 )
 
 # Brand names shorter than this produce too many coincidental matches
