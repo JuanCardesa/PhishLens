@@ -198,7 +198,10 @@ Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 | `PHISHLENS_CHROME_EXTENSION_IDS` | _(empty)_ | Comma-separated Chrome extension IDs for production CORS. |
 | `PHISHLENS_ENABLE_THREAT_INTEL` | `true` | Enable/disable PhishTank lookups. |
 | `PHISHLENS_ENABLE_TLS_ANALYSIS` | `true` | Enable/disable backend TLS certificate inspection. |
+| `PHISHLENS_ENABLE_CT_LOG_LOOKUP` | `true` | Enable/disable Certificate Transparency log lookups (crt.sh) as an additional TLS risk signal. |
+| `PHISHLENS_ENABLE_DOMAIN_AGE_LOOKUP` | `true` | Enable/disable RDAP domain-registration-age lookups. |
 | `PHISHLENS_MODEL_PATH` | `app/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
+| `PHISHLENS_BRAND_DOMAINS_PATH` | `app/data/brand_domains.json` | Path to the curated brand-domain list used for typosquat/brand-impersonation detection. |
 | `PHISHLENS_ENABLE_DIAGNOSTICS` | `true` | Expose aggregate counters at `GET /diagnostics`. |
 | `PHISHLENS_DIAGNOSTICS_TOKEN` | _(empty)_ | When set, `GET /diagnostics` requires `X-Diagnostics-Token: <value>`. |
 | `PHISHLENS_ENABLE_RATE_LIMITING` | `true` | Enable in-memory sliding-window rate limits. |

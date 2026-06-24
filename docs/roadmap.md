@@ -53,3 +53,11 @@ Maintain a reproducible local demo, development diagnostics, request IDs, and ra
 ## 12. Publication Readiness
 
 Prepare Chrome Web Store checklist, permission documentation, demo readiness checks, and release artifacts without changing the privacy boundary.
+
+## Known Remaining Work
+
+Smaller, scoped items identified but not yet implemented:
+
+- **TLS scoring**: add a signal for self-signed or free-CA certificates combined with a recently registered domain (`scoring_service._score_tls`), complementary to the existing expired/expiring/invalid checks.
+- **Feedback retention**: `feedback_store.py` only purges entries older than 30 days at process startup (schema init), not periodically while the process stays up. A long-running deployment without restarts will accumulate rows past the documented retention window.
+- **Logging**: `ml_service.py` logs the resolved model path at full absolute-path granularity on load; should log only the filename to avoid leaking local filesystem layout in logs.

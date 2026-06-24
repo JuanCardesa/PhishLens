@@ -1,1 +1,0 @@
-Runtime model artifacts can be copied here if needed. Generated binaries are not committed.
