@@ -13,7 +13,7 @@
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "browser_specific_settings": {
     "gecko": {
-      "id": "[email protected]",
+      "id": "{a8987913-e459-4a15-888c-d5cc426d560d}",
       "strict_min_version": "115.0"
     }
   },
