@@ -3,6 +3,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { capabilityLabel, requestBackendStatus, totalCounter } from "../services/backend-status";
 import { DEFAULT_SETTINGS, getExtensionSettings, saveExtensionSettings } from "../services/settings";
 import type { BackendStatus, DiagnosticsCapabilities, ExtensionSettings } from "../types/analysis";
+import { CAPABILITY_GLOSSARY } from "../utils/glossary";
 import "./options.css";
 
 export function diagnosticsLabelFor(backendStatus: BackendStatus | null): string {
@@ -121,9 +122,10 @@ export function Options() {
 }
 
 function StatusItem({ label, value }: { label: string; value: string }) {
+  const glossaryEntry = CAPABILITY_GLOSSARY[label];
   return (
     <div>
-      <span>{label}</span>
+      <span title={glossaryEntry}>{label}</span>
       <strong>{value}</strong>
     </div>
   );

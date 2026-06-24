@@ -1,9 +1,14 @@
-chrome.runtime.onMessage.addListener((message) => {
+import browser from "webextension-polyfill";
+
+export const PHISHLENS_WARNING_OVERLAY_ID = "phishlens-warning-overlay";
+
+browser.runtime.onMessage.addListener((rawMessage: unknown) => {
+  const message = rawMessage as { type?: string; riskScore?: number; reasons?: unknown };
   if (message?.type !== "PHISHLENS_SHOW_WARNING") {
-    return false;
+    return undefined;
   }
 
-  const existing = document.getElementById("phishlens-warning-overlay");
+  const existing = document.getElementById(PHISHLENS_WARNING_OVERLAY_ID);
   if (existing) {
     existing.remove();
   }
@@ -15,7 +20,7 @@ chrome.runtime.onMessage.addListener((message) => {
   const buttonBg = dark ? "#991b1b" : "#b42318";
 
   const overlay = document.createElement("div");
-  overlay.id = "phishlens-warning-overlay";
+  overlay.id = PHISHLENS_WARNING_OVERLAY_ID;
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
   overlay.setAttribute("aria-labelledby", "phishlens-warning-title");
@@ -44,6 +49,10 @@ chrome.runtime.onMessage.addListener((message) => {
   title.id = "phishlens-warning-title";
   title.textContent = "High-risk phishing signals detected";
   title.style.cssText = "margin:0 0 8px;font-size:20px;line-height:1.2";
+
+  const actionLine = document.createElement("p");
+  actionLine.textContent = "Do not enter your password, card details, or any personal information on this page.";
+  actionLine.style.cssText = `margin:0 0 12px;color:${panelText};font-size:14px;font-weight:700`;
 
   const score = document.createElement("p");
   score.textContent = `Risk score: ${Number(message.riskScore ?? 0)}/100`;
@@ -80,10 +89,10 @@ chrome.runtime.onMessage.addListener((message) => {
   });
   overlay.addEventListener("click", () => overlay.remove());
   panel.addEventListener("click", (event) => event.stopPropagation());
-  panel.append(title, score, list, closeButton);
+  panel.append(title, actionLine, score, list, closeButton);
   overlay.append(panel);
   document.documentElement.append(overlay);
   closeButton.focus();
 
-  return false;
+  return undefined;
 });

@@ -34,7 +34,9 @@ copies the runtime artifact to `backend/app/models/phishlens_model.joblib` for b
 **Limitation:** DOM features (`has_password_field`, `num_forms`, etc.) are set to `0` for all
 URL-only rows because they require a live browser session to collect. The model therefore relies
 entirely on URL-derived signals when evaluated against this dataset. Real-world inference still
-uses DOM features from the extension's content script.
+uses DOM features from the extension's content script — see
+[Train/inference feature mismatch](#traininference-feature-mismatch-important-caveat-on-the-numbers-above)
+for why this means the metrics below describe a URL-only model, not the full production vector.
 
 ### Known limitation found and fixed: URL-length separability bias
 
@@ -61,11 +63,52 @@ From a `train_model.py` run against the committed `real_phishing_urls.csv` (33% 
 hold-out, plus 5-fold stratified cross-validation on the full set):
 
 - Stratified 5-fold CV accuracy: **0.907 ± 0.008**
-- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99 for legitimate URLs,
-  precision 0.99/recall 0.85 for phishing URLs (see the confusion matrix printed by
-  `train_model.py`)
+- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99/F1 0.93 for legitimate
+  URLs, precision 0.99/recall 0.85/F1 0.92 for phishing URLs. Confusion matrix (rows/cols = legitimate,
+  phishing), from a `python ml/train_model.py` run against the committed CSV:
+
+  |               | Predicted legit | Predicted phishing |
+  |---------------|-----------------:|--------------------:|
+  | **Actual legit**     | 197 | 1   |
+  | **Actual phishing**  | 29  | 169 |
+
 - Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
   `uses_https`
+
+### Train/inference feature mismatch (important caveat on the numbers above)
+
+All the metrics above are computed on the 10 URL-derived features only — the 6 DOM
+columns (`has_password_field`, `num_forms`, `external_form_action`, `num_iframes`,
+`external_links_ratio`, `has_hidden_inputs`) are hardcoded to `0` for every row in
+`real_phishing_urls.csv` (`ml/datasets/build_dataset.py`, `FEATURE_COLUMNS`/
+`extract_url_features`), because building the dataset never opens a browser. The trained
+`RandomForestClassifier` therefore never saw real variation in those 6 columns during
+training or cross-validation.
+
+At inference time, `backend/app/services/ml_service.py::_feature_values` builds the same
+16-feature vector but fills the DOM columns with **real** values collected by the
+extension's content script (`extension/src/content/dom-analyzer.ts`). This means:
+
+- The 0.907 CV / 0.92 hold-out accuracy figures describe a model evaluated on a
+  URL-only vector. They say nothing about how the model behaves on the full
+  16-feature vector it actually receives in production, because that combination
+  (real URL features + real DOM features) was never present during training or
+  evaluation.
+- Any split the trees learned on a DOM column (if `RandomForest` happened to use one,
+  e.g. `has_password_field`) was learned from a constant value of `0` — it cannot encode
+  a meaningful relationship between that feature and the label, so in practice those
+  features are inert at inference too. The risk is not "the model overreacts to DOM
+  features" but "the model is structurally unable to use them," which is a silent
+  capability gap rather than a correctness bug: `MLResult.top_factors` (SHAP) has never
+  been observed citing a DOM feature in practice, consistent with this.
+- This was not fixed by retraining on synthetic DOM values, because synthetic
+  password-field/iframe/form data fabricated without a real page would be a second,
+  unvalidated assumption layered on top of the first — it would make the metrics
+  *look* more complete without actually testing anything real. The honest fix is the one
+  applied elsewhere in this project: keep DOM signals in the **rule-based** scoring layer
+  (`scoring_service._score_dom`, with its own explicit point weights and tests) where
+  their effect is transparent and tested, and treat the ML adjustment as a URL-only
+  signal until a labeled dataset with real captured DOM snapshots exists.
 
 ### Temporal validation (train on older phishing, test on newer)
 

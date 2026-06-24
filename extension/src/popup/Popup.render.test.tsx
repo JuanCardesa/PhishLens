@@ -68,6 +68,15 @@ describe("Popup", () => {
     expect(screen.getByText("Backend enrichment is active for this result.")).toBeInTheDocument();
   });
 
+  it("shows plain-language tooltips on jargon signal group titles", async () => {
+    vi.spyOn(analysisApi, "requestBackendAnalysis").mockResolvedValue(makeBackendResponse());
+    render(<Popup />);
+
+    await waitFor(() => expect(screen.getByText("Safe")).toBeInTheDocument());
+    expect(screen.getByText("TLS")).toHaveAttribute("title", expect.stringContaining("security certificate"));
+    expect(screen.getByText("ML")).toHaveAttribute("title", expect.stringContaining("machine learning"));
+  });
+
   it("falls back to local-only analysis when the backend is unavailable", async () => {
     vi.spyOn(analysisApi, "requestBackendAnalysis").mockResolvedValue(null);
     render(<Popup />);
@@ -95,6 +104,27 @@ describe("Popup", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Feedback sent"));
     expect(analysisApi.submitFeedbackReport).toHaveBeenCalledWith(
       { url: "https://example.test/", observed_label: "safe", expected_label: "safe" },
+      expect.anything(),
+    );
+  });
+
+  it("strips the URL fragment before sending it to the backend or in feedback reports", async () => {
+    mockActiveTab("https://example.test/path?token=keep#access_token=secret");
+    vi.spyOn(analysisApi, "requestBackendAnalysis").mockResolvedValue(makeBackendResponse());
+    vi.spyOn(analysisApi, "submitFeedbackReport").mockResolvedValue(true);
+    render(<Popup />);
+
+    await waitFor(() => expect(screen.getByText("Safe")).toBeInTheDocument());
+    expect(analysisApi.requestBackendAnalysis).toHaveBeenCalledWith(
+      "https://example.test/path?token=keep",
+      expect.anything(),
+      expect.anything(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark as safe" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Feedback sent"));
+    expect(analysisApi.submitFeedbackReport).toHaveBeenCalledWith(
+      { url: "https://example.test/path?token=keep", observed_label: "safe", expected_label: "safe" },
       expect.anything(),
     );
   });
