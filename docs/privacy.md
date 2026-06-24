@@ -4,10 +4,12 @@ PhishLens is designed to minimize data collection.
 
 ## Processed Data
 
-- Current page URL.
+- Current page URL, used for popup analysis and local badge scoring. Page-load badge scoring stays inside the extension; backend enrichment is requested from the popup.
 - Structured URL features derived from that URL.
 - DOM counts and booleans:
   forms, password field presence, external form action, iframes, external link ratio, and hidden input presence.
+- Local-only brand mismatch booleans derived from already-loaded page metadata:
+  document title, `og:site_name`, first `h1`, and favicon URL. The raw text and favicon bytes are not sent to the backend, persisted, or logged.
 - Optional backend TLS certificate metadata for the domain, including expiry status. An expired certificate is identified via the OpenSSL verify code (code 10 = `X509_V_ERR_CERT_HAS_EXPIRED`) rather than by reading the `notAfter` field, because the SSL handshake rejects expired certificates before the field is accessible.
 - Optional PhishTank lookup result for the URL.
 - Optional RDAP domain registration age lookup. Only the hostname is sent to the public `rdap.org` bootstrap service, never the full URL, path, or query string. Missing registration data (common with privacy-protected WHOIS records) is not treated as a risk signal.
@@ -27,7 +29,7 @@ PhishLens must not collect:
 - Session tokens.
 - Browser history.
 - Screenshots.
-- Private page text.
+- Raw private page text in backend requests, diagnostics, logs, feedback storage, or extension cache.
 - Full URLs in diagnostics.
 - Local model paths in diagnostics.
 

@@ -46,7 +46,7 @@
       <nav><a href="../">&larr; PhishLens</a></nav>
 
       <h1>Privacy Policy</h1>
-      <p class="subtitle">Last updated: June 2026 &mdash; PhishLens v0.2.0</p>
+      <p class="subtitle">Last updated: June 2026 &mdash; PhishLens v0.3.0</p>
 
       <p>
         PhishLens is designed to minimise data collection. This policy describes exactly what the
@@ -55,9 +55,10 @@
 
       <h2>What PhishLens processes</h2>
       <ul>
-        <li>The URL of the current page when you open or refresh the popup.</li>
+        <li>The URL of the current page for popup analysis and local badge scoring. Page-load badge scoring stays inside the extension; backend enrichment is requested from the popup.</li>
         <li>Derived URL features: length, dot and hyphen counts, IP domain detection, subdomain count, presence of suspicious keywords in the hostname and path, punycode detection, and domain entropy.</li>
         <li>Non-sensitive page-structure counts: number of forms, presence of a password-input element, whether any form submits to an external domain, number of iframes, ratio of external links, and presence of hidden inputs.</li>
+        <li>Local brand-mismatch booleans derived from limited page metadata: document title, <code>og:site_name</code>, first heading, and favicon URL. Raw page text and favicon bytes are not sent to the backend, logged, stored, or included in reports.</li>
         <li>Optional TLS certificate metadata (issuer, expiry) fetched from the domain when TLS analysis is enabled on the companion backend.</li>
         <li>Optional PhishTank lookup result (in-database, verified, valid flags) when threat intelligence is enabled on the companion backend.</li>
         <li>Optional user feedback: if you click "Mark as safe" or "Mark as phishing", the extension sends the current URL, the displayed label, and the expected label to the backend. The backend stores only hostname-level label metadata, note presence, request ID, and timestamp. No page content or note text is included.</li>
@@ -66,14 +67,14 @@
 
       <h2>What PhishLens never collects</h2>
       <div class="never">
-        <p>The following data is <strong>never read, stored, or transmitted</strong> by PhishLens:</p>
+        <p>The following data is <strong>never collected, stored, or transmitted</strong> by PhishLens:</p>
         <ul>
           <li>Passwords or password-field values</li>
           <li>Typed emails or any form field values</li>
           <li>Full page HTML or page screenshots</li>
           <li>Cookies or session tokens</li>
           <li>Browser history</li>
-          <li>Private page text or user-generated content</li>
+          <li>Raw private page text or user-generated content</li>
           <li>Full URLs in backend diagnostics or logs</li>
         </ul>
       </div>

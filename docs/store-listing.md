@@ -29,13 +29,13 @@ PhishLens is a defensive browser extension that helps you evaluate whether a pag
 
 HOW IT WORKS
 
-When you open the popup on any page, PhishLens runs two layers of analysis:
+PhishLens can run local page-structure checks for its badge on HTTP/HTTPS pages. When you open the popup, it shows the current analysis and can add optional backend enrichment:
 
-1. Local heuristics — instant, private, no network calls
+1. Local heuristics — instant, private, no backend calls
    • URL signals: length, dot/hyphen density, IP-based domains, @ symbols, suspicious keywords in the hostname and path, punycode characters, and Shannon entropy of the domain name.
-   • Page-structure signals: presence of login forms, password fields, forms that submit data to external domains, iframes, hidden inputs, and the ratio of external links.
+   • Page-structure signals: presence of login forms, password fields, forms that submit data to external domains, iframes, hidden inputs, the ratio of external links, and local brand-mismatch booleans derived from limited page metadata.
 
-2. Optional backend enrichment — richer signals when you run the companion API
+2. Optional backend enrichment from the popup — richer signals when you run the companion API
    • TLS certificate validation and expiry check for the current domain.
    • PhishTank threat-intelligence lookup (requires a free API key on your self-hosted backend).
    • Machine-learning model adjustment trained on URL and DOM features.
@@ -45,8 +45,9 @@ Results are shown as a risk score (0–100) labelled Safe, Suspicious, or Danger
 PRIVACY FIRST
 
 PhishLens is built around minimal data collection:
-• Only the current page URL and a small set of non-sensitive DOM counts are ever sent to the backend.
+• Only the current page URL and a small set of non-sensitive DOM counts and booleans are ever sent to the backend.
 • Passwords, typed emails, form values, full HTML, cookies, session tokens, and browser history are never read or transmitted.
+• Limited page metadata (document title, site name, first heading, and favicon URL) is inspected locally only to derive brand-mismatch booleans. Raw page text is never sent, logged, stored, or included in feedback.
 • The backend does not persist analysis requests.
 • Optional feedback (marking a result as safe or phishing) sends URL, observed label, and expected label. The self-hosted backend stores only hostname-level label metadata, note presence, request ID, and timestamp — no full URL, note text, or page content.
 
