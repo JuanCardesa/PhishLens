@@ -6,7 +6,7 @@ PhishLens is designed to minimize data collection.
 
 - Current page URL, used for popup analysis and local badge scoring. Page-load badge scoring stays inside the extension; backend enrichment is requested from the popup.
   - **What crosses the network to the configured backend (`/analyze`, `/report`):** the full URL *excluding the fragment* — scheme, host, path, and query string. The query string is sent because it is part of the URL-heuristics surface (length, special-character ratio, suspicious keywords); the fragment is stripped client-side before the request is built (`stripFragment()` in `risk-score.ts`, applied in `Popup.tsx`) because the backend has no use for it and fragments routinely carry OAuth implicit-flow tokens or password-reset secrets that should never leave the browser.
-  - **Where that backend is:** whatever host the user configured in Options (`localhost` by default, or a self-hosted/own deployment). This is not a third-party service — see the RDAP/PhishTank bullets below for the only requests that leave the user's own infrastructure.
+  - **Where that backend is:** whatever host the user configured in Options (`localhost` by default, or a self-hosted/own deployment). This is not a third-party service — see the RDAP, Certificate Transparency, and PhishTank bullets below for the only requests that leave the user's own infrastructure.
   - The backend itself does not persist `/analyze` request bodies (see Storage below), but the URL (with query string) is present in memory for the duration of that request and is part of what TLS/structured-feature analysis operates on.
 - Structured URL features derived from that URL.
 - DOM counts and booleans:
@@ -14,11 +14,12 @@ PhishLens is designed to minimize data collection.
 - Local-only brand mismatch booleans derived from already-loaded page metadata:
   document title, `og:site_name`, first `h1`, and favicon URL. The raw text and favicon bytes are not sent to the backend, persisted, or logged.
 - Optional backend TLS certificate metadata for the domain, including expiry status. An expired certificate is identified via the OpenSSL verify code (code 10 = `X509_V_ERR_CERT_HAS_EXPIRED`) rather than by reading the `notAfter` field, because the SSL handshake rejects expired certificates before the field is accessible.
+- Optional Certificate Transparency lookup metadata. Only the hostname is sent to `crt.sh`, never the full URL, path, or query string.
 - Optional PhishTank lookup result for the URL.
 - Optional RDAP domain registration age lookup. Only the hostname is sent to the public `rdap.org` bootstrap service, never the full URL, path, or query string. Missing registration data (common with privacy-protected WHOIS records) is not treated as a risk signal.
 - Optional user feedback labels from the popup: observed label, expected label, and a short non-sensitive note.
 - Aggregate diagnostics counters for request counts, labels, sources, rate limits, cache hits, and external-service skips/errors.
-- Non-sensitive backend capability flags such as whether diagnostics, TLS analysis, threat intelligence, RDAP domain age lookup, rate limiting, demo source, or ML model loading are enabled.
+- Non-sensitive backend capability flags such as whether diagnostics, TLS analysis, Certificate Transparency lookup, threat intelligence, RDAP domain age lookup, rate limiting, demo source, or ML model loading are enabled.
 
 ## Data Not Collected
 
@@ -42,7 +43,7 @@ The extension stores short-lived cached analysis results keyed by a local hash o
 
 The extension stores backend settings in `chrome.storage.sync`: backend URL, timeout, and overlay preference.
 
-The backend uses short-lived in-memory caches for PhishTank URL lookups and TLS hostname checks. These caches are process-local and are not durable storage.
+The backend uses short-lived in-memory caches for PhishTank URL lookups, TLS hostname checks, Certificate Transparency lookup metadata, and RDAP domain age lookups. These caches are process-local and are not durable storage.
 
 Successful PhishTank results are cached for 300 seconds. Transient network errors from PhishTank are cached separately for 30 seconds to allow fast retries during brief outages without hammering the external API on every request.
 

@@ -96,7 +96,7 @@ def _load_artifact(model_path: Path) -> _ModelArtifact:
 
         file_bytes = resolved_model_path.read_bytes()
         sha256_prefix = hashlib.sha256(file_bytes).hexdigest()[:16]
-        logger.info("ml_model_loaded path=%s sha256_prefix=%s", resolved_model_path, sha256_prefix)
+        logger.info("ml_model_loaded filename=%s sha256_prefix=%s", resolved_model_path.name, sha256_prefix)
 
         raw = joblib.load(resolved_model_path)
         model = raw["model"] if isinstance(raw, dict) and "model" in raw else raw
@@ -213,7 +213,7 @@ def warm_up_model(settings: Settings | None = None) -> None:
     try:
         _load_artifact(model_path)
     except Exception:  # noqa: BLE001 - best-effort warm-up, real errors surface on first predict
-        logger.warning("ml_model_warm_up_failed path=%s", model_path, exc_info=True)
+        logger.warning("ml_model_warm_up_failed filename=%s", model_path.name, exc_info=True)
 
 
 def is_model_available(settings: Settings | None = None) -> bool:
