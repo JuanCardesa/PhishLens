@@ -38,7 +38,7 @@ PhishLens can run local page-structure checks for its badge on HTTP/HTTPS pages.
 2. Optional backend enrichment from the popup — richer signals when you run the companion API
    • TLS certificate validation and expiry check for the current domain.
    • PhishTank threat-intelligence lookup (requires a free API key on your self-hosted backend).
-   • Machine-learning model adjustment trained on URL and DOM features.
+   • Machine-learning model adjustment trained on URL-derived numeric features.
 
 Results are shown as a risk score (0–100) labelled Safe, Suspicious, or Dangerous, with a per-category breakdown explaining exactly what contributed to the score.
 
@@ -71,7 +71,7 @@ The ML model shipped with the companion API is trained on a real PhishTank + Tra
 
 SELF-HOSTING
 
-The optional backend is open-source (FastAPI + Python) and designed to run locally or on your own infrastructure. No data is sent to Anthropic or any third party by the extension itself.
+The optional backend is open-source (FastAPI + Python) and designed to run locally or on your own infrastructure. The extension itself only calls the backend you configure; optional backend enrichment may call PhishTank, rdap.org, and crt.sh. No data is sent to Anthropic.
 
 SOURCE CODE
 
