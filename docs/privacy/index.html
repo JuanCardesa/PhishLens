@@ -60,6 +60,8 @@
         <li>Non-sensitive page-structure counts: number of forms, presence of a password-input element, whether any form submits to an external domain, number of iframes, ratio of external links, and presence of hidden inputs.</li>
         <li>Local brand-mismatch booleans derived from limited page metadata: document title, <code>og:site_name</code>, first heading, and favicon URL. Raw page text and favicon bytes are not sent to the backend, logged, stored, or included in reports.</li>
         <li>Optional TLS certificate metadata (issuer, expiry) fetched from the domain when TLS analysis is enabled on the companion backend.</li>
+        <li>Optional Certificate Transparency lookup metadata from <code>crt.sh</code>, using only the hostname.</li>
+        <li>Optional RDAP domain registration age lookup through <code>rdap.org</code>, using only the hostname.</li>
         <li>Optional PhishTank lookup result (in-database, verified, valid flags) when threat intelligence is enabled on the companion backend.</li>
         <li>Optional user feedback: if you click "Mark as safe" or "Mark as phishing", the extension sends the current URL, the displayed label, and the expected label to the backend. The backend stores only hostname-level label metadata, note presence, request ID, and timestamp. No page content or note text is included.</li>
         <li>Aggregate backend diagnostics: request counts, label distribution, cache hit rates, and error counts. These are process-local counters and reset when the backend restarts.</li>
@@ -93,12 +95,14 @@
       <p>
         The optional companion API (FastAPI, self-hosted) does not durably persist <code>/analyze</code>
         requests. It can persist <code>/report</code> feedback to a local SQLite database, limited to
-        hostname-level label metadata, note presence, request ID, and timestamp. In-memory caches for TLS
-        and PhishTank results are process-local and cleared on restart.
+        hostname-level label metadata, note presence, request ID, and timestamp. In-memory caches for TLS,
+        Certificate Transparency, RDAP, and PhishTank results are process-local and cleared on restart.
       </p>
       <p>
         If you use a self-hosted backend, you control the infrastructure and logging configuration.
-        PhishLens does not send data to any Anthropic or third-party servers.
+        The extension sends analysis only to the backend you configure. If backend enrichment is enabled,
+        that backend may call PhishTank, <code>rdap.org</code>, and <code>crt.sh</code> as described above.
+        No data is sent to Anthropic.
       </p>
 
       <h2>API keys</h2>

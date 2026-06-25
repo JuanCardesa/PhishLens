@@ -200,6 +200,7 @@ Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 | `PHISHLENS_ENABLE_TLS_ANALYSIS` | `true` | Enable/disable backend TLS certificate inspection. |
 | `PHISHLENS_ENABLE_CT_LOG_LOOKUP` | `true` | Enable/disable Certificate Transparency log lookups (crt.sh) as an additional TLS risk signal. |
 | `PHISHLENS_ENABLE_DOMAIN_AGE_LOOKUP` | `true` | Enable/disable RDAP domain-registration-age lookups. |
+| `PHISHLENS_EXTERNAL_TIMEOUT_SECONDS` | `4.0` | Timeout for external backend enrichment calls such as PhishTank, RDAP, and crt.sh. |
 | `PHISHLENS_MODEL_PATH` | `app/models/phishlens_model.joblib` | Path to a trained joblib model artifact. |
 | `PHISHLENS_BRAND_DOMAINS_PATH` | `app/data/brand_domains.json` | Path to the curated brand-domain list used for typosquat/brand-impersonation detection. |
 | `PHISHLENS_ENABLE_DIAGNOSTICS` | `true` | Expose aggregate counters at `GET /diagnostics`. |
@@ -220,7 +221,7 @@ Extension settings:
 
 ## Ethical And Privacy Notice
 
-PhishLens is defensive only. It must not collect credentials, typed emails, private form content, or full page HTML. It is a risk-assistance tool, not a phishing verdict authority. False positives and false negatives are expected, especially before training on a real dataset.
+PhishLens is defensive only. It must not collect credentials, typed emails, private form content, or full page HTML. It is a risk-assistance tool, not a phishing verdict authority. False positives and false negatives are expected, especially outside the limited dataset and signal coverage documented below.
 
 ## Local Demo
 

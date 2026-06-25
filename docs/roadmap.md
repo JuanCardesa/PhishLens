@@ -16,7 +16,7 @@ Health, analysis, and report endpoints with Pydantic schemas and tests.
 
 Expand non-sensitive DOM signals while preserving the no-content and no-input-values boundary.
 
-Done: added brand-impersonation detection — a visible-text (title/`og:site_name`/`h1`) brand mismatch against a curated brand-domain list shared with typosquat detection, plus a favicon-hotlinked-from-a-brand-domain check. Both are zero-network, zero-new-permission, computed purely from already-loaded DOM state. Deliberately does not do favicon byte-hash matching (would need cross-origin image fetches and a maintained hash database) or logo/image recognition. Remaining differentials from the Fase 4 audit (Certificate Transparency log lookups) are deferred to a future session.
+Done: added brand-impersonation detection — a visible-text (title/`og:site_name`/`h1`) brand mismatch against a curated brand-domain list shared with typosquat detection, plus a favicon-hotlinked-from-a-brand-domain check. Both are zero-network, zero-new-permission, computed purely from already-loaded DOM state. Deliberately does not do favicon byte-hash matching (would need cross-origin image fetches and a maintained hash database) or logo/image recognition.
 
 Done: real Firefox support. All source (`background/service-worker.ts`, `content/dom-analyzer.ts`, `warning/overlay.ts`, `popup/Popup.tsx`, `services/settings.ts`) now calls `browser.*` (via `webextension-polyfill`) instead of `chrome.*`, with Promise-based message listeners (`return Promise<unknown> | undefined` instead of `sendResponse` + `return true/false`). `manifest.json` adds `browser_specific_settings.gecko` (ignored by Chrome). **Caveat, stated plainly:** this was verified by running the full Chrome-targeted test suite (155 extension tests) and build against the polyfill — it has not been loaded and click-tested in a real Firefox profile in this session, and MV3 background-script semantics still differ subtly between engines (Firefox's MV3 `service_worker` support is newer and less battle-tested than Chrome's). Treat "real Firefox support" as "built on the standard cross-browser API, not yet manually verified in Firefox," not as a guarantee of parity.
 
@@ -27,6 +27,8 @@ Add production-grade rate-limit handling, caching, and observability around look
 ## 6. TLS Analyzer
 
 Improve certificate chain metadata, issuer normalization, and timeout reporting.
+
+Done: added a Certificate Transparency freshness signal through `crt.sh`, guarded by `PHISHLENS_ENABLE_CT_LOG_LOOKUP`, as a best-effort TLS-category signal.
 
 Done: added a sibling `domain_age` signal via RDAP (registration age), following the same cache/diagnostics pattern as TLS and PhishTank.
 
@@ -60,4 +62,3 @@ Smaller, scoped items identified but not yet implemented:
 
 - **TLS scoring**: add a signal for self-signed or free-CA certificates combined with a recently registered domain (`scoring_service._score_tls`), complementary to the existing expired/expiring/invalid checks.
 - **Feedback retention**: `feedback_store.py` only purges entries older than 30 days at process startup (schema init), not periodically while the process stays up. A long-running deployment without restarts will accumulate rows past the documented retention window.
-- **Logging**: `ml_service.py` logs the resolved model path at full absolute-path granularity on load; should log only the filename to avoid leaking local filesystem layout in logs.
