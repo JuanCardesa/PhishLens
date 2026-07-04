@@ -36,30 +36,11 @@ python ml/datasets/build_dataset.py && python ml/train_model.py
 
 ## Current Status
 
-Implemented product capabilities:
-
-- Chrome Extension Manifest V3 with React popup.
-- Local URL and DOM heuristic analysis.
-- Options page for backend URL, timeout, and dangerous overlay settings.
-- User feedback reporting from the popup to `/report`.
-- Informative, dismissible overlay for `dangerous` results.
-- FastAPI backend with `/health`, `/analyze`, and `/report`.
-- PhishTank integration prepared through environment variables.
-- TLS inspection implemented in the backend.
-- RDAP domain registration age lookup (free `rdap.org` bootstrap, no API key).
-- URL normalization and in-memory TTL cache for PhishTank, TLS, and RDAP checks.
-- ML training and evaluation pipeline on a real PhishTank + Tranco dataset.
-- Docker Compose and GitHub Actions workflows.
-- Privacy, threat model, architecture, ML methodology, and roadmap docs.
-- Reproducible local demo pages.
-- Development diagnostics with request IDs and no sensitive payloads.
-- In-memory rate limiting for analysis and feedback endpoints.
-- Extension release packaging script.
-- PR Guardian, security CI, and automated extension release workflow.
-- Backend status diagnostics in the extension options page.
-- Chrome Web Store readiness and permission documentation.
-- Structured risk breakdown by URL, DOM, threat intelligence, TLS, domain age, and ML categories.
-- SQLite feedback persistence for host-level label metadata only.
+- **Detection.** URL heuristics (typosquatting via Levenshtein, homograph/IDN attacks via a hand-written punycode decoder and confusable map, a brand's full domain hidden in subdomains) and privacy-preserving DOM signals (credential fields, external form actions, brand impersonation), scored into an explainable risk breakdown by URL, DOM, threat intelligence, TLS, domain age, and ML.
+- **Backend enrichment (FastAPI).** `/analyze`, `/report`, `/health`; PhishTank threat intel, backend TLS + Certificate Transparency inspection, RDAP domain-age lookups — each with URL normalization, TTL caching, timeouts, and clean degradation when unavailable.
+- **Extension (MV3).** React popup with a risk breakdown and feedback controls, an options page (backend URL, timeout, overlay), and a dismissible warning overlay for `dangerous` results. Works fully offline; the backend only enriches.
+- **ML.** Training and evaluation pipeline on a real PhishTank + Tranco dataset, with SHAP per-prediction explanations and documented limitations (see [ML methodology](docs/ml-methodology.md)).
+- **Quality & safety.** Unit tests plus a shared ext/backend scoring contract and a real-Chromium E2E smoke test; rate limiting, structured diagnostics with no sensitive payloads, host-only SQLite feedback, Docker, and CI (backend, extension, security, PR Guardian).
 
 ## Screenshots
 
