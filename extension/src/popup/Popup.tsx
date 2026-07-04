@@ -167,7 +167,9 @@ export function Popup() {
         <div className="meta-grid">
           <div>
             <span>Confidence</span>
-            <strong>{analysis ? `${Math.round(analysis.confidence * 100)}%` : "--"}</strong>
+            <strong title={analysis && !analysis.sources.ml ? HEURISTIC_CONFIDENCE_NOTE : undefined}>
+              {confidenceDisplay(analysis)}
+            </strong>
           </div>
           <div>
             <span>Backend</span>
@@ -323,6 +325,25 @@ export async function cacheKey(url: string): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   const hex = Array.from(new Uint8Array(hashBuffer), (b) => b.toString(16).padStart(2, "0")).join("");
   return `analysis:${hex.slice(0, 16)}`;
+}
+
+// The heuristic-only confidence formula is measurably overconfident (a
+// reliability diagram against the committed dataset put the ~0.90 bin, which
+// holds most rows, at ~52% real accuracy — see docs/ml-methodology.md). So the
+// popup only shows a numeric confidence when the ML model actually contributed;
+// otherwise it shows "Heuristic" rather than presenting an uncalibrated number
+// as a probability.
+export const HEURISTIC_CONFIDENCE_NOTE =
+  "Heuristic-only signals do not produce a calibrated probability. This reflects how strongly signals fired, not a likelihood. See the ML methodology docs.";
+
+export function confidenceDisplay(analysis: PopupAnalysis | null): string {
+  if (!analysis) {
+    return "--";
+  }
+  if (!analysis.sources.ml) {
+    return "Heuristic";
+  }
+  return `${Math.round(analysis.confidence * 100)}%`;
 }
 
 export function modeLabel(mode: AnalysisMode): string {

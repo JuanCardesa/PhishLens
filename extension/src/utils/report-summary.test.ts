@@ -31,4 +31,24 @@ describe("buildReportSummary", () => {
     expect(summary).not.toContain("secret");
     expect(summary).not.toContain(analysis.url);
   });
+
+  it("qualifies heuristic-only confidence instead of stating a bare percentage", () => {
+    const base: PopupAnalysis = {
+      url: "https://example.com",
+      risk_score: 20,
+      label: "safe",
+      confidence: 0.82,
+      reasons: [],
+      sources: { heuristics: true, ml: false, phishtank: false, tls: false, demo: false },
+      backendAvailable: false,
+      mode: "local-only",
+      analyzedAt: "2026-06-16T00:00:00.000Z",
+    };
+
+    expect(buildReportSummary(base)).toContain("Confidence: heuristic (not a calibrated probability)");
+    expect(buildReportSummary(base)).not.toContain("Confidence: 82%");
+
+    const withMl: PopupAnalysis = { ...base, sources: { ...base.sources, ml: true } };
+    expect(buildReportSummary(withMl)).toContain("Confidence: 82%");
+  });
 });
