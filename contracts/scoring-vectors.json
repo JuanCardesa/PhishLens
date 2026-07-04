@@ -1,0 +1,141 @@
+{
+  "_comment": "Shared scoring contract. The extension fallback (extension/src/utils/risk-score.ts) and the backend (backend/app/services/scoring_service.py) reimplement the same URL/DOM scoring in two languages. These vectors are loaded by BOTH extension/src/utils/scoring-contract.test.ts and backend/tests/test_scoring_contract.py, which assert each side produces the url_score, dom_score, and reason lists below. A weight or reason changed on only one side breaks that side's run. Edit this file and both implementations together.",
+  "dom_defaults": {
+    "has_password_field": false,
+    "num_forms": 0,
+    "external_form_action": false,
+    "num_iframes": 0,
+    "external_links_ratio": 0,
+    "has_hidden_inputs": false,
+    "brand_text_mismatch": false,
+    "favicon_hotlinked_brand": false
+  },
+  "vectors": [
+    {
+      "name": "benign https page",
+      "url": "https://example.com",
+      "dom": {},
+      "url_score": 0,
+      "url_reasons": [],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "no https adds 5",
+      "url": "http://example.com",
+      "dom": {},
+      "url_score": 5,
+      "url_reasons": ["URL does not use HTTPS"],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "no https plus two keywords",
+      "url": "http://secure-login.example.com",
+      "dom": {},
+      "url_score": 13,
+      "url_reasons": ["URL does not use HTTPS", "Domain or path contains suspicious keywords"],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "ascii typosquat",
+      "url": "https://paypa1.com",
+      "dom": {},
+      "url_score": 14,
+      "url_reasons": ["Domain closely resembles paypal.com (possible typosquatting)"],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "full-script homograph",
+      "url": "https://xn--80ak6aa92e.com",
+      "dom": {},
+      "url_score": 16,
+      "url_reasons": ["Domain uses look-alike Unicode characters resembling apple.com (homograph attack)"],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "mixed-script homograph",
+      "url": "https://xn--ggle-55da.com",
+      "dom": {},
+      "url_score": 24,
+      "url_reasons": [
+        "Domain uses look-alike Unicode characters resembling google.com (homograph attack)",
+        "Domain label mixes multiple writing scripts (possible homograph attack)"
+      ],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "brand domain hidden in subdomains",
+      "url": "https://paypal.com.evil.example/",
+      "dom": {},
+      "url_score": 14,
+      "url_reasons": [
+        "A subdomain embeds paypal.com, but the real registered domain is different (possible impersonation)"
+      ],
+      "dom_score": 0,
+      "dom_reasons": []
+    },
+    {
+      "name": "dom credential context",
+      "url": "https://example.com",
+      "dom": { "has_password_field": true, "num_forms": 1, "external_form_action": true },
+      "url_score": 0,
+      "url_reasons": [],
+      "dom_score": 20,
+      "dom_reasons": [
+        "Page contains forms",
+        "Page contains a password field",
+        "Form submits data to an external domain"
+      ]
+    },
+    {
+      "name": "brand mention without credential surface is not flagged",
+      "url": "https://news.example.com/story",
+      "dom": {
+        "num_forms": 1,
+        "num_iframes": 2,
+        "external_links_ratio": 0.6,
+        "has_hidden_inputs": true,
+        "brand_text_mismatch": true
+      },
+      "url_score": 0,
+      "url_reasons": [],
+      "dom_score": 10,
+      "dom_reasons": [
+        "Page contains forms",
+        "Page contains iframes",
+        "Page has a high ratio of external links"
+      ]
+    },
+    {
+      "name": "brand impersonation in a credential context",
+      "url": "https://example.com",
+      "dom": {
+        "has_password_field": true,
+        "brand_text_mismatch": true,
+        "favicon_hotlinked_brand": true
+      },
+      "url_score": 0,
+      "url_reasons": [],
+      "dom_score": 28,
+      "dom_reasons": [
+        "Page contains a password field",
+        "Page text references a well-known brand that does not match this domain",
+        "Page favicon is hotlinked from a different brand's domain"
+      ]
+    },
+    {
+      "name": "hidden inputs alone are not flagged",
+      "url": "https://example.com",
+      "dom": { "has_hidden_inputs": true },
+      "url_score": 0,
+      "url_reasons": [],
+      "dom_score": 0,
+      "dom_reasons": []
+    }
+  ]
+}
