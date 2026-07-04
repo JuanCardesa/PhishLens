@@ -145,8 +145,16 @@ function scoreDom(features: DOMFeatures): [number, string[]] {
   let score = 0;
   const reasons: string[] = [];
 
+  // A password field or a form that posts to another origin is the "credential
+  // context": the page has somewhere to enter and exfiltrate secrets. Several
+  // signals below are only phishing-relevant in that context. A brand name in
+  // the page text, a hidden input, or a form on an ordinary content page (a
+  // news article, a search box, a CSRF token) is the everyday web — scoring it
+  // as risk produces false positives on legitimate pages.
+  const credentialContext = features.has_password_field || features.external_form_action;
+
   if (features.num_forms > 0) {
-    score += 4;
+    score += 2;
     reasons.push("Page contains forms");
   }
 
@@ -173,12 +181,18 @@ function scoreDom(features: DOMFeatures): [number, string[]] {
     reasons.push("Page has a high ratio of external links");
   }
 
-  if (features.has_hidden_inputs) {
-    score += 4;
-    reasons.push("Page contains hidden form inputs");
+  // Hidden inputs are ubiquitous (CSRF tokens, analytics, framework state) and
+  // only weakly corroborate phishing when the page is already collecting a
+  // password. On their own they are noise.
+  if (features.has_hidden_inputs && features.has_password_field) {
+    score += 3;
+    reasons.push("Page contains hidden inputs alongside a password field");
   }
 
-  if (features.brand_text_mismatch) {
+  // Brand impersonation is only a threat when there is a credential surface to
+  // steal into. A page that merely names a brand on an unrelated domain (a
+  // review, a news story, a comparison) is not phishing.
+  if (features.brand_text_mismatch && credentialContext) {
     score += 12;
     reasons.push("Page text references a well-known brand that does not match this domain");
   }

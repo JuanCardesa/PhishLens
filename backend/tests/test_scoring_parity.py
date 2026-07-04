@@ -44,20 +44,22 @@ def test_empty_dom_scores_zero() -> None:
 
 
 def test_password_form_with_external_action_dom_score() -> None:
-    # forms (+4) + password (+8) + external action (+10) = 22
+    # forms (+2) + password (+8) + external action (+10) = 20
     dom = DOMFeatures(has_password_field=True, num_forms=1, external_form_action=True)
     score, _ = _score_dom(dom)
-    assert score == 22
+    assert score == 20
 
 
 def test_combined_score_and_label_suspicious() -> None:
-    # url 13 + dom 22 = 35 -> suspicious
+    # url 13 + dom (password +8, external +10, favicon +8 = 26) = 39 -> suspicious
     url_features = extract_url_features("http://secure-login.example.com")
     url_score, _ = _score_url(url_features)
-    dom = DOMFeatures(has_password_field=True, num_forms=1, external_form_action=True)
+    dom = DOMFeatures(
+        has_password_field=True, external_form_action=True, favicon_hotlinked_brand=True
+    )
     dom_score, _ = _score_dom(dom)
     total = url_score + dom_score
-    assert total == 35
+    assert total == 39
     assert label_from_score(total) == "suspicious"
 
 

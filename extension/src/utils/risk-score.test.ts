@@ -59,10 +59,10 @@ describe("analyzeLocally", () => {
 
   it("reaches dangerous in local-only mode when most available signals fire", () => {
     // Homograph domain (url score 24, capped contributors) plus a heavily flagged DOM
-    // (password + forms + external action + hidden inputs + multiple iframes, capped
-    // at 30) gives raw 24 + 30 = 54, scaled to round(54 / 65 * 100) = 83 -> dangerous.
-    // Before normalizing the local score against the backend's thresholds, "dangerous"
-    // was effectively unreachable in local-only mode (it required ~92% of the raw max).
+    // (forms +2, password +8, external action +10, hidden-with-password +3, multiple
+    // iframes +6 = 29) gives raw 24 + 29 = 53, scaled to round(53 / 65 * 100) = 82 ->
+    // dangerous. Before normalizing the local score against the backend's thresholds,
+    // "dangerous" was effectively unreachable in local-only mode (it required ~92% of the raw max).
     const result = analyzeLocally("https://xn--ggle-55da.com", {
       has_password_field: true,
       num_forms: 1,
@@ -110,8 +110,8 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     expect(domScore).toBe(0);
   });
 
-  it("password field + form + external action = 22 DOM points", () => {
-    // forms (+4) + password (+8) + external action (+10) = 22
+  it("password field + form + external action = 20 DOM points", () => {
+    // forms (+2) + password (+8) + external action (+10) = 20
     const result = analyzeLocally("https://example.com", {
       ...EMPTY_DOM,
       has_password_field: true,
@@ -119,19 +119,20 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
       external_form_action: true,
     });
     const domScore = result.risk_breakdown?.find((item) => item.category === "dom")?.score;
-    expect(domScore).toBe(22);
+    expect(domScore).toBe(20);
   });
 
-  it("url 13 + dom 22 = raw 35, scaled to 54/100 -> suspicious", () => {
+  it("url 13 + dom 26 = raw 39, scaled to 60/100 -> suspicious", () => {
     const result = analyzeLocally("http://secure-login.example.com", {
       ...EMPTY_DOM,
       has_password_field: true,
-      num_forms: 1,
       external_form_action: true,
+      favicon_hotlinked_brand: true,
     });
-    // Raw url(13) + dom(22) = 35 out of a local max of 65 (URL_SCORE_CAP + DOM_SCORE_CAP),
-    // scaled to the same 0-100 range the backend uses: round(35 / 65 * 100) = 54.
-    expect(result.risk_score).toBe(54);
+    // Raw url(13) + dom(password 8 + external 10 + favicon 8 = 26) = 39 out of a local
+    // max of 65 (URL_SCORE_CAP + DOM_SCORE_CAP), scaled to the same 0-100 range the
+    // backend uses: round(39 / 65 * 100) = 60.
+    expect(result.risk_score).toBe(60);
     expect(result.label).toBe("suspicious");
   });
 
@@ -193,16 +194,36 @@ describe("scoring parity (mirrors backend/tests/test_scoring_parity.py)", () => 
     expect(result.reasons).toEqual(["No high-risk signals were detected"]);
   });
 
-  it("brand text mismatch + favicon hotlink = 20 DOM points", () => {
-    // brand_text_mismatch (+12) + favicon_hotlinked_brand (+8) = 20
+  it("brand text mismatch scores only in a credential context = 28 DOM points", () => {
+    // password (+8) + brand_text_mismatch (+12) + favicon_hotlinked_brand (+8) = 28
     const result = analyzeLocally("https://example.com", {
       ...EMPTY_DOM,
+      has_password_field: true,
       brand_text_mismatch: true,
       favicon_hotlinked_brand: true,
     });
     const domScore = result.risk_breakdown?.find((item) => item.category === "dom")?.score;
-    expect(domScore).toBe(20);
+    expect(domScore).toBe(28);
     expect(result.reasons).toContain("Page text references a well-known brand that does not match this domain");
     expect(result.reasons).toContain("Page favicon is hotlinked from a different brand's domain");
+  });
+
+  it("brand mention without a credential surface is not flagged (false-positive regression)", () => {
+    // A news article / review that merely names a brand on an unrelated domain,
+    // with a search form and CSRF hidden inputs but no password field, must stay
+    // safe and must NOT surface the brand-mismatch reason.
+    const result = analyzeLocally("https://news.example.com/story", {
+      ...EMPTY_DOM,
+      num_forms: 1,
+      num_iframes: 2,
+      external_links_ratio: 0.6,
+      has_hidden_inputs: true,
+      brand_text_mismatch: true,
+    });
+    expect(result.label).toBe("safe");
+    expect(result.reasons).not.toContain(
+      "Page text references a well-known brand that does not match this domain",
+    );
+    expect(result.reasons).not.toContain("Page contains hidden inputs alongside a password field");
   });
 });
