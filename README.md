@@ -11,6 +11,10 @@ PhishLens is a defensive Chrome extension and FastAPI backend for explainable ph
 
 It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
 
+![PhishLens flagging a fake PayPal login on a look-alike domain: a "Dangerous" risk score of 92 with an explained breakdown — look-alike domain, recent registration, and a password form posting to a non-brand domain](docs/screenshots/hero-phishing-detection.png)
+
+_PhishLens catching a look-alike PayPal login (`paypa1-secure-login.com`) and explaining exactly why it is dangerous. End-to-end walkthrough:_
+
 ![PhishLens end-to-end demo: a safe page, a suspicious page, and a dangerous page triggering the warning overlay](docs/screenshots/demo.gif)
 
 ## Quick Start
