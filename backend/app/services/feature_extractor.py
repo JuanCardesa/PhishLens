@@ -92,6 +92,7 @@ class URLFeatures:
     typosquat_distance: int | None
     typosquat_is_homograph: bool
     mixed_script_label: bool
+    brand_subdomain_target: str | None
 
 
 def extract_url_features(url: str) -> URLFeatures:
@@ -125,6 +126,10 @@ def extract_url_features(url: str) -> URLFeatures:
         else _detect_typosquatting(registered_domain, normalized_label, is_non_ascii_label)
     )
 
+    subdomain_label_count = 0 if uses_ip_domain else max(0, len(labels) - len(registered_domain_parts))
+    subdomain_labels = list(decoded_labels[:subdomain_label_count]) if subdomain_label_count else []
+    brand_subdomain_target = _detect_brand_subdomain_impersonation(registered_domain, subdomain_labels)
+
     return URLFeatures(
         url_length=len(url),
         num_dots=hostname_and_path.count("."),  # query string excluded to avoid false positives
@@ -141,7 +146,36 @@ def extract_url_features(url: str) -> URLFeatures:
         typosquat_distance=typosquat_distance,
         typosquat_is_homograph=typosquat_is_homograph,
         mixed_script_label=mixed_script_label,
+        brand_subdomain_target=brand_subdomain_target,
     )
+
+
+def _detect_brand_subdomain_impersonation(
+    registered_domain: str, subdomain_labels: list[str]
+) -> str | None:
+    """Flag a known brand's full registered domain hidden in the subdomains.
+
+    Attackers put the real brand domain in the left-hand labels so a glancing
+    reader sees it first, e.g. ``paypal.com.account-verify.example`` — where the
+    actual registrable domain is ``account-verify.example`` and typosquat/
+    keyword checks (which only look at the registrable domain) see nothing.
+
+    Requires the brand's *entire* registrable domain to appear as a consecutive
+    run of subdomain labels (``paypal.com``, not the bare label ``paypal``),
+    which keeps false positives low: a legitimate subdomain named after a brand
+    (``visa.mycorp.example``) does not match, but the common look-alike pattern
+    does. Skipped when the page's own registrable domain is itself a known brand
+    (a legitimate ``login.paypal.com``). Returns the matched brand domain or
+    ``None``.
+    """
+    if not registered_domain or registered_domain in KNOWN_BRAND_DOMAINS or not subdomain_labels:
+        return None
+
+    haystack = f".{'.'.join(subdomain_labels)}."
+    for brand_domain in KNOWN_BRAND_DOMAINS:
+        if f".{brand_domain}." in haystack:
+            return brand_domain
+    return None
 
 
 def _idna_decode_label(label: str) -> str:

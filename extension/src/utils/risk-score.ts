@@ -126,6 +126,13 @@ function scoreUrl(features: ReturnType<typeof extractUrlFeatures>): [number, str
     reasons.push("Domain label mixes multiple writing scripts (possible homograph attack)");
   }
 
+  if (features.brand_subdomain_target) {
+    score += 14;
+    reasons.push(
+      `A subdomain embeds ${features.brand_subdomain_target}, but the real registered domain is different (possible impersonation)`,
+    );
+  }
+
   if (features.domain_entropy > 3.8) {
     score += 5;
     reasons.push("Domain has high character entropy");

@@ -165,6 +165,13 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         score += 8
         reasons.append("Domain label mixes multiple writing scripts (possible homograph attack)")
 
+    if features.brand_subdomain_target:
+        score += 14
+        reasons.append(
+            f"A subdomain embeds {features.brand_subdomain_target}, but the real registered "
+            "domain is different (possible impersonation)"
+        )
+
     if features.domain_entropy > 3.8:
         score += 5
         reasons.append("Domain has high character entropy")

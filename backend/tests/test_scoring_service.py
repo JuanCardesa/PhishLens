@@ -131,6 +131,7 @@ def test_scoring_caps_are_enforced() -> None:
             typosquat_distance=None,
             typosquat_is_homograph=False,
             mixed_script_label=False,
+            brand_subdomain_target=None,
         )
     )
     dom_score, _ = _score_dom(
