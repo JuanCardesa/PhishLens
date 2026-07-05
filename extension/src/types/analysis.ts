@@ -28,6 +28,7 @@ export interface URLFeatures {
   typosquat_distance: number | null;
   typosquat_is_homograph: boolean;
   mixed_script_label: boolean;
+  brand_subdomain_target: string | null;
 }
 
 export interface AnalysisSources {

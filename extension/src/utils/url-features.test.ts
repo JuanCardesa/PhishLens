@@ -147,4 +147,24 @@ describe("extractUrlFeatures", () => {
     expect(features.typosquat_is_homograph).toBe(false);
     expect(features.mixed_script_label).toBe(false);
   });
+
+  it("detects a brand's full domain hidden in the subdomains", () => {
+    const features = extractUrlFeatures("https://paypal.com.account-verify.example/login");
+
+    expect(features.brand_subdomain_target).toBe("paypal.com");
+    // The registrable domain is the attacker's, so typosquat sees nothing.
+    expect(features.typosquat_target).toBeNull();
+  });
+
+  it("does not flag a legitimate brand subdomain", () => {
+    const features = extractUrlFeatures("https://login.paypal.com/signin");
+
+    expect(features.brand_subdomain_target).toBeNull();
+  });
+
+  it("does not flag a bare brand label without the full brand domain", () => {
+    const features = extractUrlFeatures("https://paypal.internal.example/");
+
+    expect(features.brand_subdomain_target).toBeNull();
+  });
 });

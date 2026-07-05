@@ -90,6 +90,7 @@ async def test_scoring_combines_url_and_dom_reasons() -> None:
                 num_iframes=0,
                 external_links_ratio=0.1,
                 has_hidden_inputs=False,
+                favicon_hotlinked_brand=True,
             ),
         )
     )
@@ -130,6 +131,7 @@ def test_scoring_caps_are_enforced() -> None:
             typosquat_distance=None,
             typosquat_is_homograph=False,
             mixed_script_label=False,
+            brand_subdomain_target=None,
         )
     )
     dom_score, _ = _score_dom(
@@ -158,16 +160,41 @@ def test_scoring_caps_are_enforced() -> None:
     assert domain_age_score == DOMAIN_AGE_SCORE_CAP
 
 
-def test_score_dom_brand_text_mismatch_and_favicon_hotlink() -> None:
+def test_score_dom_brand_text_mismatch_scores_only_with_credential_context() -> None:
+    # A cloned login page (password field present) that names a mismatched brand
+    # and hotlinks its favicon: password (+8) + brand mismatch (+12) + favicon (+8) = 28.
     score, reasons = _score_dom(
-        DOMFeatures(brand_text_mismatch=True, favicon_hotlinked_brand=True)
+        DOMFeatures(
+            has_password_field=True,
+            brand_text_mismatch=True,
+            favicon_hotlinked_brand=True,
+        )
     )
 
-    assert score == 20
+    assert score == 28
     assert reasons == [
+        "Page contains a password field",
         "Page text references a well-known brand that does not match this domain",
         "Page favicon is hotlinked from a different brand's domain",
     ]
+
+
+def test_score_dom_brand_mention_without_credential_context_is_not_flagged() -> None:
+    # A news article or review that merely names a brand on an unrelated domain
+    # (no password field, no external form action) must NOT be scored as risk —
+    # this is the false-positive regression the credential-context gate fixes.
+    score, reasons = _score_dom(DOMFeatures(brand_text_mismatch=True, num_forms=1))
+
+    assert score == 2  # only "Page contains forms"
+    assert "Page text references a well-known brand that does not match this domain" not in reasons
+
+
+def test_score_dom_hidden_inputs_ignored_without_password_field() -> None:
+    # Hidden inputs alone (CSRF tokens on any ordinary page) are not scored.
+    score, reasons = _score_dom(DOMFeatures(has_hidden_inputs=True))
+
+    assert score == 0
+    assert reasons == []
 
 
 def test_risk_breakdown_preserves_ml_adjustment_bounds() -> None:
