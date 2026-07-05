@@ -84,6 +84,7 @@ def _row_to_url_features(row: "pd.Series[object]") -> URLFeatures:
         typosquat_distance=None,
         typosquat_is_homograph=False,
         mixed_script_label=False,
+        brand_subdomain_target=None,
     )
 
 

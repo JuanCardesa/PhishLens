@@ -8,13 +8,22 @@ export function buildReportSummary(analysis: PopupAnalysis): string {
     `Host: ${host}`,
     `Label: ${analysis.label}`,
     `Risk score: ${analysis.risk_score}/100`,
-    `Confidence: ${Math.round(analysis.confidence * 100)}%`,
+    `Confidence: ${confidenceText(analysis)}`,
     `Mode: ${modeText(analysis.mode)}`,
     "Signals:",
     ...(reasons.length > 0 ? reasons : ["- No high-risk signals were detected"]),
     "",
     "Privacy: this summary excludes full URLs, form values, page text, cookies, screenshots, and HTML.",
   ].join("\n");
+}
+
+function confidenceText(analysis: PopupAnalysis): string {
+  // The heuristic-only confidence is uncalibrated (see docs/ml-methodology.md),
+  // so a copied report qualifies it rather than stating a bare percentage.
+  if (!analysis.sources.ml) {
+    return "heuristic (not a calibrated probability)";
+  }
+  return `${Math.round(analysis.confidence * 100)}%`;
 }
 
 function hostFromUrl(url: string): string {

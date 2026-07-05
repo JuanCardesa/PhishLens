@@ -165,6 +165,13 @@ def _score_url(features: URLFeatures) -> tuple[int, list[str]]:
         score += 8
         reasons.append("Domain label mixes multiple writing scripts (possible homograph attack)")
 
+    if features.brand_subdomain_target:
+        score += 14
+        reasons.append(
+            f"A subdomain embeds {features.brand_subdomain_target}, but the real registered "
+            "domain is different (possible impersonation)"
+        )
+
     if features.domain_entropy > 3.8:
         score += 5
         reasons.append("Domain has high character entropy")
@@ -176,8 +183,17 @@ def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
     score = 0
     reasons: list[str] = []
 
+    # A password field or a form that posts to another origin is the "credential
+    # context": the page has somewhere to enter and exfiltrate secrets. Several
+    # signals below are only phishing-relevant in that context. A brand name in
+    # the page text, a hidden input, or a form on an ordinary content page (a
+    # news article, a search box, a CSRF token) is the everyday web — scoring it
+    # as risk produces false positives on legitimate pages. Kept identical to
+    # scoreDom in extension/src/utils/risk-score.ts (see test_scoring_parity.py).
+    credential_context = features.has_password_field or features.external_form_action
+
     if features.num_forms > 0:
-        score += 4
+        score += 2
         reasons.append("Page contains forms")
 
     if features.has_password_field:
@@ -199,11 +215,17 @@ def _score_dom(features: DOMFeatures) -> tuple[int, list[str]]:
         score += 5
         reasons.append("Page has a high ratio of external links")
 
-    if features.has_hidden_inputs:
-        score += 4
-        reasons.append("Page contains hidden form inputs")
+    # Hidden inputs are ubiquitous (CSRF tokens, analytics, framework state) and
+    # only weakly corroborate phishing when the page is already collecting a
+    # password. On their own they are noise.
+    if features.has_hidden_inputs and features.has_password_field:
+        score += 3
+        reasons.append("Page contains hidden inputs alongside a password field")
 
-    if features.brand_text_mismatch:
+    # Brand impersonation is only a threat when there is a credential surface to
+    # steal into. A page that merely names a brand on an unrelated domain (a
+    # review, a news story, a comparison) is not phishing.
+    if features.brand_text_mismatch and credential_context:
         score += 12
         reasons.append("Page text references a well-known brand that does not match this domain")
 

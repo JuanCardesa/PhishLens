@@ -89,6 +89,36 @@ def test_extract_url_features_does_not_flag_unrelated_domains() -> None:
     assert features.typosquat_distance is None
 
 
+def test_extract_url_features_detects_brand_domain_hidden_in_subdomains() -> None:
+    features = extract_url_features("https://paypal.com.account-verify.example/login")
+
+    assert features.brand_subdomain_target == "paypal.com"
+    # The registrable domain is the attacker's, so typosquat (which only looks at
+    # the registrable domain) sees nothing — this is the gap the signal closes.
+    assert features.typosquat_target is None
+
+
+def test_extract_url_features_detects_deep_brand_subdomain() -> None:
+    features = extract_url_features("https://accounts.google.com.phish.example.tk/")
+
+    assert features.brand_subdomain_target == "google.com"
+
+
+def test_extract_url_features_does_not_flag_legit_brand_subdomain() -> None:
+    # login.paypal.com IS PayPal — the registrable domain is the brand itself.
+    features = extract_url_features("https://login.paypal.com/signin")
+
+    assert features.brand_subdomain_target is None
+
+
+def test_extract_url_features_does_not_flag_partial_brand_label_in_subdomain() -> None:
+    # Only the bare label "paypal" appears, not the full "paypal.com" — a
+    # legitimate internal subdomain named after a brand must not be flagged.
+    features = extract_url_features("https://paypal.internal.example/")
+
+    assert features.brand_subdomain_target is None
+
+
 @pytest.mark.parametrize(
     ("url", "expected_hyphens"),
     (

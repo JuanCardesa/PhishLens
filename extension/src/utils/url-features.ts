@@ -98,6 +98,10 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
     ? [null, null, false]
     : detectTyposquatting(registeredDomain, normalizedLabel, isNonAsciiLabel);
 
+  const subdomainLabelCount = usesIpDomain ? 0 : Math.max(0, labels.length - registeredDomainParts.length);
+  const subdomainLabels = subdomainLabelCount > 0 ? decodedLabels.slice(0, subdomainLabelCount) : [];
+  const brandSubdomainTarget = detectBrandSubdomainImpersonation(registeredDomain, subdomainLabels);
+
   return {
     url_length: rawUrl.length,
     num_dots: count(hostnameAndPath, "."), // query string excluded to avoid false positives
@@ -114,7 +118,37 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
     typosquat_distance: typosquatDistance,
     typosquat_is_homograph: typosquatIsHomograph,
     mixed_script_label: mixedScriptLabel,
+    brand_subdomain_target: brandSubdomainTarget,
   };
+}
+
+/**
+ * Flag a known brand's full registered domain hidden in the subdomains, e.g.
+ * "paypal.com.account-verify.example" — where the actual registrable domain is
+ * "account-verify.example" and typosquat/keyword checks (which only look at the
+ * registrable domain) see nothing. Requires the brand's *entire* registered
+ * domain to appear as a consecutive run of subdomain labels ("paypal.com", not
+ * the bare label "paypal"), keeping false positives low. Skipped when the
+ * page's own registrable domain is itself a known brand (a legitimate
+ * "login.paypal.com"). Returns the matched brand domain, or null.
+ *
+ * Kept in sync with feature_extractor.py::_detect_brand_subdomain_impersonation.
+ */
+function detectBrandSubdomainImpersonation(
+  registeredDomain: string,
+  subdomainLabels: string[],
+): string | null {
+  if (!registeredDomain || KNOWN_BRAND_DOMAINS.includes(registeredDomain) || subdomainLabels.length === 0) {
+    return null;
+  }
+
+  const haystack = `.${subdomainLabels.join(".")}.`;
+  for (const brandDomain of KNOWN_BRAND_DOMAINS) {
+    if (haystack.includes(`.${brandDomain}.`)) {
+      return brandDomain;
+    }
+  }
+  return null;
 }
 
 /**

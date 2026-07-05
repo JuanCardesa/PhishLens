@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { AnalysisMode, PopupAnalysis } from "../types/analysis";
-import { cacheKey, labelSymbol, labelText, modeBannerText, modeLabel, sourceList } from "./Popup";
+import {
+  cacheKey,
+  confidenceDisplay,
+  labelSymbol,
+  labelText,
+  modeBannerText,
+  modeLabel,
+  sourceList,
+} from "./Popup";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -22,6 +30,26 @@ function makeAnalysis(overrides: Partial<PopupAnalysis> = {}): PopupAnalysis {
     ...overrides,
   };
 }
+
+// ---------------------------------------------------------------------------
+// confidenceDisplay
+// ---------------------------------------------------------------------------
+
+describe("confidenceDisplay", () => {
+  it("shows a percentage only when the ML model contributed", () => {
+    const withMl = makeAnalysis({ confidence: 0.93, sources: { heuristics: true, ml: true, phishtank: false, tls: false, demo: false } });
+    expect(confidenceDisplay(withMl)).toBe("93%");
+  });
+
+  it("shows 'Heuristic' instead of an uncalibrated percentage when ML is absent", () => {
+    const noMl = makeAnalysis({ confidence: 0.9, sources: { heuristics: true, ml: false, phishtank: false, tls: false, demo: false } });
+    expect(confidenceDisplay(noMl)).toBe("Heuristic");
+  });
+
+  it("returns a placeholder when there is no analysis yet", () => {
+    expect(confidenceDisplay(null)).toBe("--");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // labelText
