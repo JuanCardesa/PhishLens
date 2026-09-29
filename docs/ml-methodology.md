@@ -59,18 +59,50 @@ which fails the build if the distributions stop overlapping.
 
 ### Measured performance (real dataset, 1200 rows, post-fix)
 
-From a `train_model.py` run against the committed `real_phishing_urls.csv` (33% stratified
-hold-out, plus 5-fold stratified cross-validation on the full set):
+`train_model.py` reports only CV **accuracy**, which is a weak headline for a detector because it
+hides the precision/recall trade-off. `ml/evaluate_cv_metrics.py` re-runs the same model
+(`RandomForestClassifier`, identical hyperparameters) under stratified 5-fold cross-validation and
+reports the full phishing metric set. Phishing is the positive class; the confusion matrix and FPR
+are aggregated out-of-fold via `cross_val_predict` (every row predicted exactly once), so they are
+a true aggregate, not an average of per-fold matrices.
 
-- Stratified 5-fold CV accuracy: **0.907 ± 0.008**
-- Hold-out (396 rows) accuracy: **0.92** — precision 0.87/recall 0.99/F1 0.93 for legitimate
-  URLs, precision 0.99/recall 0.85/F1 0.92 for phishing URLs. Confusion matrix (rows/cols = legitimate,
-  phishing), from a `python ml/train_model.py` run against the committed CSV:
+```bash
+cd ml
+python evaluate_cv_metrics.py
+```
 
-  |               | Predicted legit | Predicted phishing |
-  |---------------|-----------------:|--------------------:|
-  | **Actual legit**     | 197 | 1   |
-  | **Actual phishing**  | 29  | 169 |
+| Metric | As-is (N=1,200) | Leakage-corrected (N=915) |
+|--------|----------------:|--------------------------:|
+| Class balance (phishing / legit) | 600 / 600 (50.0%) | 481 / 434 (52.6%) |
+| Precision | 0.990 | 0.993 |
+| Recall | 0.822 | 0.869 |
+| F1 | 0.898 | 0.927 |
+| False-positive rate | 0.0083 | 0.0069 |
+| ROC-AUC | 0.966 | 0.970 |
+| Accuracy | 0.907 | 0.928 |
+| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[595, 5], [107, 493]]` | `[[431, 3], [63, 418]]` |
+
+**Headline: 99.0% precision / 82.2% recall (5-fold stratified CV, N=1,200).** Accuracy (0.907)
+reproduces the historical claim exactly (1,088 / 1,200 correct) but masks the real story — the model
+catches ~82% of phishing at near-perfect precision, so its weakness is missed phishing, not false
+alarms. This dataset is balanced 50/50 by construction, so accuracy is not misleading here because
+of class imbalance; it is misleading because it averages a strong precision against a weaker recall.
+
+**Leakage check.** The committed CSV stores only numeric features and a label, never domains (see
+above), so domain-level leakage (same host in train and test) cannot be verified from the file. The
+closest observable proxy is duplicate feature vectors: **439 of the 1,200 rows are exact duplicates**
+(915 distinct vectors), because PhishTank captures many paths on one host and Tranco roots collapse
+to identical numeric rows, so a random k-fold split can place identical vectors in both train and
+test. The "Leakage-corrected" column removes that vector by deduplicating to one row per distinct
+feature vector. Because the corrected numbers are *higher*, not lower, the duplicates are
+conservative, not inflationary — the headline accuracy is **not** propped up by leakage. Both columns
+are reported for transparency; the as-is column is the conservative figure.
+
+For reference, an earlier `train_model.py` run against the same CSV reported a single 33% hold-out
+(396 rows) at 0.92 accuracy — precision 0.87/recall 0.99/F1 0.93 for legitimate URLs, precision
+0.99/recall 0.85/F1 0.92 for phishing, confusion matrix `[[197, 1], [29, 169]]` (rows/cols =
+legitimate, phishing). The 5-fold CV table above supersedes it as the primary estimate because it
+uses every row for both training and evaluation and reports FPR and ROC-AUC.
 
 - Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
   `uses_https`
