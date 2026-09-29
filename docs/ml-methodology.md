@@ -122,8 +122,9 @@ fix above, the same evaluation reported 99.0% precision / 82.2% recall and a fal
 of 0.8%. Recall barely moved, but precision collapsed. The old model rarely raised a false alarm on
 its own dataset because that dataset had no legitimate page on a subdomain. On this dataset, which
 has them, it wrongly flags more than 1 legitimate URL in 5. That is the honest performance of a
-URL-shape-only model, and why the ML signal is a bounded adjustment (−10 to +20) on top of the
-rule-based score, not a verdict. The dataset is balanced 50/50 by construction, so accuracy (0.797)
+URL-shape-only model, and why the ML signal is a bounded adjustment (−5 to +12, sized in
+[Sizing the ML adjustment](#sizing-the-ml-adjustment)) on top of the rule-based score, not a
+verdict. The dataset is balanced 50/50 by construction, so accuracy (0.797)
 is not distorted by class imbalance here, but it still hides where the errors are.
 
 **Leakage check.** The committed CSV stores only numeric features and a label, never domains (see
@@ -142,22 +143,50 @@ as-is column is the conservative figure.
 the primary estimate because it uses every row for both training and evaluation and reports FPR and
 ROC-AUC.
 
-**What the ML adjustment does in practice.** Mapping each out-of-fold probability through
-`_adjustment_from_probability` shows how often the model moves a page's score:
-
-| ML adjustment | Legitimate rows | Phishing rows |
-|---:|---:|---:|
-| −10 | 30.2% | 1.3% |
-| −5 | 30.3% | 8.3% |
-| 0 | 32.8% | 29.8% |
-| +12 | 6.3% | 43.7% |
-| +20 | 0.3% | 16.8% |
-
-So about 1 legitimate URL in 15 gets +12 or +20. Before the fix, the table looked far cleaner on the
-dataset (0.2% of legitimate rows), but every legitimate page on a subdomain got +20 in real use.
-
 - Top feature importances: `domain_entropy`, `num_dots`, `url_length`, `num_subdomains`,
   `uses_https`
+
+### Sizing the ML adjustment
+
+`ml_service._adjustment_from_probability` turns the model's phishing probability into score points.
+Those points should match how much the probability actually tells us, so
+`ml/evaluate_ml_adjustment.py` measures, per probability band, the share of legitimate and phishing
+URLs in it and the **likelihood ratio** (LR: phishing share / legitimate share, how many times more
+likely that band is on phishing). It does so on out-of-fold CV predictions and, with `--temporal`,
+on the temporal split below (a model trained on phishing over two years old, scored on phishing
+from the last 14 days):
+
+```bash
+cd ml
+python evaluate_ml_adjustment.py --temporal
+```
+
+| Probability band | CV legit / phishing | CV LR | Temporal legit / phishing | Temporal LR | Adjustment |
+|---|---:|---:|---:|---:|---:|
+| p ≤ 0.20 | 30.2% / 1.3% | 0.04 | 45.7% / 19.3% | 0.42 | −5 (was −10) |
+| 0.20 < p ≤ 0.35 | 30.3% / 8.3% | 0.27 | 26.3% / 13.3% | 0.51 | −5 |
+| 0.35 < p < 0.65 | 32.8% / 29.8% | 0.91 | 25.7% / 41.3% | 1.61 | 0 |
+| 0.65 ≤ p < 0.85 | 6.3% / 43.7% | 6.89 | 2.0% / 22.3% | 11.17 | +12 |
+| p ≥ 0.85 | 0.3% / 16.8% | 50.50 | 0.3% / 3.7% | 11.00 | +12 (was +20) |
+
+The temporal columns describe deployment: phishing the model has never seen. They changed the
+mapping in two places. The mapping used to be −10 / −5 / 0 / +12 / +20, which was reasonable in
+CV:
+
+- **No more +20.** On new phishing, p ≥ 0.85 is exactly as strong as 0.65–0.85 (LR 11.0 vs
+  11.2). The extra 8 points only reflected in-distribution confidence. Both bands now add +12,
+  which still matches an LR of about 11: it is strong evidence, and it rarely fires on legitimate
+  URLs (2.3% on the temporal split).
+- **No more −10.** CV said p ≤ 0.20 was almost never phishing (LR 0.04). On new phishing it holds
+  19% of phishing URLs and is only weak evidence (LR 0.42), so −10 was subtracting 10 points from
+  about 1 in 5 current phishing pages. The whole p ≤ 0.35 range now gets −5, in line with its weak
+  evidence (LR ≈ 0.45 combined).
+
+The result is an adjustment of −5 to +12 (`ML_MIN_ADJUSTMENT` / `ML_MAX_ADJUSTMENT` in
+`scoring_service.py`, mirrored in `risk-score.ts`). In CV it raises 6.7% of legitimate URLs by
++12 and lowers 9.7% of phishing URLs by 5. On the temporal split it raises 2.3% of legitimate URLs
+and lowers 32.7% of phishing URLs, now by 5 points instead of up to 10. The demo pages, the cloned
+PayPal login (0), and the real PayPal sign-in page (−5) get the same adjustment as before.
 
 ### Train/inference feature mismatch (important caveat on the numbers above)
 

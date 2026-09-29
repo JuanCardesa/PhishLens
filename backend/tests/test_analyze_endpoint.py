@@ -40,7 +40,7 @@ def test_analyze_returns_explainable_score_without_external_dependencies() -> No
     ]
     assert payload["risk_breakdown"][0]["max_score"] == 35
     assert payload["risk_breakdown"][1]["max_score"] == 30
-    assert payload["risk_breakdown"][5]["min_score"] == -10
+    assert payload["risk_breakdown"][5]["min_score"] == -5
 
 
 def test_analyze_rejects_non_http_url() -> None:

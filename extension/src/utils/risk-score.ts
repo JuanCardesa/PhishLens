@@ -6,8 +6,9 @@ const DOM_SCORE_CAP = 30;
 const THREAT_INTEL_SCORE_CAP = 40;
 const TLS_SCORE_CAP = 15;
 const DOMAIN_AGE_SCORE_CAP = 20;
-const ML_MIN_ADJUSTMENT = -10;
-const ML_MAX_ADJUSTMENT = 20;
+// Same range as ML_MIN_ADJUSTMENT / ML_MAX_ADJUSTMENT in scoring_service.py.
+const ML_MIN_ADJUSTMENT = -5;
+const ML_MAX_ADJUSTMENT = 12;
 
 // URL and DOM are the only categories scored without the backend, and their raw
 // max (URL_SCORE_CAP + DOM_SCORE_CAP = 65) is below the "dangerous" threshold of 70.

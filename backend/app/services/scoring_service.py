@@ -27,8 +27,9 @@ DOM_SCORE_CAP = 30
 THREAT_INTEL_SCORE_CAP = 40
 TLS_SCORE_CAP = 15
 DOMAIN_AGE_SCORE_CAP = 20
-ML_MIN_ADJUSTMENT = -10
-ML_MAX_ADJUSTMENT = 20
+# The range _adjustment_from_probability in ml_service.py can produce.
+ML_MIN_ADJUSTMENT = -5
+ML_MAX_ADJUSTMENT = 12
 
 # URL and DOM are the only categories the extension can score without the
 # backend. Their combined points are scaled onto 0-100 here exactly as

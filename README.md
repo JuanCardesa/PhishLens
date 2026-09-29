@@ -265,11 +265,11 @@ The zip is written to `extension/release/`.
 **78.5% precision / 81.7% recall (5-fold stratified CV, N=1,200)** for the shipped
 `RandomForestClassifier` on the committed PhishTank + Tranco dataset, with a **22% false-positive
 rate**. This is a modest, URL-shape-only model. That is why it only nudges the rule-based score
-(−10 to +20) and never decides a verdict on its own.
+(−5 to +12) and never decides a verdict on its own.
 
 These numbers used to read 99.0% precision / 0.8% false positives. That was a dataset artifact:
 599 of the 600 legitimate URLs had no subdomain, so the model learned "has a subdomain" as
-phishing and gave `www.paypal.com` and `accounts.google.com` the maximum +20. Once legitimate
+phishing and gave `www.paypal.com` and `accounts.google.com` the then-maximum +20. Once legitimate
 URLs got realistic subdomains, and `www.` stopped counting as one, precision fell to its honest
 level (see [Lessons Learned](#lessons-learned)).
 
@@ -288,14 +288,18 @@ exactly once).
 | Accuracy | 0.797 | 0.804 |
 | Confusion matrix `[[TN, FP], [FN, TP]]` | `[[466, 134], [110, 490]]` | `[[423, 115], [91, 423]]` |
 
-**What that means for a page's score:** out-of-fold, the model adds +12 or +20 to 6.6% of
-legitimate URLs and to 60.5% of phishing URLs. It subtracts 5 or 10 from 60.5% of legitimate URLs
-and 9.6% of phishing URLs.
-
 **It does not hold up over time.** Trained on phishing more than two years old and tested on
 phishing from the last 14 days, it catches only 42% of new phishing (0.67 accuracy). URL shape
 ages quickly; domain age and DOM signals in the training data are the next step (see
 [docs/ml-methodology.md](docs/ml-methodology.md#temporal-validation-train-on-older-phishing-test-on-newer)).
+
+**What that means for a page's score:** the adjustment is sized to what the model gets right on
+*new* phishing, not on its own dataset (`python ml/evaluate_ml_adjustment.py --temporal`). A high
+probability is strong evidence even on new campaigns, about 11 times more likely on phishing, so it
+adds +12. A low probability is only weak evidence there and still covers a third of new phishing,
+so it subtracts just 5. On new data the model raises 2.3% of legitimate URLs and lowers 32.7% of
+phishing URLs, by 5 points. It used to be −10 to +20, sized to in-dataset confidence (see
+[Sizing the ML adjustment](docs/ml-methodology.md#sizing-the-ml-adjustment)).
 
 **On class balance:** this dataset is balanced 50/50 by construction, so the usual "accuracy is
 misleading because phishing is rare" caveat doesn't apply to *this* evaluation. In production,
@@ -334,7 +338,8 @@ URL-length and subdomain dataset biases that were found and fixed, and the tempo
   inputs are what a credential page is, legitimate or not. The real PayPal sign-in page gets about
   16 of 30 there (25 once scaled), which stays Safe on its own but leaves less room for other
   signals.
-- The ML model is URL-shape only and adds +12 or +20 to about 1 legitimate URL in 15 (see
+- The ML model is URL-shape only. It adds +12 to 6.7% of legitimate URLs in cross-validation
+  (2.3% on newer data), and on new phishing it subtracts 5 points about a third of the time (see
   [ML model performance](#ml-model-performance)).
 - The current build prioritizes explainability and safe defaults over coverage.
 

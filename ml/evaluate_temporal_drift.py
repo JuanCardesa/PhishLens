@@ -117,8 +117,13 @@ def _fetch_tranco_window(list_url: str, low_rank: int, high_rank: int) -> list[s
     return domains
 
 
-def main() -> int:
-    builder = _load_dataset_builder()
+TemporalSplit = tuple[list[list[float]], list[int], list[list[float]], list[int]]
+
+
+def build_temporal_split(builder: ModuleType) -> TemporalSplit | None:
+    """Return (x_train, y_train, x_test, y_test): old phishing + a Tranco sample to
+    train on, recent phishing + a disjoint Tranco window to test on. Also used by
+    evaluate_ml_adjustment.py. Returns None if any sample pool came back empty."""
     feature_columns = builder.FEATURE_COLUMNS[:-1]  # drop "label"
 
     now = datetime.now(timezone.utc)
@@ -148,7 +153,7 @@ def main() -> int:
 
     if not train_phishing or not test_phishing or not train_legit or not test_legit:
         logger.error("Temporal validation aborted — one of the sample pools was empty.")
-        return 1
+        return None
 
     def to_rows(urls: list[str], label: int) -> list[dict]:
         rows = [builder.extract_url_features(url, label=label) for url in urls]
@@ -164,8 +169,21 @@ def main() -> int:
 
     print(f"\nTrain set: {len(x_train)} rows ({sum(y_train)} phishing, {len(y_train) - sum(y_train)} legit)")
     print(f"Test set:  {len(x_test)} rows ({sum(y_test)} phishing, {len(y_test) - sum(y_test)} legit)")
+    return x_train, y_train, x_test, y_test
 
-    model = RandomForestClassifier(n_estimators=120, max_depth=5, random_state=42, class_weight="balanced")
+
+def make_model() -> RandomForestClassifier:
+    # Same hyperparameters as train_model.py.
+    return RandomForestClassifier(n_estimators=120, max_depth=5, random_state=42, class_weight="balanced")
+
+
+def main() -> int:
+    split = build_temporal_split(_load_dataset_builder())
+    if split is None:
+        return 1
+    x_train, y_train, x_test, y_test = split
+
+    model = make_model()
     model.fit(x_train, y_train)
     predictions = model.predict(x_test)
 

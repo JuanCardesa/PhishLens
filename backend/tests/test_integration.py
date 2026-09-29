@@ -150,8 +150,8 @@ def test_analyze_dom_breakdown_max_score_is_30() -> None:
 def test_analyze_ml_breakdown_bounds() -> None:
     body = _post_analyze(_BENIGN_URL)
     ml_item = next(item for item in body["risk_breakdown"] if item["category"] == "ml")
-    assert ml_item["min_score"] == -10
-    assert ml_item["max_score"] == 20
+    assert ml_item["min_score"] == -5
+    assert ml_item["max_score"] == 12
 
 
 def test_analyze_tls_source_field_is_string() -> None:
