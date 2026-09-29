@@ -30,6 +30,19 @@ DOMAIN_AGE_SCORE_CAP = 20
 ML_MIN_ADJUSTMENT = -10
 ML_MAX_ADJUSTMENT = 20
 
+# URL and DOM are the only categories the extension can score without the
+# backend. Their combined points are scaled onto 0-100 here exactly as
+# analyzeLocally does in extension/src/utils/risk-score.ts, and every backend-only
+# category (threat intel, TLS, domain age, ML) is added on top. So the backend
+# score is the local score plus enrichment: a page never drops from Dangerous 95
+# locally to 74 once the backend answers, and URL + DOM evidence alone can reach
+# "dangerous" here too instead of topping out at 65.
+HEURISTIC_MAX_SCORE = URL_SCORE_CAP + DOM_SCORE_CAP
+
+
+def scale_heuristic_score(url_score: int, dom_score: int) -> int:
+    return round((url_score + dom_score) / HEURISTIC_MAX_SCORE * 100)
+
 
 def label_from_score(score: int) -> RiskLabel:
     if score >= 70:
@@ -68,7 +81,11 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     ml_reasons = _ml_reasons(ml_result)
 
     raw_score = (
-        url_score + dom_score + threat_score + tls_score + domain_age_score + ml_result.adjustment
+        scale_heuristic_score(url_score, dom_score)
+        + threat_score
+        + tls_score
+        + domain_age_score
+        + ml_result.adjustment
     )
     risk_score = max(0, min(100, round(raw_score)))
     risk_breakdown = _build_risk_breakdown(

@@ -22,6 +22,7 @@ from app.services.scoring_service import (
     _score_url,
     analyze_url,
     label_from_score,
+    scale_heuristic_score,
 )
 from app.services.tls_service import TLSResult
 
@@ -107,10 +108,47 @@ async def test_scoring_combines_url_and_dom_reasons() -> None:
         "domain_age",
         "ml",
     }
-    # The raw sum of breakdown scores equals risk_score only when the total is
-    # below 100; at or above the cap they diverge because risk_score is clamped.
-    raw_sum = sum(item.score for item in result.risk_breakdown)
-    assert result.risk_score == max(0, min(100, raw_sum))
+    # URL + DOM are scaled onto 0-100 (the same score the extension computes
+    # locally) and the backend-only categories are added on top, then clamped.
+    scores = {item.category: item.score for item in result.risk_breakdown}
+    expected = (
+        scale_heuristic_score(scores["url"], scores["dom"])
+        + scores["threat_intel"]
+        + scores["tls"]
+        + scores["domain_age"]
+        + scores["ml"]
+    )
+    assert result.risk_score == max(0, min(100, expected))
+
+
+@pytest.mark.asyncio
+async def test_backend_score_equals_local_score_when_no_enrichment_fires() -> None:
+    # Regression: the backend used to add URL + DOM points unscaled, so this page
+    # read Dangerous 95 in the extension and then dropped to 62 (Suspicious)
+    # when the backend answered with no extra evidence. The ML model, PhishTank,
+    # and RDAP are disabled in tests and TLS is skipped for http.
+    result = await analyze_url(
+        AnalysisRequest(
+            url="http://paypal-verify-account.net/signin",
+            dom_features=DOMFeatures(
+                has_password_field=True,
+                num_forms=1,
+                external_form_action=True,
+                brand_text_mismatch=True,
+            ),
+        )
+    )
+
+    scores = {item.category: item.score for item in result.risk_breakdown}
+    assert (scores["url"], scores["dom"]) == (32, 30)
+    assert result.risk_score == 95
+    assert result.label == "dangerous"
+
+
+def test_scale_heuristic_score_maps_url_and_dom_caps_onto_0_100() -> None:
+    assert scale_heuristic_score(0, 0) == 0
+    assert scale_heuristic_score(5, 0) == 8
+    assert scale_heuristic_score(URL_SCORE_CAP, DOM_SCORE_CAP) == 100
 
 
 def test_scoring_caps_are_enforced() -> None:

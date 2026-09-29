@@ -17,6 +17,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.scoring_service import scale_heuristic_score
 
 
 client = TestClient(app)
@@ -119,10 +120,19 @@ def test_analyze_heuristics_source_always_true() -> None:
     assert body["sources"]["heuristics"] is True
 
 
-def test_analyze_breakdown_score_sum_matches_risk_score() -> None:
+def test_analyze_breakdown_scores_combine_into_risk_score() -> None:
     body = _post_analyze(_PHISHING_URL, {"has_password_field": True})
-    raw_sum = sum(item["score"] for item in body["risk_breakdown"])
-    assert body["risk_score"] == max(0, min(100, raw_sum))
+    scores = {item["category"]: item["score"] for item in body["risk_breakdown"]}
+    # URL + DOM scaled onto 0-100 (the extension's local score), plus every
+    # backend-only category on top.
+    expected = (
+        scale_heuristic_score(scores["url"], scores["dom"])
+        + scores["threat_intel"]
+        + scores["tls"]
+        + scores["domain_age"]
+        + scores["ml"]
+    )
+    assert body["risk_score"] == max(0, min(100, expected))
 
 
 def test_analyze_url_breakdown_max_score_is_35() -> None:

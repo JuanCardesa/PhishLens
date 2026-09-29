@@ -45,6 +45,8 @@ Browser tab
 | `domain_age` | `0..20` | Optional RDAP domain registration age. Domains registered in the last 30/180 days score higher; missing or privacy-protected registration data scores 0 (not treated as suspicious). |
 | `ml` | `-10..20` | Optional model adjustment. Missing model artifacts use a neutral fallback. |
 
+The final `risk_score` is not the plain sum of these categories. `url` and `dom` are the only categories the extension can score offline, so their combined points are scaled onto 0-100 (`round((url + dom) / 65 × 100)`, `scale_heuristic_score` in `scoring_service.py`). That scaled value is exactly the extension's local score (`analyzeLocally` in `risk-score.ts`). The backend then adds `threat_intel`, `tls`, `domain_age`, and `ml` on top and clamps the result to 0-100. The backend score is therefore the local score plus enrichment: only a negative ML adjustment can lower it. `label` uses the same thresholds in both modes: `safe` below 35, `suspicious` from 35, `dangerous` from 70. `contracts/scoring-vectors.json` asserts the scaled score and label on both sides.
+
 The top-level `reasons` list remains for compatibility. New UI should prefer `risk_breakdown` because it includes category, score, cap, source, and reasons.
 
 ## Extension And Backend Boundary

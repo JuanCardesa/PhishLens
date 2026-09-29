@@ -322,11 +322,6 @@ URL-length dataset bias that was found and fixed, and the temporal-drift validat
   **Suspicious 36** when the demo was recorded. Its genuine login form, password field, reCAPTCHA
   iframes, and hidden inputs raise the page-structure score, and the ML model adds +20 citing the
   number of subdomains and dots, so it effectively penalizes the `www.` prefix.
-- The local score and the backend-enriched score are on the same 0-100 scale but can disagree
-  noticeably for the same page. On the cloned PayPal login in the demo recording, the popup first
-  showed the local-only score (95) and then the backend score (74). The toolbar badge always
-  reflects the local label (`!`, `?`, or nothing), never the backend result, so the two can
-  disagree.
 - The current build prioritizes explainability and safe defaults over coverage.
 
 ## Lessons Learned
@@ -347,6 +342,13 @@ informative than the fact that the code is now clean:
   against a smaller scale than the backend's (70) without reconciling the two. Fixed by
   scaling the local score onto the backend's 0-100 range before applying the same
   threshold.
+- **That fix only scaled one side, so the two scores disagreed.** The backend kept adding URL
+  and DOM points unscaled. The cloned PayPal login in the demo recording read Dangerous 95 in the
+  popup and then 74 once the backend answered, and without the ML's +12 the backend would have
+  called it Suspicious 62: on the backend, URL and DOM evidence alone topped out at 65. Found
+  while recording the demo video, not by any test, because each side's tests only checked its own
+  formula. Fixed by having the backend start from the same scaled score and add its own
+  categories on top. The shared scoring contract now asserts that combined score on both sides.
 - **Backtesting the URL heuristic weights surfaced their own blind spot.** Without
   typosquat/homograph signals (which need the raw domain — not stored in the dataset for
   privacy), the remaining numeric-only heuristics never reach the scoring cap on this

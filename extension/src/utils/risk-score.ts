@@ -9,12 +9,12 @@ const DOMAIN_AGE_SCORE_CAP = 20;
 const ML_MIN_ADJUSTMENT = -10;
 const ML_MAX_ADJUSTMENT = 20;
 
-// Local-only mode never has threat-intel/TLS/ML signals, so its raw max
-// (URL_SCORE_CAP + DOM_SCORE_CAP = 65) is always lower than the backend's. Scaling
-// the combined local score onto the same 0-100 range before applying the backend's
-// thresholds (label_from_score in scoring_service.py) keeps "dangerous" reachable
-// locally and makes the label mean the same thing in both modes: how much of the
-// signals that ARE available fired, not an absolute score on different scales.
+// URL and DOM are the only categories scored without the backend, and their raw
+// max (URL_SCORE_CAP + DOM_SCORE_CAP = 65) is below the "dangerous" threshold of 70.
+// Scaling them onto 0-100 keeps "dangerous" reachable offline. The backend starts
+// from this same scaled score (scale_heuristic_score in scoring_service.py) and adds
+// threat intel, TLS, domain age, and ML on top, so enrichment refines this number
+// instead of replacing it with one on a different scale.
 const LOCAL_MAX_SCORE = URL_SCORE_CAP + DOM_SCORE_CAP;
 
 // Exported so the popup can strip the fragment before the URL ever leaves the
