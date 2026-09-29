@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,10 +31,18 @@ class SQLiteFeedbackStore:
         self._lock = threading.Lock()
         self._init_schema()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        # `with sqlite3.connect(...)` only commits or rolls back; it never closes
+        # the connection, so every call used to leave one open until garbage
+        # collection. Close it explicitly once the transaction is done.
         conn = sqlite3.connect(self._db_path)
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_schema(self) -> None:
         with self._lock, self._connect() as conn:
@@ -48,7 +58,10 @@ class SQLiteFeedbackStore:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at)")
-            conn.execute("DELETE FROM feedback WHERE created_at < datetime('now', '-30 days')")
+            # created_at is ISO 8601 with a "T" and a UTC offset; datetime() normalizes it
+            # before comparing. A plain string comparison against datetime('now', ...)
+            # kept rows from the cutoff day up to ~24h past the 30-day window.
+            conn.execute("DELETE FROM feedback WHERE datetime(created_at) < datetime('now', '-30 days')")
 
     def record(self, entry: FeedbackEntry) -> None:
         with self._lock, self._connect() as conn:
