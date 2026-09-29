@@ -1,0 +1,9 @@
+# Lint rules are selected explicitly so a new Ruff release cannot change what CI
+# enforces. backend/requirements-dev.txt allows any ruff < 1.0, and Ruff 0.16
+# enabled many more rule families by default (import sorting, SIM, BLE, UP, TRY,
+# ...), which failed Backend CI on code that had not changed. These are the
+# default rules this project has been linted with (Ruff 0.15 and earlier).
+# Adopting a broader rule set is a deliberate change: add the codes here and fix
+# the findings in the same commit.
+[lint]
+select = ["E4", "E7", "E9", "F"]
