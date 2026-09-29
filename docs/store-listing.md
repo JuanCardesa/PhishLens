@@ -32,13 +32,14 @@ HOW IT WORKS
 PhishLens can run local page-structure checks for its badge on HTTP/HTTPS pages. When you open the popup, it shows the current analysis and can add optional backend enrichment:
 
 1. Local heuristics — instant, private, no backend calls
-   • URL signals: length, dot/hyphen density, IP-based domains, @ symbols, suspicious keywords in the hostname and path, punycode characters, and Shannon entropy of the domain name.
+   • URL signals: look-alike domains of frequently impersonated brands (typosquatting such as paypa1.com, and Unicode homographs that swap in look-alike characters), a brand's full domain hidden in subdomains, labels mixing writing scripts, length, dot/hyphen density, IP-based domains, @ symbols, suspicious keywords in the hostname and path, and Shannon entropy of the domain name.
    • Page-structure signals: presence of login forms, password fields, forms that submit data to external domains, iframes, hidden inputs, the ratio of external links, and local brand-mismatch booleans derived from limited page metadata.
 
 2. Optional backend enrichment from the popup — richer signals when you run the companion API
-   • TLS certificate validation and expiry check for the current domain.
+   • TLS certificate validation and expiry check for the current domain, plus Certificate Transparency logs to flag domains whose first certificate is less than a week old.
+   • Domain registration age via RDAP: domains registered in the last 30 or 180 days add risk.
    • PhishTank threat-intelligence lookup (requires a free API key on your self-hosted backend).
-   • Machine-learning model adjustment trained on URL-derived numeric features.
+   • A small machine-learning adjustment (−5 to +12 points) from a model trained on URL-derived numeric features.
 
 Results are shown as a risk score (0–100) labelled Safe, Suspicious, or Dangerous, with a per-category breakdown explaining exactly what contributed to the score.
 
@@ -53,7 +54,7 @@ PhishLens is built around minimal data collection:
 
 EXPLAINABILITY
 
-Every risk score comes with a structured breakdown. You can see exactly how many points each category (URL, page structure, TLS, threat intelligence, ML) contributed, and why. There are no black-box verdicts.
+Every risk score comes with a structured breakdown. You can see exactly how many points each category (URL, page structure, threat intelligence, TLS, domain age, ML) contributed, and why. There are no black-box verdicts.
 
 OFFLINE FIRST
 
@@ -67,7 +68,7 @@ LIMITATIONS
 
 PhishLens is a risk-assistance tool, not a definitive phishing detector. It may produce false positives on legitimate pages and can miss novel or obfuscated phishing campaigns. Always apply your own judgement.
 
-The ML model shipped with the companion API is trained on a real PhishTank + Tranco dataset, but that dataset has no DOM features (URLs only, no live browser session) and reflects a single snapshot in time — phishing campaigns evolve quickly, so the model should be retrained periodically.
+The ML model shipped with the companion API is trained on a real PhishTank + Tranco dataset, but that dataset has no DOM features (URLs only, no live browser session) and reflects a single snapshot in time. In validation it caught under half of phishing newer than its training data, which is why it can only move the score by a few points. Phishing campaigns evolve quickly, so the model should be retrained periodically.
 
 SELF-HOSTING
 
