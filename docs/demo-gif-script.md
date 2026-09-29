@@ -15,14 +15,17 @@ first, then follow this sequence for the GIF itself.
 `docs/screenshots/demo.webp` is a 33-second walkthrough: a local webmail inbox
 receives a fake "PayPal Security" email, hovering the button reveals the real
 link target, the cloned login on `paypal-verify-account.net` turns the toolbar
-icon red, the popup rates it Dangerous 74/100 and walks through the breakdown,
-and the in-page warning overlay stays up. Both sites are demo pages served
-locally; `paypal-verify-account.net` is not a registered domain, and the only
-external lookup during the recording is the backend's domain-age query to
-`rdap.org`.
+icon red, the popup shows the local result (95) while it waits for the backend,
+then the same Dangerous 95/100 backend-enriched, and walks through the breakdown
+down to domain age and ML. The in-page warning overlay stays up. Both sites are
+demo pages served locally; `paypal-verify-account.net` is not a registered
+domain, and the only external lookup during the recording is the backend's
+domain-age query to `rdap.org`.
 
-The source is a 2560×1440, 60 fps screen recording (~50 MB, not committed),
-converted with:
+The source is a 2560×1440, 60 fps screen recording made with Recordly
+(~50 MB, not committed; re-recorded on 2026-09-29 after the scoring and ML
+fixes). The README hero is its frame at 16 s, cropped to the browser window
+(2485×1440) and scaled to 1600×927. The recording is converted with:
 
 ```bash
 ffmpeg -i "PhishLens - demo.mp4" -vf "fps=20,scale=1280:-2:flags=lanczos" \
@@ -32,7 +35,7 @@ ffmpeg -i "PhishLens - demo.mp4" -vf "fps=20,scale=1280:-2:flags=lanczos" \
 
 Animated WebP instead of GIF: the recording has camera zooms over a gradient
 background, so most frames change almost every pixel. A GIF of that would be
-several times larger and banded to 256 colors, while the WebP is ~4.3 MB in full
+several times larger and banded to 256 colors, while the WebP is ~4.2 MB in full
 color and GitHub loops it like a GIF. The recording has no audio track, so
 nothing is lost compared with the MP4.
 

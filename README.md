@@ -11,11 +11,11 @@ PhishLens is a defensive Chrome extension and FastAPI backend for explainable ph
 
 It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection with Certificate Transparency lookups, RDAP domain-age checks, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
 
-![PhishLens on a cloned PayPal login at paypal-verify-account.net: the toolbar icon shows a red badge, the popup rates the page Dangerous 74/100 with backend enrichment, and the in-page warning lists the reasons and tells the user not to enter a password](docs/screenshots/hero-phishing-detection.png)
+![PhishLens on a cloned PayPal login at paypal-verify-account.net: the toolbar icon shows a red badge, the popup rates the page Dangerous 95/100 with backend enrichment, and the in-page warning lists the reasons and tells the user not to enter a password](docs/screenshots/hero-phishing-detection.png)
 
-_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. The recording predates two scoring fixes described in [Lessons Learned](#lessons-learned): the current build rates the same page Dangerous 95, because the backend now builds on the scaled local score and the retrained ML model no longer adds +12 here. End-to-end walkthrough, from a phishing email to the in-page warning:_
+_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. End-to-end walkthrough, from a phishing email to the in-page warning:_
 
-![PhishLens end-to-end demo: a fake "PayPal Security" email links to a cloned login on paypal-verify-account.net, the PhishLens toolbar icon turns red, the popup rates the page Dangerous 74/100 with a per-category breakdown (URL 32/35, page structure 30/30, ML +12), and a warning overlay covers the page](docs/screenshots/demo.webp)
+![PhishLens end-to-end demo: a fake "PayPal Security" email links to a cloned login on paypal-verify-account.net, the PhishLens toolbar icon turns red, the popup shows the local result (95) while it waits for the backend and then the same 95 backend-enriched, with a per-category breakdown (URL 32/35, page structure 30/30, domain age 0/20, ML 0), and a warning overlay covers the page](docs/screenshots/demo.webp)
 
 ## Quick Start
 
