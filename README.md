@@ -15,7 +15,7 @@ It combines local URL heuristics, privacy-preserving DOM signals, optional Phish
 
 _PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. End-to-end walkthrough, from a phishing email to the in-page warning:_
 
-![PhishLens end-to-end demo: a fake "PayPal Security" email links to a cloned login on paypal-verify-account.net, the PhishLens toolbar icon turns red, the popup shows the local result (95) while it waits for the backend and then the same 95 backend-enriched, with a per-category breakdown (URL 32/35, page structure 30/30, domain age 0/20, ML 0), and a warning overlay covers the page](docs/screenshots/demo.webp)
+![PhishLens walkthrough in six slides: a fake "PayPal Security" email whose button really links to paypal-verify-account.net, the PhishLens popup rating the cloned login Dangerous 95 with the in-page warning behind it, the per-category signal breakdown (URL 32/35, page structure 30/30, then threat intel, TLS, domain age, and ML 0), and the in-page warning telling the user not to enter a password](docs/screenshots/demo.gif)
 
 ## Quick Start
 
