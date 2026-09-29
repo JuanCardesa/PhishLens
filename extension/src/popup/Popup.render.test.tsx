@@ -73,8 +73,10 @@ describe("Popup", () => {
     expect(shell).toHaveAttribute("aria-busy", "true");
 
     resolveBackend(makeBackendResponse());
-    await waitFor(() => expect(screen.getByText("Backend enrichment is active for this result.")).toBeInTheDocument());
-    expect(shell).toHaveAttribute("aria-busy", "false");
+    // The banner switches first; aria-busy clears only after the result is cached and
+    // the overlay check finishes, so wait for it rather than asserting at once.
+    await waitFor(() => expect(shell).toHaveAttribute("aria-busy", "false"));
+    expect(screen.getByText("Backend enrichment is active for this result.")).toBeInTheDocument();
   });
 
   it("renders the backend-enriched result once analysis resolves", async () => {
