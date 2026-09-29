@@ -179,6 +179,17 @@
       ],
       "heuristic_score": 95,
       "label": "dangerous"
+    },
+    {
+      "name": "leading www is not a subdomain",
+      "url": "http://www.shop.mail.example.com",
+      "dom": {},
+      "url_score": 5,
+      "url_reasons": ["URL does not use HTTPS"],
+      "dom_score": 0,
+      "dom_reasons": [],
+      "heuristic_score": 8,
+      "label": "safe"
     }
   ]
 }

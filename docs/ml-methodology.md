@@ -15,7 +15,7 @@ domains, so it carries no privacy risk).
 | Source | Content | Size |
 |--------|---------|------|
 | [PhishTank public data dump](https://data.phishtank.com/data/online-valid.csv.gz) | Verified phishing URLs (`verified=yes`) | 600 rows |
-| [Tranco top-1M list](https://tranco-list.eu) | Legitimate domains (top 50 000 sampled) | 600 rows |
+| [Tranco top-1M list](https://tranco-list.eu) | Legitimate domains (top 50 000 sampled), given realistic hosts and paths (see the two bias fixes below) | 600 rows |
 
 To rebuild the dataset from a fresh PhishTank/Tranco snapshot (requires internet access, ~1–2 min):
 
@@ -52,10 +52,45 @@ parameterized URLs (e.g. SSO/OAuth callbacks).
 Fix: `build_dataset.py` now appends a realistic path/query (`/login`, `/account/settings`,
 `/search?q=...`, etc., see `REALISTIC_PATH_TEMPLATES`) to ~80% of legitimate URLs before
 feature extraction, with the rest left as roots to reflect real traffic. This narrowed the
-mean url_length gap (legitimate ~38.5 vs. phishing ~49.3 characters after the fix, with
-overlapping ranges) and is now guarded by
+mean url_length gap (legitimate ~38.5 vs. phishing ~49.3 characters after the fix on the June
+2026 snapshot, ~42.1 vs. ~47.6 on the current one, with overlapping ranges) and is now guarded by
 `backend/tests/test_ml_dataset_builder.py::test_real_dataset_url_length_is_not_trivially_separable_by_class`,
 which fails the build if the distributions stop overlapping.
+
+### Known limitation found and fixed: subdomain separability bias
+
+The URL-length fix gave legitimate rows realistic paths but left their hosts as bare Tranco
+domains (Tranco lists registrable domains). PhishTank URLs keep whatever host the phishing page
+used, so `num_subdomains`, and `num_dots` with it, became a class label in disguise: in the
+committed CSV, **599 of 600 legitimate rows had no subdomain**, against 128 of 600 phishing rows.
+The model learned "has a subdomain" as phishing. That never showed up in the metrics, because the
+dataset contained no legitimate page on a subdomain, but it is most of real traffic:
+
+| URL (URL features only) | Old model | Fixed model |
+|---|---:|---:|
+| `https://www.paypal.com/signin` | +20 (p = 0.96) | −5 (p = 0.27) |
+| `https://paypal.com/signin` | −10 (p = 0.18) | −5 (p = 0.27) |
+| `https://accounts.google.com/signin` | +20 (p = 0.96) | −5 (p = 0.33) |
+| `https://www.github.com/login` | +20 (p = 0.95) | −5 (p = 0.29) |
+
+The first row is the false positive that surfaced while recording the demo: the real PayPal
+sign-in page scored Suspicious 36, with SHAP citing "number of subdomains" and "number of dots".
+
+Two fixes:
+
+- **`www` is not a subdomain.** `feature_extractor.py` and `url-features.ts` no longer count a
+  leading `www` label as a subdomain or its dot as a dot. It is a naming convention, not
+  structure an attacker chose.
+- **Legitimate URLs get realistic hosts.** `build_dataset.py` gives 35% of legitimate URLs a
+  common service subdomain (`accounts.`, `mail.`, `docs.`, `support.`, … see
+  `REALISTIC_SUBDOMAINS`) and 35% a `www.` prefix, and leaves the rest bare. This is the same
+  approach as the path fix above. After rebuilding the dataset (2026-09-29 snapshot), 192 of
+  600 legitimate rows and 404 of 600 phishing rows have a subdomain: the feature still carries
+  signal, but no longer decides the class alone.
+  `test_real_dataset_num_subdomains_is_not_a_class_label` fails if that share falls below 20%.
+
+The cost is that the headline metrics fell sharply (next section). Most of the old model's
+near-perfect precision came from this shortcut, not from phishing patterns.
 
 ### Measured performance (real dataset, 1200 rows, post-fix)
 
@@ -71,40 +106,57 @@ cd ml
 python evaluate_cv_metrics.py
 ```
 
-| Metric | As-is (N=1,200) | Leakage-corrected (N=915) |
+| Metric | As-is (N=1,200) | Leakage-corrected (N=1,052) |
 |--------|----------------:|--------------------------:|
-| Class balance (phishing / legit) | 600 / 600 (50.0%) | 481 / 434 (52.6%) |
-| Precision | 0.990 | 0.993 |
-| Recall | 0.822 | 0.869 |
-| F1 | 0.898 | 0.927 |
-| False-positive rate | 0.0083 | 0.0069 |
-| ROC-AUC | 0.966 | 0.970 |
-| Accuracy | 0.907 | 0.928 |
-| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[595, 5], [107, 493]]` | `[[431, 3], [63, 418]]` |
+| Class balance (phishing / legit) | 600 / 600 (50.0%) | 514 / 538 (48.9%) |
+| Precision | 0.785 | 0.786 |
+| Recall | 0.817 | 0.823 |
+| F1 | 0.801 | 0.804 |
+| False-positive rate | 0.223 | 0.214 |
+| ROC-AUC | 0.886 | 0.889 |
+| Accuracy | 0.797 | 0.804 |
+| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[466, 134], [110, 490]]` | `[[423, 115], [91, 423]]` |
 
-**Headline: 99.0% precision / 82.2% recall (5-fold stratified CV, N=1,200).** Accuracy (0.907)
-reproduces the historical claim exactly (1,088 / 1,200 correct) but masks the real story — the model
-catches ~82% of phishing at near-perfect precision, so its weakness is missed phishing, not false
-alarms. This dataset is balanced 50/50 by construction, so accuracy is not misleading here because
-of class imbalance; it is misleading because it averages a strong precision against a weaker recall.
+**Headline: 78.5% precision / 81.7% recall (5-fold stratified CV, N=1,200).** Before the subdomain
+fix above, the same evaluation reported 99.0% precision / 82.2% recall and a false-positive rate
+of 0.8%. Recall barely moved, but precision collapsed. The old model rarely raised a false alarm on
+its own dataset because that dataset had no legitimate page on a subdomain. On this dataset, which
+has them, it wrongly flags more than 1 legitimate URL in 5. That is the honest performance of a
+URL-shape-only model, and why the ML signal is a bounded adjustment (−10 to +20) on top of the
+rule-based score, not a verdict. The dataset is balanced 50/50 by construction, so accuracy (0.797)
+is not distorted by class imbalance here, but it still hides where the errors are.
 
 **Leakage check.** The committed CSV stores only numeric features and a label, never domains (see
 above), so domain-level leakage (same host in train and test) cannot be verified from the file. The
-closest observable proxy is duplicate feature vectors: **439 of the 1,200 rows are exact duplicates**
-(915 distinct vectors), because PhishTank captures many paths on one host and Tranco roots collapse
-to identical numeric rows, so a random k-fold split can place identical vectors in both train and
-test. The "Leakage-corrected" column removes that vector by deduplicating to one row per distinct
-feature vector. Because the corrected numbers are *higher*, not lower, the duplicates are
-conservative, not inflationary — the headline accuracy is **not** propped up by leakage. Both columns
-are reported for transparency; the as-is column is the conservative figure.
+closest observable proxy is duplicate feature vectors: **245 of the 1,200 rows belong to a group of
+identical rows** (1,052 distinct feature vectors), because PhishTank captures many paths on one host
+and Tranco roots collapse to identical numeric rows, so a random k-fold split can place identical
+vectors in both train and test. The "Leakage-corrected" column removes that path to leakage by
+deduplicating to one row per distinct feature vector. The corrected numbers are slightly *higher*,
+so the duplicates are not inflating the headline. Both columns are reported for transparency; the
+as-is column is the conservative figure.
 
-For reference, an earlier `train_model.py` run against the same CSV reported a single 33% hold-out
-(396 rows) at 0.92 accuracy — precision 0.87/recall 0.99/F1 0.93 for legitimate URLs, precision
-0.99/recall 0.85/F1 0.92 for phishing, confusion matrix `[[197, 1], [29, 169]]` (rows/cols =
-legitimate, phishing). The 5-fold CV table above supersedes it as the primary estimate because it
-uses every row for both training and evaluation and reports FPR and ROC-AUC.
+`train_model.py`'s single 33% hold-out (396 rows) agrees: 0.82 accuracy, precision 0.83 / recall
+0.81 / F1 0.82 for legitimate URLs and 0.81 / 0.83 / 0.82 for phishing, confusion matrix
+`[[160, 38], [33, 165]]` (rows/cols = legitimate, phishing). The 5-fold CV table supersedes it as
+the primary estimate because it uses every row for both training and evaluation and reports FPR and
+ROC-AUC.
 
-- Top feature importances: `num_subdomains`, `num_dots`, `url_length`, `domain_entropy`,
+**What the ML adjustment does in practice.** Mapping each out-of-fold probability through
+`_adjustment_from_probability` shows how often the model moves a page's score:
+
+| ML adjustment | Legitimate rows | Phishing rows |
+|---:|---:|---:|
+| −10 | 30.2% | 1.3% |
+| −5 | 30.3% | 8.3% |
+| 0 | 32.8% | 29.8% |
+| +12 | 6.3% | 43.7% |
+| +20 | 0.3% | 16.8% |
+
+So about 1 legitimate URL in 15 gets +12 or +20. Before the fix, the table looked far cleaner on the
+dataset (0.2% of legitimate rows), but every legitimate page on a subdomain got +20 in real use.
+
+- Top feature importances: `domain_entropy`, `num_dots`, `url_length`, `num_subdomains`,
   `uses_https`
 
 ### Train/inference feature mismatch (important caveat on the numbers above)
@@ -121,7 +173,7 @@ At inference time, `backend/app/services/ml_service.py::_feature_values` builds 
 16-feature vector but fills the DOM columns with **real** values collected by the
 extension's content script (`extension/src/content/dom-analyzer.ts`). This means:
 
-- The 0.907 CV / 0.92 hold-out accuracy figures describe a model evaluated on a
+- The CV and hold-out figures above describe a model evaluated on a
   URL-only vector. They say nothing about how the model behaves on the full
   16-feature vector it actually receives in production, because that combination
   (real URL features + real DOM features) was never present during training or
@@ -154,18 +206,32 @@ PhishTank's `submission_time` field (present in the public dump, range observed:
   sample (same range as the production dataset).
 - **Test**: phishing URLs submitted in the last 14 days (campaigns the model could not
   possibly have seen) + a *disjoint* Tranco rank window (50 001–100 000) for legitimate
-  URLs. Both sides get the same `_add_realistic_path` enrichment as the production
-  dataset.
+  URLs. Both sides get the same `realistic_legit_url` host and path enrichment as the
+  production dataset.
 - Trains a fresh, throwaway `RandomForestClassifier` (same hyperparameters as
   `train_model.py`) on the old split only, and evaluates on the new split — it never
   touches the committed dataset or the production model artifact.
 
-Result from a real run (cutoffs: train < 2024-06-23, test > 2026-06-09; 300 rows per
-side): **0.91 accuracy**, precision 0.96/recall 0.85 for phishing, precision 0.87/recall
-0.97 for legitimate — within noise of the random-split numbers above (0.907 CV / 0.92
-hold-out). This is a meaningfully positive result: the model isn't just memorizing
-snapshot-specific quirks, it generalizes to phishing campaigns from over two years after
-its training data, using only URL-structure features.
+Result from a real run (cutoffs: train < 2024-09-29, test > 2026-09-15; 300 rows per class
+on each side): **0.67 accuracy**, precision 0.84 / recall **0.42** for phishing, precision
+0.61 / recall 0.92 for legitimate, confusion matrix `[[276, 24], [175, 125]]`. The model
+trained on old campaigns misses more than half of new phishing.
+
+This reverses the earlier conclusion. The June 2026 run reported 0.91 accuracy (phishing
+recall 0.85) and read it as "generalizes to campaigns two years later", but that run still
+had bare legitimate hosts. Re-running today's data without the realistic hosts gives 0.83
+accuracy (phishing recall 0.68). The drop has two parts:
+
+| Temporal run | Accuracy | Phishing recall |
+|---|---:|---:|
+| June 2026 snapshot, bare legitimate hosts | 0.91 | 0.85 |
+| September 2026 snapshot, bare legitimate hosts | 0.83 | 0.68 |
+| September 2026 snapshot, realistic hosts (current) | **0.67** | **0.42** |
+
+Newer campaigns look less like the old ones (first step), and most of what looked like
+generalization was the subdomain shortcut, which every snapshot shared (second step). URL shape
+alone is a weak, fast-aging signal. The next gains need other features: domain age, DOM
+signals in the training data, and regular retraining (see `docs/roadmap.md`).
 
 **Limitation, stated plainly:** Tranco has no time axis (it's always "current rank now"),
 so only the phishing side is genuinely split by time; the legitimate side is split by a
@@ -173,9 +239,10 @@ disjoint rank window as the closest available proxy for "different sample, not s
 during training." This is documented here instead of being described as a full temporal
 split on both classes.
 
-Accuracy dropped from the pre-fix 0.954 to 0.907 once the trivial url_length shortcut was
-removed — a lower but more honest number that reflects genuine URL-structure signal rather
-than an artifact of how the dataset was assembled. These numbers reflect URL-only features
+CV accuracy went from 0.954 to 0.907 when the url_length shortcut was removed, and from 0.907
+to 0.797 when the subdomain shortcut was removed (with a new snapshot, rebuilt 2026-09-29).
+Each fix lowered the number and made it more honest: less of it comes from how the dataset was
+assembled. These numbers reflect URL-only features
 (DOM features are 0 for every row, per the limitation above) and PhishTank/Tranco's snapshot
 at build time — re-running `build_dataset.py` will pull a different sample and produce
 slightly different numbers. Treat this as a baseline, not a fixed benchmark.
@@ -256,19 +323,21 @@ Result from a run against the committed dataset (1200 rows):
 
 | Confidence bin | Mean confidence | Empirical accuracy | n |
 |---|---:|---:|---:|
-| [0.70, 0.75) | 0.723 | 0.250 | 4 |
-| [0.75, 0.80) | 0.790 | 0.000 | 1 |
-| [0.80, 0.85) | 0.809 | 0.000 | 15 |
-| [0.85, 0.90) | 0.873 | 0.000 | 23 |
-| [0.90, 0.95) | 0.900 | 0.519 | 1157 |
+| [0.65, 0.70) | 0.650 | 1.000 | 1 |
+| [0.70, 0.75) | 0.731 | 0.000 | 12 |
+| [0.75, 0.80) | 0.770 | 0.000 | 3 |
+| [0.80, 0.85) | 0.807 | 0.000 | 16 |
+| [0.85, 0.90) | 0.874 | 0.000 | 17 |
+| [0.90, 0.95) | 0.900 | 0.521 | 1151 |
 
-Mean calibration error (weighted `|confidence - accuracy|` across bins): **0.397**.
+Mean calibration error (weighted `|confidence - accuracy|` across bins): **0.396** (0.397 on the
+dataset before the 2026-09-29 rebuild).
 
-![Reliability diagram: heuristic-only confidence sits well below the perfectly-calibrated diagonal across every bin](calibration_reliability_diagram.png)
+![Reliability diagram: heuristic-only confidence sits well below the perfectly-calibrated diagonal in every bin that holds more than one row](../ml/calibration_reliability_diagram.png)
 
 **Finding, stated plainly:** the heuristic-only confidence is not just "uncalibrated" in
 the harmless sense of being a rough proxy — on this dataset it is systematically
-*overconfident*. Every bin sits below the diagonal, and the bin holding 96% of the rows
+*overconfident*. Every bin with more than one row sits below the diagonal, and the bin holding 96% of the rows
 (confidence ≈ 0.90) is only ~52% accurate, barely better than a coin flip. This was not
 "fixed" by adding a counter-bias or a temperature-scaling correction in this round,
 because doing so against a dataset that itself can't exercise typosquat/homograph/DOM/
@@ -300,10 +369,10 @@ Result from a run against the 1200-row dataset (`python ml/evaluate_heuristics.p
 
 | Score threshold | Precision | Recall | F1 |
 |---|---|---|---|
-| ≥ 1 | 0.759 | 0.468 | 0.579 |
-| ≥ 8 | 1.000 | 0.162 | 0.278 |
-| ≥ 14 | 1.000 | 0.033 | 0.065 |
-| ≥ 20 | 1.000 | 0.007 | 0.013 |
+| ≥ 1 | 0.631 | 0.373 | 0.469 |
+| ≥ 8 | 0.967 | 0.147 | 0.255 |
+| ≥ 14 | 1.000 | 0.053 | 0.101 |
+| ≥ 20 | 1.000 | 0.022 | 0.042 |
 | ≥ 30 | 0.000 | 0.000 | 0.000 |
 
 0% of rows in either class reach the 35-point `URL_SCORE_CAP` using only these

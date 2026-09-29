@@ -83,6 +83,56 @@ def _add_realistic_path(domain_url: str, rng: random.Random) -> str:
     return f"{domain_url.rstrip('/')}/{path}"
 
 
+# Tranco lists registrable domains, so every legitimate URL used to be a bare
+# host while PhishTank URLs keep whatever host the phishing page used. That made
+# num_subdomains (and num_dots with it) a class label in disguise: 599 of 600
+# legitimate rows had no subdomain, so the model scored any subdomain as
+# phishing, including www.paypal.com (+20) and accounts.google.com (+20).
+# Legitimate sites serve pages from service subdomains all the time, so a share
+# of legitimate samples get one, and another share get "www." (which the feature
+# extractor no longer counts, so it only lengthens the URL as it does in real
+# traffic). Same approach as REALISTIC_PATH_TEMPLATES above.
+REALISTIC_SUBDOMAINS = (
+    "accounts",
+    "api",
+    "app",
+    "auth",
+    "blog",
+    "developer",
+    "docs",
+    "en",
+    "help",
+    "login",
+    "m",
+    "mail",
+    "my",
+    "news",
+    "secure",
+    "shop",
+    "static",
+    "store",
+    "support",
+)
+SUBDOMAIN_PROBABILITY = 0.35
+WWW_PROBABILITY = 0.35
+
+
+def _add_realistic_host(domain_url: str, rng: random.Random) -> str:
+    roll = rng.random()
+    if roll < SUBDOMAIN_PROBABILITY:
+        prefix = rng.choice(REALISTIC_SUBDOMAINS)
+    elif roll < SUBDOMAIN_PROBABILITY + WWW_PROBABILITY:
+        prefix = "www"
+    else:
+        return domain_url
+    return domain_url.replace("://", f"://{prefix}.", 1)
+
+
+def realistic_legit_url(domain_url: str, rng: random.Random) -> str:
+    """Turn a bare Tranco root into a URL shaped like real legitimate traffic."""
+    return _add_realistic_path(_add_realistic_host(domain_url, rng), rng)
+
+
 FEATURE_COLUMNS = [
     "url_length", "num_dots", "num_hyphens", "uses_ip_domain", "has_at_symbol",
     "uses_https", "num_subdomains", "suspicious_keyword_count", "uses_punycode",
@@ -213,8 +263,8 @@ def main() -> int:
         logger.error("Dataset build failed — check network connectivity and try again.")
         return 1
 
-    path_rng = random.Random(42)
-    legit_urls = [_add_realistic_path(url, path_rng) for url in legit_urls]
+    url_rng = random.Random(42)
+    legit_urls = [realistic_legit_url(url, url_rng) for url in legit_urls]
 
     rows: list[Row] = []
     for url in phishing_urls:

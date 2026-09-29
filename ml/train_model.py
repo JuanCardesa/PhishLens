@@ -25,7 +25,7 @@ RUNTIME_MODEL_PATH = ROOT.parent / "backend" / "app" / "models" / "phishlens_mod
 DATASET_PATH, _DATASET_IS_REAL = (
     (_REAL_DATASET, True) if _REAL_DATASET.exists() else (_DEMO_DATASET, False)
 )
-MODEL_VERSION = "0.3.0-real" if _DATASET_IS_REAL else "0.2.0-synthetic"
+MODEL_VERSION = "0.4.0-real" if _DATASET_IS_REAL else "0.2.0-synthetic"
 
 FEATURE_COLUMNS = [
     "url_length",

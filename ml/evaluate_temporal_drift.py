@@ -142,9 +142,9 @@ def main() -> int:
     )
     test_legit_raw = rng.sample(test_legit_raw, min(SAMPLE_SIZE, len(test_legit_raw)))
 
-    path_rng = random.Random(42)
-    train_legit = [builder._add_realistic_path(url, path_rng) for url in train_legit_raw]
-    test_legit = [builder._add_realistic_path(url, path_rng) for url in test_legit_raw]
+    url_rng = random.Random(42)
+    train_legit = [builder.realistic_legit_url(url, url_rng) for url in train_legit_raw]
+    test_legit = [builder.realistic_legit_url(url, url_rng) for url in test_legit_raw]
 
     if not train_phishing or not test_phishing or not train_legit or not test_legit:
         logger.error("Temporal validation aborted — one of the sample pools was empty.")

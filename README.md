@@ -260,43 +260,53 @@ The zip is written to `extension/release/`.
 
 ## ML model performance
 
-**99.0% precision / 82.2% recall (5-fold stratified CV, N=1,200)** — the two strongest, most
-honest metrics for the shipped `RandomForestClassifier` on the committed PhishTank + Tranco
-dataset. Accuracy alone (**90.7%**) is a poor headline for a detector: here it hides a recall
-gap — the model catches ~82% of phishing at near-perfect precision, so its weakness is *missed*
-phishing, not false alarms.
+**78.5% precision / 81.7% recall (5-fold stratified CV, N=1,200)** for the shipped
+`RandomForestClassifier` on the committed PhishTank + Tranco dataset, with a **22% false-positive
+rate**. This is a modest, URL-shape-only model. That is why it only nudges the rule-based score
+(−10 to +20) and never decides a verdict on its own.
+
+These numbers used to read 99.0% precision / 0.8% false positives. That was a dataset artifact:
+599 of the 600 legitimate URLs had no subdomain, so the model learned "has a subdomain" as
+phishing and gave `www.paypal.com` and `accounts.google.com` the maximum +20. Once legitimate
+URLs got realistic subdomains, and `www.` stopped counting as one, precision fell to its honest
+level (see [Lessons Learned](#lessons-learned)).
 
 Reproduce with `python ml/evaluate_cv_metrics.py`. Phishing is the positive class; the confusion
 matrix and false-positive rate are aggregated out-of-fold across all 5 folds (every row predicted
 exactly once).
 
-| Metric | As-is (N=1,200) | Leakage-corrected (N=915) |
+| Metric | As-is (N=1,200) | Leakage-corrected (N=1,052) |
 |--------|----------------:|--------------------------:|
-| Class balance (phishing / legit) | 600 / 600 (50.0%) | 481 / 434 (52.6%) |
-| Precision | 0.990 | 0.993 |
-| Recall | 0.822 | 0.869 |
-| F1 | 0.898 | 0.927 |
-| False-positive rate | 0.0083 | 0.0069 |
-| ROC-AUC | 0.966 | 0.970 |
-| Accuracy | 0.907 | 0.928 |
-| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[595, 5], [107, 493]]` | `[[431, 3], [63, 418]]` |
+| Class balance (phishing / legit) | 600 / 600 (50.0%) | 514 / 538 (48.9%) |
+| Precision | 0.785 | 0.786 |
+| Recall | 0.817 | 0.823 |
+| F1 | 0.801 | 0.804 |
+| False-positive rate | 0.223 | 0.214 |
+| ROC-AUC | 0.886 | 0.889 |
+| Accuracy | 0.797 | 0.804 |
+| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[466, 134], [110, 490]]` | `[[423, 115], [91, 423]]` |
+
+**What that means for a page's score:** out-of-fold, the model adds +12 or +20 to 6.6% of
+legitimate URLs and to 60.5% of phishing URLs. It subtracts 5 or 10 from 60.5% of legitimate URLs
+and 9.6% of phishing URLs.
+
+**It does not hold up over time.** Trained on phishing more than two years old and tested on
+phishing from the last 14 days, it catches only 42% of new phishing (0.67 accuracy). URL shape
+ages quickly; domain age and DOM signals in the training data are the next step (see
+[docs/ml-methodology.md](docs/ml-methodology.md#temporal-validation-train-on-older-phishing-test-on-newer)).
 
 **On class balance:** this dataset is balanced 50/50 by construction, so the usual "accuracy is
-misleading because phishing is rare" caveat doesn't apply to *this* evaluation — accuracy is
-misleading here for a different reason (it averages over a strong precision and a weaker recall).
-In production, phishing is of course rare, which is a further reason to track precision/recall/FPR
-rather than accuracy.
+misleading because phishing is rare" caveat doesn't apply to *this* evaluation. In production,
+phishing is rare, which is a further reason to track precision, recall, and FPR rather than
+accuracy.
 
 **On data leakage:** the committed CSV stores only the 16 numeric features and a label, never raw
 URLs or domains (a deliberate privacy decision), so *domain-level* leakage (same host in train and
-test) can't be verified from the file. The closest observable proxy is duplicate feature vectors —
-439 of the 1,200 rows are exact duplicates (915 distinct vectors), because PhishTank captures many
-paths on one host and Tranco roots collapse to identical numeric rows, so a random k-fold split can
-place identical vectors in both train and test. The "Leakage-corrected" column removes that vector
-by deduplicating to one row per distinct feature vector. Its numbers are *higher*, not lower — so
-the duplicates are conservative, not inflationary, and the headline accuracy is **not** propped up
-by leakage. Both columns are reported for transparency; treat the as-is column as the conservative
-figure.
+test) can't be verified from the file. The closest observable proxy is duplicate feature vectors:
+245 of the 1,200 rows belong to a group of identical rows (1,052 distinct vectors), so a random
+k-fold split can place identical vectors in both train and test. The "Leakage-corrected" column
+deduplicates to one row per distinct vector. Its numbers are slightly *higher*, so the duplicates
+do not inflate the headline. Treat the as-is column as the conservative figure.
 
 **These numbers describe a URL-only model, not production behavior.** DOM features
 (`has_password_field`, `num_forms`, etc.) are hardcoded to `0` for every training row because the
@@ -305,7 +315,7 @@ dataset is built from URLs only, without a live browser session — but
 inference time. The 6 DOM columns the model sees in production were never exercised with real
 variation during training, so any influence they have on live predictions is unvalidated
 extrapolation. See [docs/ml-methodology.md](docs/ml-methodology.md) for the full methodology, the
-URL-length dataset bias that was found and fixed, and the temporal-drift validation.
+URL-length and subdomain dataset biases that were found and fixed, and the temporal-drift validation.
 
 ## Limitations
 
@@ -318,10 +328,12 @@ URL-length dataset bias that was found and fixed, and the temporal-drift validat
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
 - Diagnostics are development counters only and should not be treated as production telemetry.
 - In-memory rate limiting is process-local and resets when the backend restarts.
-- Known false positive: the real PayPal sign-in page (`https://www.paypal.com/signin`) scored
-  **Suspicious 36** when the demo was recorded. Its genuine login form, password field, reCAPTCHA
-  iframes, and hidden inputs raise the page-structure score, and the ML model adds +20 citing the
-  number of subdomains and dots, so it effectively penalizes the `www.` prefix.
+- Every real login page scores some page-structure points: a form, a password field, and hidden
+  inputs are what a credential page is, legitimate or not. The real PayPal sign-in page gets about
+  16 of 30 there (25 once scaled), which stays Safe on its own but leaves less room for other
+  signals.
+- The ML model is URL-shape only and adds +12 or +20 to about 1 legitimate URL in 15 (see
+  [ML model performance](#ml-model-performance)).
 - The current build prioritizes explainability and safe defaults over coverage.
 
 ## Lessons Learned
@@ -337,6 +349,15 @@ informative than the fact that the code is now clean:
   perfectly — the model was learning "has a path" instead of phishing patterns. Fixed by
   adding realistic paths to legitimate URLs; honest accuracy dropped to ~91% CV. Detailed
   in [docs/ml-methodology.md](docs/ml-methodology.md#known-limitation-found-and-fixed-url-length-separability-bias).
+- **The same fix left a second shortcut next to the first.** Legitimate URLs got realistic
+  paths but kept bare hosts, so 599 of 600 had no subdomain and the model learned "has a
+  subdomain" as phishing. It showed up as a real false positive while recording the demo: the
+  real PayPal sign-in page scored Suspicious 36, and SHAP named the cause, "number of subdomains,
+  number of dots". The `www.` prefix alone swung the ML adjustment from −10 to +20. Fixed by not
+  counting `www` as a subdomain and by giving legitimate URLs realistic hosts. Precision fell from
+  99.0% to 78.5%, and a temporal check that had looked reassuring (0.91) fell to 0.67. The
+  near-perfect numbers had been measuring the dataset, not phishing. Detailed in
+  [docs/ml-methodology.md](docs/ml-methodology.md#known-limitation-found-and-fixed-subdomain-separability-bias).
 - **The offline fallback's "dangerous" label was effectively unreachable.** It needed
   ~92% of its own maximum possible score because the threshold (60) was hand-picked
   against a smaller scale than the backend's (70) without reconciling the two. Fixed by

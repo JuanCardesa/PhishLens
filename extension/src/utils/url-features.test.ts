@@ -55,6 +55,20 @@ describe("extractUrlFeatures", () => {
     expect(features.num_subdomains).toBe(0);
   });
 
+  // Mirrors test_extract_url_features_does_not_count_leading_www in the backend.
+  it.each<[string, number, number]>([
+    ["https://www.paypal.com/signin", 0, 1],
+    ["https://paypal.com/signin", 0, 1],
+    ["https://www.accounts.example.com/", 1, 2],
+    ["https://mail.www.example.com/", 2, 3],
+    ["https://www.com/", 0, 1],
+  ])("does not count a leading www as a subdomain or dot: %s", (url, numSubdomains, numDots) => {
+    const features = extractUrlFeatures(url);
+
+    expect(features.num_subdomains).toBe(numSubdomains);
+    expect(features.num_dots).toBe(numDots);
+  });
+
   it("does not flag the real brand domain", () => {
     const features = extractUrlFeatures("https://paypal.com/login");
 
