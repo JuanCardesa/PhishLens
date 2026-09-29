@@ -115,6 +115,9 @@ async function getRealDemoTab(worker) {
 // already on screen, so the wait returned at once and captured the same state.
 async function waitForFinalResult(popupPage) {
   await popupPage.waitForSelector('main.popup-shell[aria-busy="false"] .mode-banner', { timeout: 20000 });
+  // This window is exactly the popup's 380px width, so a vertical scrollbar would
+  // eat into it and add a horizontal one the real toolbar popup never shows.
+  await popupPage.addStyleTag({ content: "html { scrollbar-width: none; }" });
   await popupPage.waitForTimeout(300); // let the last render settle before the screenshot
   return popupPage.locator(".mode-banner").innerText();
 }

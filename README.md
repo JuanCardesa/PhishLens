@@ -13,7 +13,7 @@ It combines local URL heuristics, privacy-preserving DOM signals, optional Phish
 
 ![PhishLens on a cloned PayPal login at paypal-verify-account.net: the toolbar icon shows a red badge, the popup rates the page Dangerous 74/100 with backend enrichment, and the in-page warning lists the reasons and tells the user not to enter a password](docs/screenshots/hero-phishing-detection.png)
 
-_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. End-to-end walkthrough, from a phishing email to the in-page warning:_
+_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. The recording predates two scoring fixes described in [Lessons Learned](#lessons-learned): the current build rates the same page Dangerous 95, because the backend now builds on the scaled local score and the retrained ML model no longer adds +12 here. End-to-end walkthrough, from a phishing email to the in-page warning:_
 
 ![PhishLens end-to-end demo: a fake "PayPal Security" email links to a cloned login on paypal-verify-account.net, the PhishLens toolbar icon turns red, the popup rates the page Dangerous 74/100 with a per-category breakdown (URL 32/35, page structure 30/30, ML +12), and a warning overlay covers the page](docs/screenshots/demo.webp)
 
@@ -48,15 +48,17 @@ python ml/datasets/build_dataset.py && python ml/train_model.py
 
 ## Screenshots
 
-The popup on the local demo pages (`demo/pages/`), captured with `extension/scripts/record-demo.mjs`.
+The popup on the local demo pages (`demo/pages/`), captured from the built extension with `node extension/scripts/record-demo.mjs --docs`.
 
-| Safe page (backend-enriched) | Dangerous page (backend-enriched) | Local-only mode (no backend response) |
-|---|---|---|
-| ![Safe demo page: Safe 5, backend enriched, the only URL signal is the lack of HTTPS](docs/screenshots/popup-safe.png) | ![Dangerous demo page: Dangerous 94, backend enriched, with URL and page-structure signals and the demo threat source](docs/screenshots/popup-dangerous.png) | ![Safe demo page without a backend response: Safe 8, confidence shown as "Heuristic" instead of a percentage, backend marked Local only](docs/screenshots/popup-local-only.png) |
+| Safe page | Suspicious page | Dangerous page | Backend unavailable |
+|---|---|---|---|
+| ![Safe demo page: Safe 8, backend enriched, the only URL signal is the lack of HTTPS](docs/screenshots/popup-safe.png) | ![Suspicious demo page: Suspicious 48, backend enriched, URL 5/35 for plain HTTP and page structure 26/30 for a sign-in form with a password field that posts to another domain](docs/screenshots/popup-suspicious.png) | ![Dangerous demo page: Dangerous 100, backend enriched, URL 24/35 and page structure 30/30, plus the demo threat source](docs/screenshots/popup-dangerous.png) | ![Safe demo page with the backend unreachable: Safe 8, the same local score, confidence shown as "Heuristic" instead of a percentage, and a banner listing the checks that did not run](docs/screenshots/popup-local-only.png) |
+
+With the backend unreachable, the safe page keeps the same score (8). The local score is the base the backend adds to, so the two only differ by what the backend finds.
 
 The warning overlay on the dangerous demo page. That page also matches the localhost-only demo threat source (see [Local Demo](#local-demo)):
 
-![Danger overlay: "High-risk phishing signals detected", risk score 94/100, the top reasons, and a Continue button](docs/screenshots/danger-overlay.png)
+![Danger overlay: "High-risk phishing signals detected", risk score 100/100, the top reasons, and a Continue button](docs/screenshots/danger-overlay.png)
 
 ## Architecture
 
@@ -354,7 +356,8 @@ informative than the fact that the code is now clean:
   subdomain" as phishing. It showed up as a real false positive while recording the demo: the
   real PayPal sign-in page scored Suspicious 36, and SHAP named the cause, "number of subdomains,
   number of dots". The `www.` prefix alone swung the ML adjustment from −10 to +20. Fixed by not
-  counting `www` as a subdomain and by giving legitimate URLs realistic hosts. Precision fell from
+  counting `www` as a subdomain and by giving legitimate URLs realistic hosts; the same PayPal
+  page now scores Safe 20 (page structure 16/30, ML −5). Precision fell from
   99.0% to 78.5%, and a temporal check that had looked reassuring (0.91) fell to 0.67. The
   near-perfect numbers had been measuring the dataset, not phishing. Detailed in
   [docs/ml-methodology.md](docs/ml-methodology.md#known-limitation-found-and-fixed-subdomain-separability-bias).
