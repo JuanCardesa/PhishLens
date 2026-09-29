@@ -243,11 +243,11 @@ npm run build
 
 Load `extension/dist` in Chrome and visit:
 
-- `http://localhost:8080/pages/safe.html`
-- `http://localhost:8080/pages/suspicious.html`
-- `http://localhost:8080/pages/phishlens-demo-dangerous-login-secure-update.html`
+- `http://localhost:8080/pages/safe.html` (Safe)
+- `http://localhost:8080/pages/suspicious.html` (Suspicious)
+- `http://localhost:8080/pages/phishlens-demo-dangerous-login-secure-update.html` (Dangerous)
 
-The dangerous demo requires `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` and only matches `localhost` URLs containing `phishlens-demo-dangerous`. Use `localhost` rather than `127.0.0.1`: the backend rejects private IP literals as an SSRF safeguard.
+Each page shows its label with or without the backend, and the E2E test checks all three. `PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true` adds a threat-intelligence match to the dangerous page so that category is visible without a PhishTank key; it only matches `localhost` URLs containing `phishlens-demo-dangerous`. Use `localhost` rather than `127.0.0.1`: the backend rejects private IP literals as an SSRF safeguard.
 
 Package the extension:
 

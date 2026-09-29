@@ -21,6 +21,17 @@ import { chromium } from "playwright";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distPath = resolve(here, "..", "dist");
+const demoPagesPath = resolve(here, "..", "..", "demo", "pages");
+
+// The toolbar badge the service worker sets from the local score, per label.
+const BADGE_BY_LABEL = { safe: "", suspicious: "?", dangerous: "!" };
+// Each local demo page is meant to show one label; nothing else checks that the
+// pages still do after scoring changes (suspicious.html once drifted to Safe 15).
+const DEMO_PAGES = [
+  { file: "safe.html", label: "safe" },
+  { file: "suspicious.html", label: "suspicious" },
+  { file: "phishlens-demo-dangerous-login-secure-update.html", label: "dangerous" },
+];
 // MV3 extensions (their service worker) don't register under Chromium's legacy
 // headless mode, but the newer `--headless=new` mode loads them fully. Using it
 // lets this run in CI without an X server (xvfb). PW_HEADED=1 forces a visible
@@ -63,9 +74,12 @@ const FIXTURE_HTML = `<!doctype html>
 async function main() {
   assert.ok(existsSync(join(distPath, "manifest.json")), `built extension not found at ${distPath} — run "npm run build" first`);
 
-  const server = createServer((_req, res) => {
+  const demoFiles = new Set(DEMO_PAGES.map((demoPage) => demoPage.file));
+  const server = createServer((req, res) => {
+    // /pages/<file> serves the committed demo pages, like demo/serve_demo.py.
+    const demoFile = req.url?.startsWith("/pages/") ? req.url.slice("/pages/".length) : null;
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(FIXTURE_HTML);
+    res.end(demoFile && demoFiles.has(demoFile) ? readFileSync(join(demoPagesPath, demoFile)) : FIXTURE_HTML);
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const { port } = server.address();
@@ -130,7 +144,31 @@ async function main() {
     const overlayText = await page.textContent("#phishlens-warning-overlay");
     assert.ok(overlayText?.includes("Smoke-test reason"), "overlay did not render the provided reason");
 
-    console.log("E2E smoke passed: content script and warning overlay execute in real Chromium.");
+    // 3) Each demo page must get the label it exists to demonstrate. The badge is
+    //    the local score from real DOM collection in this browser, so this covers
+    //    the page markup, the content script, and the scorer together. Served on
+    //    localhost, not 127.0.0.1: an IP host adds URL risk points the real demo
+    //    (localhost:8080) does not have.
+    for (const demoPage of DEMO_PAGES) {
+      const demoTab = await context.newPage();
+      await demoTab.goto(`http://localhost:${port}/pages/${demoPage.file}`, { waitUntil: "load" });
+      await demoTab.bringToFront();
+      const expectedBadge = BADGE_BY_LABEL[demoPage.label];
+      const badge = await worker.evaluate(async (expected) => {
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        let text = null;
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          text = await chrome.action.getBadgeText({ tabId: tab.id });
+          if (text === expected && attempt >= 5) break; // "" is also the pre-analysis default
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return text;
+      }, expectedBadge);
+      assert.equal(badge, expectedBadge, `${demoPage.file} should be ${demoPage.label} (badge "${expectedBadge}"), got "${badge}"`);
+      await demoTab.close();
+    }
+
+    console.log("E2E smoke passed: content script, warning overlay, and demo page labels in real Chromium.");
   } finally {
     await context.close();
     server.close();
