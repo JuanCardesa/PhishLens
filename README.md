@@ -9,13 +9,13 @@
 
 PhishLens is a defensive Chrome extension and FastAPI backend for explainable phishing risk analysis in real time.
 
-It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
+It combines local URL heuristics, privacy-preserving DOM signals, optional PhishTank threat intelligence, backend-side TLS certificate inspection with Certificate Transparency lookups, RDAP domain-age checks, and an optional machine learning model. The project is built as a practical cybersecurity portfolio project with clear safety boundaries.
 
-![PhishLens flagging a fake PayPal login on a look-alike domain: a "Dangerous" risk score of 92 with an explained breakdown — look-alike domain, recent registration, and a password form posting to a non-brand domain](docs/screenshots/hero-phishing-detection.png)
+![PhishLens on a cloned PayPal login at paypal-verify-account.net: the toolbar icon shows a red badge, the popup rates the page Dangerous 74/100 with backend enrichment, and the in-page warning lists the reasons and tells the user not to enter a password](docs/screenshots/hero-phishing-detection.png)
 
-_PhishLens catching a look-alike PayPal login (`paypa1-secure-login.com`) and explaining exactly why it is dangerous. End-to-end walkthrough:_
+_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. End-to-end walkthrough, from a phishing email to the in-page warning:_
 
-![PhishLens end-to-end demo: a safe page, a suspicious page, and a dangerous page triggering the warning overlay](docs/screenshots/demo.gif)
+![PhishLens end-to-end demo: a fake "PayPal Security" email links to a cloned login on paypal-verify-account.net, the PhishLens toolbar icon turns red, the popup rates the page Dangerous 74/100 with a per-category breakdown (URL 32/35, page structure 30/30, ML +12), and a warning overlay covers the page](docs/screenshots/demo.webp)
 
 ## Quick Start
 
@@ -42,29 +42,33 @@ python ml/datasets/build_dataset.py && python ml/train_model.py
 
 - **Detection.** URL heuristics (typosquatting via Levenshtein, homograph/IDN attacks via a hand-written punycode decoder and confusable map, a brand's full domain hidden in subdomains) and privacy-preserving DOM signals (credential fields, external form actions, brand impersonation), scored into an explainable risk breakdown by URL, DOM, threat intelligence, TLS, domain age, and ML.
 - **Backend enrichment (FastAPI).** `/analyze`, `/report`, `/health`; PhishTank threat intel, backend TLS + Certificate Transparency inspection, RDAP domain-age lookups — each with URL normalization, TTL caching, timeouts, and clean degradation when unavailable.
-- **Extension (MV3).** React popup with a risk breakdown and feedback controls, an options page (backend URL, timeout, overlay), and a dismissible warning overlay for `dangerous` results. Works fully offline; the backend only enriches.
+- **Extension (MV3).** A toolbar badge scored locally as each page loads, a React popup with a risk breakdown and feedback controls, an options page (backend URL, timeout, overlay), and a dismissible warning overlay for `dangerous` results. Works fully offline; the backend only enriches. Firefox support is experimental: the code and manifest are cross-browser, but it has not been click-tested in a real Firefox profile.
 - **ML.** Training and evaluation pipeline on a real PhishTank + Tranco dataset, with SHAP per-prediction explanations and documented limitations (see [ML methodology](docs/ml-methodology.md)).
 - **Quality & safety.** Unit tests plus a shared ext/backend scoring contract and a real-Chromium E2E smoke test; rate limiting, structured diagnostics with no sensitive payloads, host-only SQLite feedback, Docker, and CI (backend, extension, security, PR Guardian).
 
 ## Screenshots
 
-| Safe result | Suspicious result | Dangerous result |
-|---|---|---|
-| ![Safe result](docs/screenshots/01-safe-result.png) | ![Suspicious result](docs/screenshots/02-suspicious-result.png) | ![Dangerous result](docs/screenshots/03-dangerous-result.png) |
+The popup on the local demo pages (`demo/pages/`), captured with `extension/scripts/record-demo.mjs`.
 
-| Local-only mode (backend unavailable) | Danger overlay |
-|---|---|
-| ![Local-only mode](docs/screenshots/04-local-only.png) | ![Danger overlay](docs/screenshots/05-danger-overlay.png) |
+| Safe page (backend-enriched) | Dangerous page (backend-enriched) | Local-only mode (no backend response) |
+|---|---|---|
+| ![Safe demo page: Safe 5, backend enriched, the only URL signal is the lack of HTTPS](docs/screenshots/popup-safe.png) | ![Dangerous demo page: Dangerous 94, backend enriched, with URL and page-structure signals and the demo threat source](docs/screenshots/popup-dangerous.png) | ![Safe demo page without a backend response: Safe 8, confidence shown as "Heuristic" instead of a percentage, backend marked Local only](docs/screenshots/popup-local-only.png) |
+
+The warning overlay on the dangerous demo page. That page also matches the localhost-only demo threat source (see [Local Demo](#local-demo)):
+
+![Danger overlay: "High-risk phishing signals detected", risk score 94/100, the top reasons, and a Continue button](docs/screenshots/danger-overlay.png)
 
 ## Architecture
 
 ```text
 Chrome page
   -> content script extracts non-sensitive DOM signals
+  -> service worker scores the page locally and sets the toolbar badge
   -> popup computes local heuristic score
   -> popup optionally calls FastAPI /analyze
-  -> backend adds URL, threat intel, TLS, and ML signals
+  -> backend adds URL, threat intel, TLS + Certificate Transparency, domain age, and ML signals
   -> popup shows score, label, confidence, risk breakdown, and feedback controls
+     (confidence is a percentage only when the ML model contributed, "Heuristic" otherwise)
   -> dangerous results can display a dismissible page overlay
   -> development diagnostics expose counters only
 ```
@@ -73,9 +77,9 @@ The extension never sends full HTML, form values, passwords, or typed emails. Th
 
 ## Stack
 
-- Extension: TypeScript, React, Vite, Chrome Extension API, Manifest V3.
-- Backend: Python, FastAPI, Pydantic, httpx, scikit-learn, pandas, joblib.
-- Quality: pytest, ruff, TypeScript checks, GitHub Actions.
+- Extension: TypeScript, React, Vite, Manifest V3, `webextension-polyfill` (for the experimental Firefox build).
+- Backend: Python, FastAPI, Pydantic, httpx, scikit-learn, SHAP, pandas, joblib.
+- Quality: pytest, ruff, mypy, Vitest, TypeScript checks, Playwright (real-Chromium E2E), GitHub Actions, Codecov.
 - Runtime: Docker and Docker Compose.
 
 ## Development Setup
@@ -91,9 +95,9 @@ pip install -r backend/requirements-dev.txt
 uvicorn app.main:app --app-dir backend --reload
 ```
 
-**Windows**
+**Windows (PowerShell)**
 
-```bash
+```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
@@ -128,28 +132,39 @@ Extension settings are available from the popup settings button or Chrome extens
 
 ## Tests
 
-Backend:
+Backend (the same checks as Backend CI):
 
 ```bash
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements-dev.txt
-pytest backend/tests
+cd backend
+pytest tests
+ruff check app tests ../demo
+mypy app
 ```
 
-Extension:
+Extension (the same checks as Extension CI):
 
 ```bash
 cd extension
-npm run lint
+npm run lint                        # tsc --noEmit
 npm run test
 npm run build
-npm audit --audit-level=high
+npx playwright install chromium     # first run only
+npm run test:e2e                    # loads the built extension in real Chromium
 ```
 
-ML demo:
+Dependency audits (run by Security CI, not Extension CI):
+
+```bash
+cd extension && npm audit --audit-level=high
+pip install pip-audit && pip-audit -r backend/requirements.txt
+```
+
+ML:
 
 ```bash
 python ml/train_model.py
 python ml/evaluate_model.py
+python ml/evaluate_cv_metrics.py    # the metrics in "ML model performance" below
 ```
 
 Docker:
@@ -201,7 +216,7 @@ Copy `.env.example` to `.env` for local overrides. No real keys are committed.
 Extension settings:
 
 - Backend URL: defaults to `http://localhost:8000`.
-- Timeout: clamped between 1000 ms and 10000 ms.
+- Timeout: defaults to 2500 ms, clamped between 1000 ms and 10000 ms.
 - Danger overlay: enabled by default and only shown for `dangerous` results.
 
 ## Ethical And Privacy Notice
@@ -210,12 +225,18 @@ PhishLens is defensive only. It must not collect credentials, typed emails, priv
 
 ## Local Demo
 
-Run the backend, demo pages, and extension locally:
+Run the backend, demo pages, and extension locally, each in its own terminal:
 
-```bash
+```powershell
+# Terminal 1: backend with the localhost-only demo threat source
+# (Linux / macOS: PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true uvicorn app.main:app --app-dir backend --reload)
 $env:PHISHLENS_ENABLE_DEMO_THREAT_SOURCE="true"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
+
+# Terminal 2: demo pages on port 8080
 python demo/serve_demo.py
+
+# Terminal 3: build the extension
 cd extension
 npm run build
 ```
@@ -237,14 +258,75 @@ npm run package
 
 The zip is written to `extension/release/`.
 
+## ML model performance
+
+**99.0% precision / 82.2% recall (5-fold stratified CV, N=1,200)** — the two strongest, most
+honest metrics for the shipped `RandomForestClassifier` on the committed PhishTank + Tranco
+dataset. Accuracy alone (**90.7%**) is a poor headline for a detector: here it hides a recall
+gap — the model catches ~82% of phishing at near-perfect precision, so its weakness is *missed*
+phishing, not false alarms.
+
+Reproduce with `python ml/evaluate_cv_metrics.py`. Phishing is the positive class; the confusion
+matrix and false-positive rate are aggregated out-of-fold across all 5 folds (every row predicted
+exactly once).
+
+| Metric | As-is (N=1,200) | Leakage-corrected (N=915) |
+|--------|----------------:|--------------------------:|
+| Class balance (phishing / legit) | 600 / 600 (50.0%) | 481 / 434 (52.6%) |
+| Precision | 0.990 | 0.993 |
+| Recall | 0.822 | 0.869 |
+| F1 | 0.898 | 0.927 |
+| False-positive rate | 0.0083 | 0.0069 |
+| ROC-AUC | 0.966 | 0.970 |
+| Accuracy | 0.907 | 0.928 |
+| Confusion matrix `[[TN, FP], [FN, TP]]` | `[[595, 5], [107, 493]]` | `[[431, 3], [63, 418]]` |
+
+**On class balance:** this dataset is balanced 50/50 by construction, so the usual "accuracy is
+misleading because phishing is rare" caveat doesn't apply to *this* evaluation — accuracy is
+misleading here for a different reason (it averages over a strong precision and a weaker recall).
+In production, phishing is of course rare, which is a further reason to track precision/recall/FPR
+rather than accuracy.
+
+**On data leakage:** the committed CSV stores only the 16 numeric features and a label, never raw
+URLs or domains (a deliberate privacy decision), so *domain-level* leakage (same host in train and
+test) can't be verified from the file. The closest observable proxy is duplicate feature vectors —
+439 of the 1,200 rows are exact duplicates (915 distinct vectors), because PhishTank captures many
+paths on one host and Tranco roots collapse to identical numeric rows, so a random k-fold split can
+place identical vectors in both train and test. The "Leakage-corrected" column removes that vector
+by deduplicating to one row per distinct feature vector. Its numbers are *higher*, not lower — so
+the duplicates are conservative, not inflationary, and the headline accuracy is **not** propped up
+by leakage. Both columns are reported for transparency; treat the as-is column as the conservative
+figure.
+
+**These numbers describe a URL-only model, not production behavior.** DOM features
+(`has_password_field`, `num_forms`, etc.) are hardcoded to `0` for every training row because the
+dataset is built from URLs only, without a live browser session — but
+`backend/app/services/ml_service.py` feeds real DOM features from the extension's content script at
+inference time. The 6 DOM columns the model sees in production were never exercised with real
+variation during training, so any influence they have on live predictions is unvalidated
+extrapolation. See [docs/ml-methodology.md](docs/ml-methodology.md) for the full methodology, the
+URL-length dataset bias that was found and fixed, and the temporal-drift validation.
+
 ## Limitations
 
-- The ML model is trained on a real PhishTank + Tranco dataset (1200 rows; 5-fold CV accuracy 0.907 ± 0.008, hold-out accuracy 0.92 on 396 rows — precision 0.87/recall 0.99/F1 0.93 for legitimate URLs, precision 0.99/recall 0.85/F1 0.92 for phishing, confusion matrix `[[197, 1], [29, 169]]`; see [docs/ml-methodology.md](docs/ml-methodology.md) for a known URL-length dataset bias that was found and fixed and the full classification report). **These numbers do not describe the model's production behavior**: DOM features (`has_password_field`, `num_forms`, etc.) are hardcoded to `0` for every training row because the dataset is built from URLs only, without a live browser session — but `backend/app/services/ml_service.py` feeds real DOM features from the extension's content script at inference time. The reported accuracy/precision/recall reflect a URL-only model; the 6 DOM columns it sees in production were never exercised with real variation during training, so any influence they have on live predictions is unvalidated extrapolation, not something these metrics back up.
+- The ML model is trained on a real PhishTank + Tranco dataset (1,200 rows). See
+  [ML model performance](#ml-model-performance) above for the full metric table and the caveat that
+  these figures describe a URL-only model — the 6 DOM columns it receives in production were never
+  exercised with real variation during training.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
 - Diagnostics are development counters only and should not be treated as production telemetry.
 - In-memory rate limiting is process-local and resets when the backend restarts.
+- Known false positive: the real PayPal sign-in page (`https://www.paypal.com/signin`) scored
+  **Suspicious 36** when the demo was recorded. Its genuine login form, password field, reCAPTCHA
+  iframes, and hidden inputs raise the page-structure score, and the ML model adds +20 citing the
+  number of subdomains and dots, so it effectively penalizes the `www.` prefix.
+- The local score and the backend-enriched score are on the same 0-100 scale but can disagree
+  noticeably for the same page. On the cloned PayPal login in the demo recording, the popup first
+  showed the local-only score (95) and then the backend score (74). The toolbar badge always
+  reflects the local label (`!`, `?`, or nothing), never the backend result, so the two can
+  disagree.
 - The current build prioritizes explainability and safe defaults over coverage.
 
 ## Lessons Learned
@@ -253,7 +335,7 @@ A few things found during a deliberate self-audit of this project, kept here ins
 quietly fixed and forgotten, because how a bug was found and corrected is often more
 informative than the fact that the code is now clean:
 
-- **The content script and danger overlay were silently broken in real Chrome, while every automated check stayed green.** Adding Firefox support introduced an ES `import` statement into two files that execute as classic, non-module scripts (MV3 content scripts and `chrome.scripting.executeScript`-injected files can't be modules). `tsc`, `vitest`, and `vite build` all passed, because none of them load the bundle in an actual browser — Vitest mocks the module graph, and Vite's build doesn't check runtime module-format compatibility. Found by recording this README's demo GIF with a real Playwright + Chromium session instead of a screen recording tool, which surfaced "Could not establish connection" the moment the popup tried to collect DOM features. Fixed by splitting the build into two Rollup passes — ES modules for popup/options/the service worker, IIFE for the content script and overlay. The lesson: a green test suite proves the code you tested, not the environment you didn't.
+- **The content script and danger overlay were silently broken in real Chrome, while every automated check stayed green.** Adding Firefox support introduced an ES `import` statement into two files that execute as classic, non-module scripts (MV3 content scripts and `chrome.scripting.executeScript`-injected files can't be modules). `tsc`, `vitest`, and `vite build` all passed, because none of them load the bundle in an actual browser — Vitest mocks the module graph, and Vite's build doesn't check runtime module-format compatibility. Found by recording this README's original demo GIF with a real Playwright + Chromium session instead of a screen recording tool, which surfaced "Could not establish connection" the moment the popup tried to collect DOM features. Fixed by splitting the build into two Rollup passes — ES modules for popup/options/the service worker, IIFE for the content script and overlay. The lesson: a green test suite proves the code you tested, not the environment you didn't.
 - **A 95% ML accuracy number was hiding a trivial shortcut.** The training dataset built
   legitimate URLs as bare domain roots (`https://example.com/`) while phishing URLs from
   PhishTank carry real paths, so `url_length` alone separated the two classes almost
@@ -283,8 +365,9 @@ informative than the fact that the code is now clean:
   was only ~52% accurate — barely better than guessing. Not "fixed" with a quick correction
   factor in this round, because calibrating against a dataset that can't exercise
   typosquat/homograph/DOM/TLS/domain-age/threat-intel signals would just calibrate to this
-  benchmark's blind spots. Documented as a known limitation instead: treat the heuristic-only
-  confidence as a tie-breaker, not a probability. See
+  benchmark's blind spots. Instead, the popup stopped presenting it as a probability: when the
+  ML model did not contribute, it shows "Heuristic" (with a tooltip explaining why) rather than a
+  percentage, and the copied report says "heuristic (not a calibrated probability)". See
   [docs/ml-methodology.md](docs/ml-methodology.md#heuristic-only-confidence-calibration-reliability-diagram).
 
 ## Roadmap
