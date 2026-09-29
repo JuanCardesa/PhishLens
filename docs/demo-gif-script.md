@@ -28,16 +28,17 @@ fixes). The README hero is its frame at 16 s, cropped to the browser window
 (2485×1440) and scaled to 1600×927. The recording is converted with:
 
 ```bash
-ffmpeg -i "PhishLens - demo.mp4" -vf "fps=30,scale=1600:-2:flags=lanczos" \
+ffmpeg -i "PhishLens - demo.mp4" -vf "fps=60,scale=1600:-2:flags=lanczos" \
   -c:v libwebp_anim -lossless 0 -q:v 80 -compression_level 5 -loop 0 -an \
   docs/screenshots/demo.webp
 ```
 
-The result is 1600×900 at 30 fps, ~10.7 MB. It used to be 1280×720 at 20 fps and
-quality 65 (~4.2 MB), which looked soft and stuttered through the camera zooms.
-30 fps smooths the zooms, and 1600 px keeps small popup text legible on
-high-DPI screens. 1280 px at quality 85 came out at the same ~10.7 MB, so the
-extra resolution was chosen over the extra quality.
+The result is 1600×900 at the recording's full 60 fps, ~18.3 MB. At lower frame
+rates the camera zooms move in visible steps and feel dizzying. The first version
+was 1280×720 at 20 fps and quality 65 (~4.2 MB); a second was 30 fps (~10.7 MB).
+1600 px keeps small popup text legible on high-DPI screens. Raising the quality
+from 80 to 85 or 88 at 60 fps gave 26.3 or 28.6 MB for little visible gain at
+README size.
 
 Animated WebP instead of GIF: the recording has camera zooms over a gradient
 background, so most frames change almost every pixel. A 6-second test segment
