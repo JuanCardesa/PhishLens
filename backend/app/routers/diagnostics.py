@@ -6,7 +6,6 @@ from app.core.config import get_settings
 from app.services.diagnostics import DIAGNOSTICS
 from app.services.ml_service import is_model_available
 
-
 router = APIRouter(tags=["diagnostics"])
 
 

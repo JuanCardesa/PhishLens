@@ -35,7 +35,9 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
-from app.services.feature_extractor import extract_url_features as extract_backend_url_features  # noqa: E402
+from app.services.feature_extractor import (  # noqa: E402 - needs the sys.path entry above
+    extract_url_features as extract_backend_url_features,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -81,6 +83,56 @@ def _add_realistic_path(domain_url: str, rng: random.Random) -> str:
         return domain_url
     path = rng.choice(REALISTIC_PATH_TEMPLATES)
     return f"{domain_url.rstrip('/')}/{path}"
+
+
+# Tranco lists registrable domains, so every legitimate URL used to be a bare
+# host while PhishTank URLs keep whatever host the phishing page used. That made
+# num_subdomains (and num_dots with it) a class label in disguise: 599 of 600
+# legitimate rows had no subdomain, so the model scored any subdomain as
+# phishing, including www.paypal.com (+20) and accounts.google.com (+20).
+# Legitimate sites serve pages from service subdomains all the time, so a share
+# of legitimate samples get one, and another share get "www." (which the feature
+# extractor no longer counts, so it only lengthens the URL as it does in real
+# traffic). Same approach as REALISTIC_PATH_TEMPLATES above.
+REALISTIC_SUBDOMAINS = (
+    "accounts",
+    "api",
+    "app",
+    "auth",
+    "blog",
+    "developer",
+    "docs",
+    "en",
+    "help",
+    "login",
+    "m",
+    "mail",
+    "my",
+    "news",
+    "secure",
+    "shop",
+    "static",
+    "store",
+    "support",
+)
+SUBDOMAIN_PROBABILITY = 0.35
+WWW_PROBABILITY = 0.35
+
+
+def _add_realistic_host(domain_url: str, rng: random.Random) -> str:
+    roll = rng.random()
+    if roll < SUBDOMAIN_PROBABILITY:
+        prefix = rng.choice(REALISTIC_SUBDOMAINS)
+    elif roll < SUBDOMAIN_PROBABILITY + WWW_PROBABILITY:
+        prefix = "www"
+    else:
+        return domain_url
+    return domain_url.replace("://", f"://{prefix}.", 1)
+
+
+def realistic_legit_url(domain_url: str, rng: random.Random) -> str:
+    """Turn a bare Tranco root into a URL shaped like real legitimate traffic."""
+    return _add_realistic_path(_add_realistic_host(domain_url, rng), rng)
 
 
 FEATURE_COLUMNS = [
@@ -141,7 +193,7 @@ def extract_url_features(url: str, label: int) -> Row | None:
             "has_hidden_inputs": 0,
             "label": label,
         }
-    except Exception:
+    except Exception:  # noqa: BLE001 - skip feed URLs the extractor cannot parse
         return None
 
 
@@ -152,7 +204,7 @@ def fetch_phishtank_urls(n: int) -> list[str]:
             raw = resp.read()
         with gzip.open(io.BytesIO(raw)) as gz:
             text = gz.read().decode("utf-8", errors="replace")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any download or archive failure aborts the build
         logger.error("Failed to download PhishTank dump: %s", exc)
         return []
 
@@ -178,7 +230,7 @@ def fetch_tranco_urls(n: int, top_k: int) -> list[str]:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             csv_name = next(name for name in archive.namelist() if name.endswith(".csv"))
             text = archive.read(csv_name).decode("utf-8", errors="replace")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any download or archive failure aborts the build
         logger.error("Failed to download Tranco list: %s", exc)
         return []
 
@@ -213,8 +265,8 @@ def main() -> int:
         logger.error("Dataset build failed — check network connectivity and try again.")
         return 1
 
-    path_rng = random.Random(42)
-    legit_urls = [_add_realistic_path(url, path_rng) for url in legit_urls]
+    url_rng = random.Random(42)
+    legit_urls = [realistic_legit_url(url, url_rng) for url in legit_urls]
 
     rows: list[Row] = []
     for url in phishing_urls:

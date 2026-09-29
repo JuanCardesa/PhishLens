@@ -13,10 +13,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import extract_url_features
-from app.services.scoring_service import _score_dom, _score_url
+from app.services.scoring_service import (
+    _score_dom,
+    _score_url,
+    label_from_score,
+    scale_heuristic_score,
+)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contracts" / "scoring-vectors.json"
 _CONTRACT = json.loads(_CONTRACT_PATH.read_text(encoding="utf-8"))
@@ -36,3 +40,7 @@ def test_scoring_contract(vector: dict[str, Any]) -> None:
     assert url_reasons == vector["url_reasons"]
     assert dom_score == vector["dom_score"]
     assert dom_reasons == vector["dom_reasons"]
+
+    heuristic_score = scale_heuristic_score(url_score, dom_score)
+    assert heuristic_score == vector["heuristic_score"]
+    assert label_from_score(heuristic_score) == vector["label"]

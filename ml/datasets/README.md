@@ -9,7 +9,10 @@ verified-phishing dump (600 rows) and the Tranco top-1M list (600 rows). Contain
 [docs/ml-methodology.md](../../docs/ml-methodology.md) for measured accuracy. Re-run
 `python datasets/build_dataset.py` to refresh it from a current PhishTank/Tranco snapshot.
 The builder imports the backend URL feature extractor so training rows use the same URL-derived
-values as runtime inference.
+values as runtime inference. Tranco only lists bare registrable domains, so the builder gives
+legitimate URLs realistic hosts (a service subdomain or `www.`) and paths before extracting
+features (`realistic_legit_url`); without that, `num_subdomains` and `url_length` separate the
+classes by how the data was collected rather than by phishing. Current snapshot: 2026-09-29.
 
 `demo_phishing_urls.csv` — 12 synthetic rows used exclusively to validate the
 ML pipeline end-to-end before the real dataset existed, and as an offline fallback if
@@ -23,12 +26,12 @@ All training CSVs must contain these 17 columns (16 features + label):
 | Column | Type | Description |
 |--------|------|-------------|
 | `url_length` | int | Total character length of the URL |
-| `num_dots` | int | Number of `.` characters in the URL |
+| `num_dots` | int | Number of `.` characters in the hostname and path (query string and a leading `www.` excluded) |
 | `num_hyphens` | int | Number of `-` characters in the URL |
 | `uses_ip_domain` | 0/1 | Domain is a raw IP address |
 | `has_at_symbol` | 0/1 | URL contains `@` |
 | `uses_https` | 0/1 | Scheme is `https` |
-| `num_subdomains` | int | Number of subdomain labels |
+| `num_subdomains` | int | Number of subdomain labels (a leading `www` is not counted) |
 | `suspicious_keyword_count` | int | Count of known phishing keywords in the URL |
 | `uses_punycode` | 0/1 | Domain contains an `xn--` ACE label |
 | `domain_entropy` | float | Shannon entropy of the registered domain string |

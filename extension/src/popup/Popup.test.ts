@@ -97,7 +97,6 @@ describe("modeLabel", () => {
     ["backend-unavailable", "Backend unavailable"],
     ["cached", "Cached"],
     ["checking", "Checking"],
-    ["local-only", "Local only"],
   ])("maps %s → %s", (mode, expected) => {
     expect(modeLabel(mode)).toBe(expected);
   });
@@ -120,9 +119,9 @@ describe("modeBannerText", () => {
     );
   });
 
-  it("returns local-only fallback for local-only mode", () => {
-    expect(modeBannerText(makeAnalysis({ mode: "local-only" }))).toBe(
-      "Local-only analysis. Backend enrichment is not active.",
+  it("says the backend is still being checked while the local result is shown", () => {
+    expect(modeBannerText(makeAnalysis({ mode: "checking" }))).toBe(
+      "Local result. Waiting for backend enrichment...",
     );
   });
 

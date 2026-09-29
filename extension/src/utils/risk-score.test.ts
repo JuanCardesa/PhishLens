@@ -45,7 +45,7 @@ describe("analyzeLocally", () => {
     expect(result.label).toBe("suspicious");
     expect(result.reasons).toContain("Form submits data to an external domain");
     expect(result.risk_breakdown?.find((item) => item.category === "dom")?.max_score).toBe(30);
-    expect(result.risk_breakdown?.find((item) => item.category === "ml")?.min_score).toBe(-10);
+    expect(result.risk_breakdown?.find((item) => item.category === "ml")?.min_score).toBe(-5);
   });
 
   it("caps url score at 35", () => {

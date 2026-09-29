@@ -164,7 +164,9 @@ def predict_ml_adjustment(
             adjustment=_adjustment_from_probability(probability),
             top_factors=top_factors,
         )
-    except Exception as exc:  # pragma: no cover - defensive fallback around local artifacts.
+    # Any failure loading or running the artifact (unpickling, feature shape,
+    # sklearn internals) must degrade to "ML unavailable", never fail the analysis.
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive fallback around local artifacts.
         return MLResult(available=False, error=str(exc))
 
 
@@ -212,7 +214,7 @@ def warm_up_model(settings: Settings | None = None) -> None:
 
     try:
         _load_artifact(model_path)
-    except Exception:  # noqa: BLE001 - best-effort warm-up, real errors surface on first predict
+    except Exception:  # best-effort warm-up; real errors surface on the first predict
         logger.warning("ml_model_warm_up_failed filename=%s", model_path.name, exc_info=True)
 
 
@@ -261,12 +263,16 @@ def _feature_values(url_features: URLFeatures, dom_features: DOMFeatures) -> dic
 
 
 def _adjustment_from_probability(probability: float) -> int:
-    if probability >= 0.85:
-        return 20
+    # Sized to the evidence each probability band carries against phishing the
+    # model has never seen (ml/evaluate_ml_adjustment.py --temporal, documented in
+    # docs/ml-methodology.md). p >= 0.65 is ~11x more likely on new phishing than
+    # on legitimate pages, and p >= 0.85 is no stronger than 0.65-0.85, so both
+    # get +12 (there used to be a +20 band). p <= 0.35 only weakly favors
+    # legitimate (likelihood ratio ~0.4-0.5) and still holds about a third of
+    # new phishing, so it gets -5; the old -10 band for p <= 0.20 subtracted 10
+    # points from about 1 in 5 recent phishing pages.
     if probability >= 0.65:
         return 12
-    if probability <= 0.20:
-        return -10
     if probability <= 0.35:
         return -5
     return 0

@@ -1,11 +1,9 @@
 from unittest.mock import MagicMock
 
-from fastapi.testclient import TestClient
-
 from app.core.config import get_settings
 from app.main import app
 from app.services.rate_limiter import _resolve_client_ip
-
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

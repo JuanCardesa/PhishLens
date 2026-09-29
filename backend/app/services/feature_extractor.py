@@ -129,15 +129,21 @@ def extract_url_features(url: str) -> URLFeatures:
     subdomain_label_count = 0 if uses_ip_domain else max(0, len(labels) - len(registered_domain_parts))
     subdomain_labels = list(decoded_labels[:subdomain_label_count]) if subdomain_label_count else []
     brand_subdomain_target = _detect_brand_subdomain_impersonation(registered_domain, subdomain_labels)
+    # A leading "www" is a naming convention, not structure an attacker chose, so
+    # it counts as neither a subdomain nor a dot. Counting it made www.paypal.com
+    # look like phishing to the ML model (+20) while paypal.com got -10. Mirrored
+    # in extension/src/utils/url-features.ts.
+    www_prefix = 1 if subdomain_label_count > 0 and labels[0] == "www" else 0
 
     return URLFeatures(
         url_length=len(url),
-        num_dots=hostname_and_path.count("."),  # query string excluded to avoid false positives
+        # query string excluded to avoid false positives
+        num_dots=hostname_and_path.count(".") - www_prefix,
         num_hyphens=decoded_hostname_and_path.count("-"),
         uses_ip_domain=uses_ip_domain,
         has_at_symbol="@" in url,
         uses_https=parsed.scheme == "https",
-        num_subdomains=0 if uses_ip_domain else max(0, len(labels) - len(registered_domain_parts)),
+        num_subdomains=subdomain_label_count - www_prefix,
         suspicious_keywords=keyword_matches,
         uses_punycode="xn--" in hostname,
         domain_entropy=round(_shannon_entropy(decoded_registered_domain.replace(".", "")), 3),

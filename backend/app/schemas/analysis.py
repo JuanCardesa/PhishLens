@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.services.url_normalizer import URLNormalizationError, normalize_url
 
-
 RiskLabel = Literal["safe", "suspicious", "dangerous"]
 RiskCategory = Literal["url", "dom", "threat_intel", "tls", "domain_age", "ml"]
 

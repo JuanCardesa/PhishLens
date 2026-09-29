@@ -14,10 +14,9 @@ these tests will catch the drift.
 """
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 from app.main import app
-
+from app.services.scoring_service import scale_heuristic_score
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
@@ -119,10 +118,19 @@ def test_analyze_heuristics_source_always_true() -> None:
     assert body["sources"]["heuristics"] is True
 
 
-def test_analyze_breakdown_score_sum_matches_risk_score() -> None:
+def test_analyze_breakdown_scores_combine_into_risk_score() -> None:
     body = _post_analyze(_PHISHING_URL, {"has_password_field": True})
-    raw_sum = sum(item["score"] for item in body["risk_breakdown"])
-    assert body["risk_score"] == max(0, min(100, raw_sum))
+    scores = {item["category"]: item["score"] for item in body["risk_breakdown"]}
+    # URL + DOM scaled onto 0-100 (the extension's local score), plus every
+    # backend-only category on top.
+    expected = (
+        scale_heuristic_score(scores["url"], scores["dom"])
+        + scores["threat_intel"]
+        + scores["tls"]
+        + scores["domain_age"]
+        + scores["ml"]
+    )
+    assert body["risk_score"] == max(0, min(100, expected))
 
 
 def test_analyze_url_breakdown_max_score_is_35() -> None:
@@ -140,8 +148,8 @@ def test_analyze_dom_breakdown_max_score_is_30() -> None:
 def test_analyze_ml_breakdown_bounds() -> None:
     body = _post_analyze(_BENIGN_URL)
     ml_item = next(item for item in body["risk_breakdown"] if item["category"] == "ml")
-    assert ml_item["min_score"] == -10
-    assert ml_item["max_score"] == 20
+    assert ml_item["min_score"] == -5
+    assert ml_item["max_score"] == 12
 
 
 def test_analyze_tls_source_field_is_string() -> None:

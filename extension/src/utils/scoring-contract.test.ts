@@ -19,6 +19,8 @@ interface ScoringVector {
   url_reasons: string[];
   dom_score: number;
   dom_reasons: string[];
+  heuristic_score: number;
+  label: string;
 }
 
 interface ScoringContract {
@@ -41,6 +43,9 @@ describe("scoring contract (mirrors backend/tests/test_scoring_contract.py)", ()
       expect(urlItem?.reasons).toEqual(vector.url_reasons);
       expect(domItem?.score).toBe(vector.dom_score);
       expect(domItem?.reasons).toEqual(vector.dom_reasons);
+      // The local score is the base the backend adds its own categories to.
+      expect(result.risk_score).toBe(vector.heuristic_score);
+      expect(result.label).toBe(vector.label);
     });
   }
 });

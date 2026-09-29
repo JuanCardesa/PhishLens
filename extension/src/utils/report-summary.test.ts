@@ -41,7 +41,7 @@ describe("buildReportSummary", () => {
       reasons: [],
       sources: { heuristics: true, ml: false, phishtank: false, tls: false, demo: false },
       backendAvailable: false,
-      mode: "local-only",
+      mode: "backend-unavailable",
       analyzedAt: "2026-06-16T00:00:00.000Z",
     };
 

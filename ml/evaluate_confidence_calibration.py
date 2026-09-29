@@ -65,7 +65,7 @@ BIN_WIDTH = 0.05
 NO_ML_RESULT = MLResult(available=False)
 
 
-def _row_to_url_features(row: "pd.Series[object]") -> URLFeatures:
+def _row_to_url_features(row: pd.Series[object]) -> URLFeatures:
     keyword_count = int(row["suspicious_keyword_count"])
     return URLFeatures(
         url_length=int(row["url_length"]),

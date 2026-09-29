@@ -1,5 +1,5 @@
 export type RiskLabel = "safe" | "suspicious" | "dangerous";
-export type AnalysisMode = "checking" | "local-only" | "backend-enriched" | "backend-unavailable" | "cached";
+export type AnalysisMode = "checking" | "backend-enriched" | "backend-unavailable" | "cached";
 
 export interface DOMFeatures {
   has_password_field: boolean;
