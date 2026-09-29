@@ -1,6 +1,6 @@
 // Captures real popup + page screenshots from the built extension: the README
-// screenshots, the source images for the Chrome Web Store screenshots
-// (scripts/take-screenshots.mjs), and the frames for docs/screenshots/demo.gif.
+// screenshots and the source images for the Chrome Web Store screenshots
+// (scripts/take-screenshots.mjs).
 //
 // Prerequisites (see docs/demo-script.md § Setup):
 //   1. Backend running on :8000 with PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true
@@ -8,8 +8,7 @@
 //   3. `npm run build` already run (this script copies dist/, it doesn't build it)
 //
 // Usage: node scripts/record-demo.mjs [--docs]
-// Output: PNG frames in a temp directory (path printed at the end). Compose
-// them into the GIF with scripts/compose_demo_gif.py (docs/demo-gif-script.md).
+// Output: PNG frames in a temp directory (path printed at the end).
 // --docs also writes docs/screenshots/popup-{safe,suspicious,dangerous,local-only}.png
 // and docs/screenshots/danger-overlay.png.
 //
