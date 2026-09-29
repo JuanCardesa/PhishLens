@@ -1,14 +1,17 @@
-// Captures the popup + page screenshots used to assemble docs/screenshots/demo.gif.
+// Captures real popup + page screenshots from the built extension: the README
+// screenshots, the source images for the Chrome Web Store screenshots
+// (scripts/take-screenshots.mjs), and the frames for docs/screenshots/demo.gif.
 //
 // Prerequisites (see docs/demo-script.md § Setup):
-//   1. Backend running with PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true
+//   1. Backend running on :8000 with PHISHLENS_ENABLE_DEMO_THREAT_SOURCE=true
 //   2. `python demo/serve_demo.py` running on :8080
 //   3. `npm run build` already run (this script copies dist/, it doesn't build it)
 //
-// Usage: node scripts/record-demo.mjs
+// Usage: node scripts/record-demo.mjs [--docs]
 // Output: PNG frames in a temp directory (path printed at the end). Compose
-// them into the final GIF with a separate Pillow script — see
-// docs/demo-gif-script.md for the compositing approach.
+// them into the GIF with scripts/compose_demo_gif.py (docs/demo-gif-script.md).
+// --docs also writes docs/screenshots/popup-{safe,suspicious,dangerous,local-only}.png
+// and docs/screenshots/danger-overlay.png.
 //
 // Why this needs a patched, temporary copy of the extension (never the real
 // dist/ or manifest.json): the real toolbar popup is not a tab, so
@@ -41,11 +44,24 @@ const EXT_PATH = path.join(TMP_ROOT, "ext");
 const USER_DATA_DIR = path.join(TMP_ROOT, "profile");
 const FRAMES_DIR = path.join(TMP_ROOT, "frames");
 
+const DOCS_SCREENSHOTS_DIR = path.resolve(EXTENSION_ROOT, "..", "docs", "screenshots");
+const WRITE_DOCS = process.argv.includes("--docs");
+
 const DEMO_ORIGIN = "http://localhost:8080";
+const SETTINGS_KEY = "phishlens:settings";
+// Nothing listens on the discard port, so /analyze fails fast and the popup
+// shows its real "Backend unavailable" fallback instead of a staged one.
+const UNREACHABLE_BACKEND = "http://localhost:9";
 const SHOTS = [
-  { name: "01-safe", url: `${DEMO_ORIGIN}/pages/safe.html` },
-  { name: "02-suspicious", url: `${DEMO_ORIGIN}/pages/suspicious.html` },
-  { name: "03-dangerous", url: `${DEMO_ORIGIN}/pages/phishlens-demo-dangerous-login-secure-update.html` },
+  { name: "01-safe", url: `${DEMO_ORIGIN}/pages/safe.html`, doc: "popup-safe.png" },
+  { name: "02-suspicious", url: `${DEMO_ORIGIN}/pages/suspicious.html`, doc: "popup-suspicious.png" },
+  {
+    name: "03-dangerous",
+    url: `${DEMO_ORIGIN}/pages/phishlens-demo-dangerous-login-secure-update.html`,
+    doc: "popup-dangerous.png",
+    overlayDoc: "danger-overlay.png",
+  },
+  { name: "04-local-only", url: `${DEMO_ORIGIN}/pages/safe.html`, doc: "popup-local-only.png", backendOff: true },
 ];
 
 function preparePatchedExtension() {
@@ -92,15 +108,22 @@ async function getRealDemoTab(worker) {
   }, DEMO_ORIGIN);
 }
 
-async function waitForPopupReady(popupPage) {
-  await popupPage.waitForFunction(
-    () => {
-      const status = document.querySelector(".risk-panel .status");
-      return status && status.textContent && !status.textContent.includes("Checking");
-    },
-    { timeout: 20000 },
+// The popup shows the local score first and keeps aria-busy="true" until the
+// backend answers or fails. Waiting for the first score instead (what this used
+// to do) captured that in-flight state whenever /analyze took longer than the
+// fixed delay after it, which is why a Refresh click never helped: the score was
+// already on screen, so the wait returned at once and captured the same state.
+async function waitForFinalResult(popupPage) {
+  await popupPage.waitForSelector('main.popup-shell[aria-busy="false"] .mode-banner', { timeout: 20000 });
+  await popupPage.waitForTimeout(300); // let the last render settle before the screenshot
+  return popupPage.locator(".mode-banner").innerText();
+}
+
+async function setBackendUrl(worker, backendBaseUrl) {
+  await worker.evaluate(
+    ([key, url]) => chrome.storage.sync.set({ [key]: { backendBaseUrl: url, requestTimeoutMs: 2500, dangerOverlayEnabled: true } }),
+    [SETTINGS_KEY, backendBaseUrl],
   );
-  await popupPage.waitForTimeout(900);
 }
 
 async function openPopup(context, mainPage, extensionId, realTab) {
@@ -135,37 +158,32 @@ async function main() {
   console.log("Extension ID:", extensionId);
 
   for (const shot of SHOTS) {
+    await setBackendUrl(worker, shot.backendOff ? UNREACHABLE_BACKEND : "http://localhost:8000");
     await main.bringToFront();
     await main.goto(shot.url, { waitUntil: "networkidle" });
     await main.waitForTimeout(500);
 
     const realTab = await getRealDemoTab(worker);
     const popup = await openPopup(context, main, extensionId, realTab);
-    await waitForPopupReady(popup);
-
-    // The very first /analyze call after launch is occasionally slow enough
-    // (cold connection, not application logic) to miss the extension's
-    // request timeout, leaving the popup in local-only mode. Clicking
-    // Refresh reissues the request once the connection is warm.
-    const backendActive = await popup
-      .locator(".mode-banner")
-      .innerText()
-      .then((text) => !text.includes("unavailable") && !text.includes("not active"))
-      .catch(() => false);
-    if (!backendActive) {
-      console.log(`  ${shot.name}: backend not active on first try, refreshing once...`);
-      await popup.locator('button[aria-label="Refresh analysis"]').click();
-      await waitForPopupReady(popup);
+    const banner = await waitForFinalResult(popup);
+    const backendAnswered = !banner.includes("unavailable");
+    if (backendAnswered === Boolean(shot.backendOff)) {
+      throw new Error(
+        `${shot.name}: expected ${shot.backendOff ? "no backend" : "a backend result"}, popup says "${banner}". ` +
+          "Is the backend running on http://localhost:8000?",
+      );
     }
+    const score = await popup.locator(".risk-panel").innerText();
+    console.log(`  ${shot.name}: ${score.replace(/\s+/g, " ").trim()} (${banner})`);
 
     await popup.screenshot({ path: path.join(FRAMES_DIR, `${shot.name}-popup.png`) });
 
-    if (shot.name === "03-dangerous") {
-      await main.bringToFront();
-      await main.waitForTimeout(1000);
+    await main.bringToFront();
+    if (shot.overlayDoc) {
+      await main.waitForSelector("#phishlens-warning-overlay", { timeout: 5000 });
+      await main.waitForTimeout(500);
       await main.screenshot({ path: path.join(FRAMES_DIR, `${shot.name}-overlay.png`) });
     } else {
-      await main.bringToFront();
       await main.screenshot({ path: path.join(FRAMES_DIR, `${shot.name}-page.png`) });
     }
 
@@ -174,6 +192,16 @@ async function main() {
 
   await context.close();
   console.log("Frames written to", FRAMES_DIR);
+
+  if (WRITE_DOCS) {
+    for (const shot of SHOTS) {
+      fs.copyFileSync(path.join(FRAMES_DIR, `${shot.name}-popup.png`), path.join(DOCS_SCREENSHOTS_DIR, shot.doc));
+      if (shot.overlayDoc) {
+        fs.copyFileSync(path.join(FRAMES_DIR, `${shot.name}-overlay.png`), path.join(DOCS_SCREENSHOTS_DIR, shot.overlayDoc));
+      }
+    }
+    console.log("README screenshots written to", DOCS_SCREENSHOTS_DIR);
+  }
 }
 
 main().catch((err) => {
