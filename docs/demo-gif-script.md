@@ -12,7 +12,7 @@ first, then follow this sequence for the GIF itself.
 
 ## Current README demo
 
-`docs/screenshots/demo.webp` is a 33-second walkthrough: a local webmail inbox
+`docs/screenshots/demo.webp` is a 25-second walkthrough: a local webmail inbox
 receives a fake "PayPal Security" email, hovering the button reveals the real
 link target, the cloned login on `paypal-verify-account.net` turns the toolbar
 icon red, the popup shows the local result (95) while it waits for the backend,
@@ -23,8 +23,8 @@ domain, and the only external lookup during the recording is the backend's
 domain-age query to `rdap.org`.
 
 The source is a 2560×1440, 60 fps screen recording made with Recordly
-(~50 MB, not committed; re-recorded on 2026-09-29 after the scoring and ML
-fixes). The README hero is its frame at 16 s, cropped to the browser window
+(~48 MB, not committed; re-recorded on 2026-09-29 after the scoring and ML
+fixes). The README hero is its frame at 12.4 s, cropped to the browser window
 (2485×1440) and scaled to 1600×927. The recording is converted with:
 
 ```bash
@@ -33,12 +33,22 @@ ffmpeg -i "PhishLens - demo.mp4" -vf "fps=60,scale=1600:-2:flags=lanczos" \
   docs/screenshots/demo.webp
 ```
 
-The result is 1600×900 at the recording's full 60 fps, ~18.3 MB. At lower frame
+The result is 1600×900 at the recording's full 60 fps, ~19.4 MB. At lower frame
 rates the camera zooms move in visible steps and feel dizzying. The first version
 was 1280×720 at 20 fps and quality 65 (~4.2 MB); a second was 30 fps (~10.7 MB).
 1600 px keeps small popup text legible on high-DPI screens. Raising the quality
-from 80 to 85 or 88 at 60 fps gave 26.3 or 28.6 MB for little visible gain at
-README size.
+from 80 to 85 or 88 at 60 fps gave 26.3 or 28.6 MB (on the 33-second take) for
+little visible gain at README size.
+
+What looked like the animation "freezing" was not the frame rate. The first
+2026-09-29 take held completely still for 2.4 to 3.3 s at a time: after the
+verdict, between breakdown scrolls, and on the overlay. Those holds made up
+15.8 of its 33 seconds, and a silent looping animation that stops that long
+looks hung. The breakdown also scrolled in four wheel-notch jumps with 260 ms
+pauses. The current take shortens the holds to 0.9 to 2 s: 7.2 s of still
+frames in 25 s, longest 2.1 s on the warning overlay. It scrolls with many
+small wheel steps, so there are no micro-freezes during the scroll. The take
+script is in the recording kit (`take.mjs`), not in this repository.
 
 Animated WebP instead of GIF: the recording has camera zooms over a gradient
 background, so most frames change almost every pixel. A 6-second test segment
