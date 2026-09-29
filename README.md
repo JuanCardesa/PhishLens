@@ -13,7 +13,7 @@ It combines local URL heuristics, privacy-preserving DOM signals, optional Phish
 
 ![PhishLens on a cloned PayPal login at paypal-verify-account.net: the toolbar icon shows a red badge, the popup rates the page Dangerous 95/100 with backend enrichment, and the in-page warning lists the reasons and tells the user not to enter a password](docs/screenshots/hero-phishing-detection.png)
 
-_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Captured from the recording below; both sites are local demo pages and the domain is not registered. End-to-end walkthrough, from a phishing email to the in-page warning:_
+_PhishLens flagging a cloned PayPal login on a look-alike domain (`paypal-verify-account.net`) and explaining why, both in the popup and in the in-page warning. Both sites are local demo pages and the domain is not registered. The walkthrough below goes from the phishing email to the in-page warning:_
 
 ![PhishLens walkthrough in six slides: a fake "PayPal Security" email whose button really links to paypal-verify-account.net, the PhishLens popup rating the cloned login Dangerous 95 with the in-page warning behind it, the per-category signal breakdown (URL 32/35, page structure 30/30, then threat intel, TLS, domain age, and ML 0), and the in-page warning telling the user not to enter a password](docs/screenshots/demo.gif)
 
@@ -26,19 +26,18 @@ cp .env.example .env
 python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r backend/requirements-dev.txt
 
-# 2. Start the backend
+# 2. Start the backend and leave it running
 uvicorn app.main:app --app-dir backend --reload
 
-# 3. Build the extension
+# 3. In a second terminal, from the repository root, build the extension
 cd extension && npm install && npm run build
 
-# 4. Load the extension in Chrome: chrome://extensions → Developer mode → Load unpacked → select extension/dist
-
-# 5. (Optional) Build a real ML dataset and retrain the model
-python ml/datasets/build_dataset.py && python ml/train_model.py
+# 4. Load it in Chrome: chrome://extensions → Developer mode → Load unpacked → extension/dist
 ```
 
-## Current Status
+The extension also works without the backend; see [Development Setup](#development-setup) for Windows commands and [Local Demo](#local-demo) for pages that show each risk label. To rebuild the ML dataset and retrain the model: `python ml/datasets/build_dataset.py && python ml/train_model.py`.
+
+## Features
 
 - **Detection.** URL heuristics (typosquatting via Levenshtein, homograph/IDN attacks via a hand-written punycode decoder and confusable map, a brand's full domain hidden in subdomains) and privacy-preserving DOM signals (credential fields, external form actions, brand impersonation), scored into an explainable risk breakdown by URL, DOM, threat intelligence, TLS, domain age, and ML.
 - **Backend enrichment (FastAPI).** `/analyze`, `/report`, `/health`; PhishTank threat intel, backend TLS + Certificate Transparency inspection, RDAP domain-age lookups — each with URL normalization, TTL caching, timeouts, and clean degradation when unavailable.
@@ -66,9 +65,10 @@ The warning overlay on the dangerous demo page. That page also matches the local
 Chrome page
   -> content script extracts non-sensitive DOM signals
   -> service worker scores the page locally and sets the toolbar badge
-  -> popup computes local heuristic score
+  -> popup computes the local score (URL + DOM points scaled to 0-100) and shows it
   -> popup optionally calls FastAPI /analyze
-  -> backend adds URL, threat intel, TLS + Certificate Transparency, domain age, and ML signals
+  -> backend starts from that same score and adds threat intel, TLS + Certificate
+     Transparency, domain age, and an ML adjustment (-5 to +12)
   -> popup shows score, label, confidence, risk breakdown, and feedback controls
      (confidence is a percentage only when the ML model contributed, "Heuristic" otherwise)
   -> dangerous results can display a dismissible page overlay
@@ -166,7 +166,8 @@ ML:
 ```bash
 python ml/train_model.py
 python ml/evaluate_model.py
-python ml/evaluate_cv_metrics.py    # the metrics in "ML model performance" below
+python ml/evaluate_cv_metrics.py                 # the metrics in "ML Model Performance" below
+python ml/evaluate_ml_adjustment.py --temporal   # evidence behind the ML score adjustment (downloads data)
 ```
 
 Docker:
@@ -260,7 +261,7 @@ npm run package
 
 The zip is written to `extension/release/`.
 
-## ML model performance
+## ML Model Performance
 
 **78.5% precision / 81.7% recall (5-fold stratified CV, N=1,200)** for the shipped
 `RandomForestClassifier` on the committed PhishTank + Tranco dataset, with a **22% false-positive
@@ -269,17 +270,11 @@ rate**. This is a modest, URL-shape-only model. That is why it only nudges the r
 
 These numbers used to read 99.0% precision / 0.8% false positives. That was a dataset artifact:
 599 of the 600 legitimate URLs had no subdomain, so the model learned "has a subdomain" as
-phishing and gave `www.paypal.com` and `accounts.google.com` the then-maximum +20. Once legitimate
-URLs got realistic subdomains, and `www.` stopped counting as one, precision fell to its honest
-level (see [Lessons Learned](#lessons-learned)).
+phishing. Once legitimate URLs got realistic subdomains, and `www.` stopped counting as one,
+precision fell to its honest level (see [Lessons Learned](#lessons-learned)).
 
-Reproduce with `python ml/evaluate_cv_metrics.py`. Phishing is the positive class; the confusion
-matrix and false-positive rate are aggregated out-of-fold across all 5 folds (every row predicted
-exactly once).
-
-| Metric | As-is (N=1,200) | Leakage-corrected (N=1,052) |
-|--------|----------------:|--------------------------:|
-| Class balance (phishing / legit) | 600 / 600 (50.0%) | 514 / 538 (48.9%) |
+| Metric | As-is (N=1,200) | Deduplicated (N=1,052) |
+|--------|----------------:|-----------------------:|
 | Precision | 0.785 | 0.786 |
 | Recall | 0.817 | 0.823 |
 | F1 | 0.801 | 0.804 |
@@ -288,47 +283,26 @@ exactly once).
 | Accuracy | 0.797 | 0.804 |
 | Confusion matrix `[[TN, FP], [FN, TP]]` | `[[466, 134], [110, 490]]` | `[[423, 115], [91, 423]]` |
 
-**It does not hold up over time.** Trained on phishing more than two years old and tested on
-phishing from the last 14 days, it catches only 42% of new phishing (0.67 accuracy). URL shape
-ages quickly; domain age and DOM signals in the training data are the next step (see
-[docs/ml-methodology.md](docs/ml-methodology.md#temporal-validation-train-on-older-phishing-test-on-newer)).
+Reproduce with `python ml/evaluate_cv_metrics.py`. Phishing is the positive class, and the
+dataset is balanced 50/50. The deduplicated column keeps one row per distinct feature vector: it
+is the closest check for train/test leakage, because the CSV stores no URLs.
 
-**What that means for a page's score:** the adjustment is sized to what the model gets right on
-*new* phishing, not on its own dataset (`python ml/evaluate_ml_adjustment.py --temporal`). A high
-probability is strong evidence even on new campaigns, about 11 times more likely on phishing, so it
-adds +12. A low probability is only weak evidence there and still covers a third of new phishing,
-so it subtracts just 5. On new data the model raises 2.3% of legitimate URLs and lowers 32.7% of
-phishing URLs, by 5 points. It used to be −10 to +20, sized to in-dataset confidence (see
-[Sizing the ML adjustment](docs/ml-methodology.md#sizing-the-ml-adjustment)).
+- **It does not hold up over time.** Trained on phishing more than two years old and tested on
+  phishing from the last 14 days, it catches only 42% of new phishing (0.67 accuracy). URL shape
+  ages quickly; domain age and DOM signals in the training data are the next step.
+- **The score adjustment is sized to new phishing, not to the training set.** On unseen campaigns
+  a high probability is still strong evidence, about 11 times more likely on phishing, so it adds
+  +12. A low probability is weak evidence there, so it subtracts only 5
+  (`python ml/evaluate_ml_adjustment.py --temporal`).
+- **It is a URL-only model.** The dataset has no DOM features (they are always 0 in training), so
+  the DOM values the extension sends at inference time are not something the model learned from.
 
-**On class balance:** this dataset is balanced 50/50 by construction, so the usual "accuracy is
-misleading because phishing is rare" caveat doesn't apply to *this* evaluation. In production,
-phishing is rare, which is a further reason to track precision, recall, and FPR rather than
-accuracy.
-
-**On data leakage:** the committed CSV stores only the 16 numeric features and a label, never raw
-URLs or domains (a deliberate privacy decision), so *domain-level* leakage (same host in train and
-test) can't be verified from the file. The closest observable proxy is duplicate feature vectors:
-245 of the 1,200 rows belong to a group of identical rows (1,052 distinct vectors), so a random
-k-fold split can place identical vectors in both train and test. The "Leakage-corrected" column
-deduplicates to one row per distinct vector. Its numbers are slightly *higher*, so the duplicates
-do not inflate the headline. Treat the as-is column as the conservative figure.
-
-**These numbers describe a URL-only model, not production behavior.** DOM features
-(`has_password_field`, `num_forms`, etc.) are hardcoded to `0` for every training row because the
-dataset is built from URLs only, without a live browser session — but
-`backend/app/services/ml_service.py` feeds real DOM features from the extension's content script at
-inference time. The 6 DOM columns the model sees in production were never exercised with real
-variation during training, so any influence they have on live predictions is unvalidated
-extrapolation. See [docs/ml-methodology.md](docs/ml-methodology.md) for the full methodology, the
-URL-length and subdomain dataset biases that were found and fixed, and the temporal-drift validation.
+[docs/ml-methodology.md](docs/ml-methodology.md) has the full methodology: class balance,
+leakage, the URL-length and subdomain dataset biases that were found and fixed, the temporal
+validation, and how the adjustment was sized.
 
 ## Limitations
 
-- The ML model is trained on a real PhishTank + Tranco dataset (1,200 rows). See
-  [ML model performance](#ml-model-performance) above for the full metric table and the caveat that
-  these figures describe a URL-only model — the 6 DOM columns it receives in production were never
-  exercised with real variation during training.
 - TLS analysis runs from the backend and may differ from what the browser sees behind proxies or TLS inspection.
 - PhishTank checks require a user-provided API key and are rate limited.
 - Feedback storage is intentionally minimal: hostname, labels, note presence, request ID, and timestamp only. It is not a replacement for a reviewed training dataset.
@@ -338,9 +312,9 @@ URL-length and subdomain dataset biases that were found and fixed, and the tempo
   inputs are what a credential page is, legitimate or not. The real PayPal sign-in page gets about
   16 of 30 there (25 once scaled), which stays Safe on its own but leaves less room for other
   signals.
-- The ML model is URL-shape only. It adds +12 to 6.7% of legitimate URLs in cross-validation
-  (2.3% on newer data), and on new phishing it subtracts 5 points about a third of the time (see
-  [ML model performance](#ml-model-performance)).
+- The ML model is URL-shape only and trained on 1,200 rows. It adds +12 to 6.7% of legitimate
+  URLs in cross-validation (2.3% on newer data), and on new phishing it subtracts 5 points about a
+  third of the time (see [ML Model Performance](#ml-model-performance)).
 - The current build prioritizes explainability and safe defaults over coverage.
 
 ## Lessons Learned
@@ -391,8 +365,8 @@ informative than the fact that the code is now clean:
   warming up the model from a FastAPI `lifespan` handler at startup; first-request latency
   dropped from ~5.5s to ~1.4s.
 - **The heuristic-only "confidence" number is overconfident, not just unproven.** A
-  reliability diagram against the committed dataset showed every confidence bin sitting
-  below the perfectly-calibrated line, and the bin holding 96% of rows (confidence ≈ 0.90)
+  reliability diagram against the committed dataset showed every confidence bin with more
+  than one row sitting below the perfectly-calibrated line, and the bin holding 96% of rows (confidence ≈ 0.90)
   was only ~52% accurate — barely better than guessing. Not "fixed" with a quick correction
   factor in this round, because calibrating against a dataset that can't exercise
   typosquat/homograph/DOM/TLS/domain-age/threat-intel signals would just calibrate to this
