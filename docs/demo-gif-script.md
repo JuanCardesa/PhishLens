@@ -1,9 +1,9 @@
 # Demo GIF Recording Script
 
-> **Status:** `README.md` no longer uses this GIF. Its walkthrough is now
-> `docs/screenshots/demo.webp`, cut from a screen recording (see
-> [Current README demo](#current-readme-demo)). The shot list and the automated
-> pipeline below are kept for regenerating a scripted GIF.
+> **Status:** `README.md` shows `docs/screenshots/demo.gif`, a slideshow built
+> from still screenshots (see [Current README demo](#current-readme-demo)). The
+> shot list and the Playwright pipeline further down describe an earlier scripted
+> GIF and are kept for reference.
 
 This is the shot list for the short, header-of-the-README demo GIF
 (`docs/screenshots/demo.gif`). It is a condensed,
@@ -12,32 +12,49 @@ first, then follow this sequence for the GIF itself.
 
 ## Current README demo
 
-`docs/screenshots/demo.webp` is a 33-second walkthrough: a local webmail inbox
-receives a fake "PayPal Security" email, hovering the button reveals the real
-link target, the cloned login on `paypal-verify-account.net` turns the toolbar
-icon red, the popup shows the local result (95) while it waits for the backend,
-then the same Dangerous 95/100 backend-enriched, and walks through the breakdown
-down to domain age and ML. The in-page warning overlay stays up. Both sites are
-demo pages served locally; `paypal-verify-account.net` is not a registered
-domain, and the only external lookup during the recording is the backend's
-domain-age query to `rdap.org`.
+`docs/screenshots/demo.gif` is a ~16-second slideshow of six real screenshots of
+the extension, each held for 2-2.6 s, with a 0.24 s crossfade between them:
 
-The source is a 2560×1440, 60 fps screen recording made with Recordly
-(~50 MB, not committed; re-recorded on 2026-09-29 after the scoring and ML
-fixes). The README hero is its frame at 16 s, cropped to the browser window
-(2485×1440) and scaled to 1600×927. The recording is converted with:
+1. A fake "PayPal Security" email in a local webmail inbox.
+2. A closer crop showing that hovering its button reveals the real link,
+   `paypal-verify-account.net`, highlighted in the status bar. The pointer is
+   drawn in, because screen grabs do not capture it.
+3. The popup rating the cloned login Dangerous 95, with the in-page warning
+   behind it.
+4. The signal breakdown (URL 32/35, page structure 30/30).
+5. The rest of the breakdown: threat intel, TLS, domain age, and ML (0).
+6. The in-page warning on its own.
 
-```bash
-ffmpeg -i "PhishLens - demo.mp4" -vf "fps=20,scale=1280:-2:flags=lanczos" \
-  -c:v libwebp_anim -lossless 0 -q:v 65 -compression_level 5 -loop 0 -an \
-  docs/screenshots/demo.webp
-```
+Each slide has a one-line caption in a strip below the screenshot. Slides 3-6
+share one framing, so moving between them only changes the popup's content.
+The GIF is 1280×796, loops forever, and is ~7.6 MB. Both sites are demo pages
+served locally; `paypal-verify-account.net` is not a registered domain.
 
-Animated WebP instead of GIF: the recording has camera zooms over a gradient
-background, so most frames change almost every pixel. A GIF of that would be
-several times larger and banded to 256 colors, while the WebP is ~4.2 MB in full
-color and GitHub loops it like a GIF. The recording has no audio track, so
-nothing is lost compared with the MP4.
+**Why stills instead of a screen recording.** The walkthrough used to be an
+animated WebP cut from a Recordly screen recording: 1280 px at 20 fps, then 30
+fps, then 1600 px at 60 fps (up to ~19 MB). Every version still looked laggy.
+The recording's camera zooms moved continuously, and frame analysis showed that
+the take also held completely still for 2-3 s at a time, which in a silent loop
+looks like the player hung. A slideshow holds still on purpose and changes with
+short fades, so nothing moves continuously and nothing can stutter. It is also
+smaller, and every slide is a sharp full-resolution capture.
+
+**How it is built.** The screenshots are full-resolution (2405×1355) grabs of
+the real browser with the built extension, the backend, and the local demo
+sites, taken by the recording kit's dry run. A small script crops them, adds the
+captions, and builds the 8-step crossfades (30 ms per step). ffmpeg quantizes
+each distinct frame to its own 256-color palette without dithering: UI
+screenshots have few colors, so text stays crisp. Pillow then writes the GIF
+with exact per-frame durations.
+
+Two things did not work:
+- Letting ffmpeg write the GIF made the fades uneven (40/80 ms), because its
+  image demuxer rounds timestamps to 1/25 s.
+- A constant frame rate with repeated hold frames came out about 6 times larger,
+  because a new palette on every frame defeats its inter-frame diffing.
+
+The README hero is a separate still: a frame of the 2026-09-29 Recordly
+recording, cropped to the browser window (2485×1440) and scaled to 1600×927.
 
 ## Output target
 
@@ -101,8 +118,7 @@ reads as more polished.
 
 ## Automated capture (alternative to manual screen recording)
 
-The original README GIF (`docs/screenshots/demo.gif`, since replaced by
-`demo.webp`) was produced this way instead of a real screen recording, using Playwright (already a devDependency) to drive a
+An earlier README GIF at the same path was produced this way instead of a real screen recording, using Playwright (already a devDependency) to drive a
 real Chromium instance with the built extension loaded, plus Pillow to
 composite the captured frames into a GIF:
 
