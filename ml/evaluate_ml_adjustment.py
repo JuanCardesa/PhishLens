@@ -32,9 +32,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from evaluate_temporal_drift import (
+    _load_dataset_builder,
+    build_temporal_split,
+    make_model,
+)
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
-
-from evaluate_temporal_drift import _load_dataset_builder, build_temporal_split, make_model
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "backend"))

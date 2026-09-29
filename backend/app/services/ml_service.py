@@ -164,7 +164,9 @@ def predict_ml_adjustment(
             adjustment=_adjustment_from_probability(probability),
             top_factors=top_factors,
         )
-    except Exception as exc:  # pragma: no cover - defensive fallback around local artifacts.
+    # Any failure loading or running the artifact (unpickling, feature shape,
+    # sklearn internals) must degrade to "ML unavailable", never fail the analysis.
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - defensive fallback around local artifacts.
         return MLResult(available=False, error=str(exc))
 
 
@@ -212,7 +214,7 @@ def warm_up_model(settings: Settings | None = None) -> None:
 
     try:
         _load_artifact(model_path)
-    except Exception:  # noqa: BLE001 - best-effort warm-up, real errors surface on first predict
+    except Exception:  # best-effort warm-up; real errors surface on the first predict
         logger.warning("ml_model_warm_up_failed filename=%s", model_path.name, exc_info=True)
 
 

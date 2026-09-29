@@ -2,7 +2,6 @@ from pathlib import Path
 
 import joblib
 import pytest
-
 from app.core.config import Settings
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import extract_url_features

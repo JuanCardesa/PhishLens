@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from threading import Lock
-from typing import Mapping
 
 from app.schemas.analysis import AnalysisSources, RiskLabel
 

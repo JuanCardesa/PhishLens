@@ -35,7 +35,9 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 
-from app.services.feature_extractor import extract_url_features as extract_backend_url_features  # noqa: E402
+from app.services.feature_extractor import (  # noqa: E402 - needs the sys.path entry above
+    extract_url_features as extract_backend_url_features,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -191,7 +193,7 @@ def extract_url_features(url: str, label: int) -> Row | None:
             "has_hidden_inputs": 0,
             "label": label,
         }
-    except Exception:
+    except Exception:  # noqa: BLE001 - skip feed URLs the extractor cannot parse
         return None
 
 
@@ -202,7 +204,7 @@ def fetch_phishtank_urls(n: int) -> list[str]:
             raw = resp.read()
         with gzip.open(io.BytesIO(raw)) as gz:
             text = gz.read().decode("utf-8", errors="replace")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any download or archive failure aborts the build
         logger.error("Failed to download PhishTank dump: %s", exc)
         return []
 
@@ -228,7 +230,7 @@ def fetch_tranco_urls(n: int, top_k: int) -> list[str]:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             csv_name = next(name for name in archive.namelist() if name.endswith(".csv"))
             text = archive.read(csv_name).decode("utf-8", errors="replace")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any download or archive failure aborts the build
         logger.error("Failed to download Tranco list: %s", exc)
         return []
 

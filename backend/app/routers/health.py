@@ -14,7 +14,7 @@ def health(response: Response) -> dict[str, object]:
     db_ok = True
     try:
         FEEDBACK_STORE.count()
-    except Exception:
+    except Exception:  # noqa: BLE001 - any store failure reports "degraded"; /health must answer, not raise
         db_ok = False
 
     if not db_ok:

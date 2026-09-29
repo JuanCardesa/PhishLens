@@ -1,10 +1,14 @@
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
-from app.services.feedback_store import FeedbackEntry, SQLiteFeedbackStore, _DisabledFeedbackStore, _make_store
+from app.services.feedback_store import (
+    FeedbackEntry,
+    SQLiteFeedbackStore,
+    _DisabledFeedbackStore,
+    _make_store,
+)
 
 
 @pytest.fixture
@@ -14,21 +18,21 @@ def tmp_db(tmp_path: Path) -> str:
 
 def _days_ago(days: float) -> str:
     # Same format report.py writes.
-    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    return (datetime.now(UTC) - timedelta(days=days)).isoformat()
 
 
 def _entry(**overrides) -> FeedbackEntry:
     # created_at must be recent: every store instance purges entries older than
     # 30 days. A fixed date here (2026-06-17) made the persistence test start
     # failing once that date aged out, because the second instance deleted it.
-    defaults = dict(
-        url_host="example.com",
-        observed_label="safe",
-        expected_label="dangerous",
-        notes_present=False,
-        request_id="req-abc",
-        created_at=_days_ago(0),
-    )
+    defaults = {
+        "url_host": "example.com",
+        "observed_label": "safe",
+        "expected_label": "dangerous",
+        "notes_present": False,
+        "request_id": "req-abc",
+        "created_at": _days_ago(0),
+    }
     return FeedbackEntry(**{**defaults, **overrides})
 
 

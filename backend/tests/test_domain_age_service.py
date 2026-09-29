@@ -1,14 +1,13 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from app.core.config import Settings
 from app.services import domain_age_service
 from app.services.domain_age_service import check_domain_age
 
 
 def _registration_payload(days_ago: int) -> dict[str, object]:
-    event_date = (datetime.now(timezone.utc) - timedelta(days=days_ago)).isoformat().replace("+00:00", "Z")
+    event_date = (datetime.now(UTC) - timedelta(days=days_ago)).isoformat().replace("+00:00", "Z")
     return {"events": [{"eventAction": "registration", "eventDate": event_date}]}
 
 

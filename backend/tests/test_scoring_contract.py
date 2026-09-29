@@ -13,10 +13,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import extract_url_features
-from app.services.scoring_service import _score_dom, _score_url, label_from_score, scale_heuristic_score
+from app.services.scoring_service import (
+    _score_dom,
+    _score_url,
+    label_from_score,
+    scale_heuristic_score,
+)
 
 _CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contracts" / "scoring-vectors.json"
 _CONTRACT = json.loads(_CONTRACT_PATH.read_text(encoding="utf-8"))

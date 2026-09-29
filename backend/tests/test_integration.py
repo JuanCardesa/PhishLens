@@ -14,11 +14,9 @@ these tests will catch the drift.
 """
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 from app.main import app
 from app.services.scoring_service import scale_heuristic_score
-
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

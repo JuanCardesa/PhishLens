@@ -1,5 +1,4 @@
 import pytest
-
 from app.schemas.analysis import AnalysisRequest, DOMFeatures
 from app.services.demo_threat_service import DemoThreatResult
 from app.services.domain_age_service import DomainAgeResult

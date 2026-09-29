@@ -66,7 +66,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
             asyncio.gather(check_url(request.url), inspect_tls(request.url), check_domain_age(request.url)),
             timeout=gather_timeout,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("external_services_timeout", extra={"timeout_seconds": gather_timeout})
         phishtank_result = PhishTankResult(checked=False, in_database=False, verified=False, valid=False)
         tls_result = TLSResult(checked=False)

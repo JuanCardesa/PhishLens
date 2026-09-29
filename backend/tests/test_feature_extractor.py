@@ -1,5 +1,4 @@
 import pytest
-
 from app.services.feature_extractor import extract_url_features
 
 

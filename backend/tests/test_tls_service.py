@@ -1,12 +1,16 @@
 import ssl
-import unittest.mock as mock
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from unittest import mock
 
 import pytest
-
 from app.core.config import Settings
 from app.services import tls_service
-from app.services.tls_service import TLSResult, _format_issuer, _inspect_tls_sync, inspect_tls
+from app.services.tls_service import (
+    TLSResult,
+    _format_issuer,
+    _inspect_tls_sync,
+    inspect_tls,
+)
 
 
 def _mock_socket_returning_cert(cert: dict | None):
@@ -116,9 +120,11 @@ def test_inspect_tls_sync_parses_valid_certificate() -> None:
     }
     mock_conn, mock_ctx = _mock_socket_returning_cert(cert)
 
-    with mock.patch("socket.create_connection", mock_conn):
-        with mock.patch("ssl.create_default_context", return_value=mock_ctx):
-            result = _inspect_tls_sync("example.test", timeout=4.0)
+    with (
+        mock.patch("socket.create_connection", mock_conn),
+        mock.patch("ssl.create_default_context", return_value=mock_ctx),
+    ):
+        result = _inspect_tls_sync("example.test", timeout=4.0)
 
     assert result.checked is True
     assert result.valid is True
@@ -132,9 +138,11 @@ def test_inspect_tls_sync_detects_expiry_from_certificate_date() -> None:
     cert = {"notAfter": past_expiry, "issuer": ()}
     mock_conn, mock_ctx = _mock_socket_returning_cert(cert)
 
-    with mock.patch("socket.create_connection", mock_conn):
-        with mock.patch("ssl.create_default_context", return_value=mock_ctx):
-            result = _inspect_tls_sync("example.test", timeout=4.0)
+    with (
+        mock.patch("socket.create_connection", mock_conn),
+        mock.patch("ssl.create_default_context", return_value=mock_ctx),
+    ):
+        result = _inspect_tls_sync("example.test", timeout=4.0)
 
     assert result.checked is True
     assert result.valid is False
@@ -144,9 +152,11 @@ def test_inspect_tls_sync_detects_expiry_from_certificate_date() -> None:
 def test_inspect_tls_sync_handles_missing_certificate() -> None:
     mock_conn, mock_ctx = _mock_socket_returning_cert(None)
 
-    with mock.patch("socket.create_connection", mock_conn):
-        with mock.patch("ssl.create_default_context", return_value=mock_ctx):
-            result = _inspect_tls_sync("example.test", timeout=4.0)
+    with (
+        mock.patch("socket.create_connection", mock_conn),
+        mock.patch("ssl.create_default_context", return_value=mock_ctx),
+    ):
+        result = _inspect_tls_sync("example.test", timeout=4.0)
 
     assert result.checked is True
     assert result.valid is False
@@ -157,9 +167,11 @@ def test_inspect_tls_sync_handles_unparseable_expiry_date() -> None:
     cert = {"notAfter": "not-a-date", "issuer": ()}
     mock_conn, mock_ctx = _mock_socket_returning_cert(cert)
 
-    with mock.patch("socket.create_connection", mock_conn):
-        with mock.patch("ssl.create_default_context", return_value=mock_ctx):
-            result = _inspect_tls_sync("example.test", timeout=4.0)
+    with (
+        mock.patch("socket.create_connection", mock_conn),
+        mock.patch("ssl.create_default_context", return_value=mock_ctx),
+    ):
+        result = _inspect_tls_sync("example.test", timeout=4.0)
 
     assert result.checked is True
     assert result.valid is False
@@ -210,7 +222,7 @@ def test_format_issuer_returns_none_for_empty_issuer() -> None:
 
 def _ct_payload(*days_ago: int) -> list[dict[str, object]]:
     return [
-        {"not_before": (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")}
+        {"not_before": (datetime.now(UTC) - timedelta(days=days)).isoformat().replace("+00:00", "Z")}
         for days in days_ago
     ]
 

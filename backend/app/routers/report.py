@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Request
 
@@ -30,7 +30,7 @@ def report_feedback(
             expected_label=payload.expected_label,
             notes_present=bool(payload.notes),
             request_id=request_id,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
     )
     logger.info(

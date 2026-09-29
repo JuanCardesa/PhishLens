@@ -31,7 +31,7 @@ import random
 import sys
 import urllib.request
 import zipfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 
@@ -126,7 +126,7 @@ def build_temporal_split(builder: ModuleType) -> TemporalSplit | None:
     evaluate_ml_adjustment.py. Returns None if any sample pool came back empty."""
     feature_columns = builder.FEATURE_COLUMNS[:-1]  # drop "label"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     train_cutoff = now - timedelta(days=TRAIN_OLDER_THAN_DAYS)
     test_cutoff = now - timedelta(days=TEST_NEWER_THAN_DAYS)
     print(f"TRAIN-old cutoff:  submission_time < {train_cutoff.date().isoformat()}")

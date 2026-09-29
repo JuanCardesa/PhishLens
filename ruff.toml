@@ -1,9 +1,12 @@
-# Lint rules are selected explicitly so a new Ruff release cannot change what CI
-# enforces. backend/requirements-dev.txt allows any ruff < 1.0, and Ruff 0.16
-# enabled many more rule families by default (import sorting, SIM, BLE, UP, TRY,
-# ...), which failed Backend CI on code that had not changed. These are the
-# default rules this project has been linted with (Ruff 0.15 and earlier).
-# Adopting a broader rule set is a deliberate change: add the codes here and fix
-# the findings in the same commit.
+# Lint with the default rule set of the Ruff release pinned in
+# backend/requirements-dev.txt (0.16.x). Ruff changes its defaults between minor
+# releases (0.16 enabled import sorting, SIM, BLE, UP, TRY, and more), so the
+# version is pinned there instead of floating: upgrading Ruff to a new minor is a
+# deliberate change that fixes the new findings in the same commit.
+target-version = "py311"
+
 [lint]
-select = ["E4", "E7", "E9", "F"]
+# 0.16's defaults keep only two pycodestyle "E" rules. Keep every E4/E7/E9 rule
+# the project was linted with before (imports not at top, bare except, comparisons
+# to None, ...) so adopting the new defaults adds checks and removes none.
+extend-select = ["E4", "E7", "E9"]

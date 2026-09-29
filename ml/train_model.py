@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
@@ -12,7 +12,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
-
 
 ROOT = Path(__file__).resolve().parent
 _REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
@@ -132,7 +131,7 @@ def main() -> None:
         "dataset_sha256": _file_sha256(DATASET_PATH),
         "dataset_note": f"{dataset_label} dataset. DOM features are 0 for URL-only rows.",
         "version": MODEL_VERSION,
-        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "trained_at": datetime.now(UTC).isoformat(),
         "git_hash": _git_hash(),
         "cv_scores": cv_scores.tolist(),
         "feature_importances": feature_importances,

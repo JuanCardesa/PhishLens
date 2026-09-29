@@ -8,7 +8,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 ALLOWED_WORKFLOWS = {
@@ -272,7 +271,7 @@ def check_scoring_tests(files: list[str], scan_all: bool) -> list[Finding]:
     if scoring_changes and not (changed & SCORING_TEST_FILES):
         return [
             Finding(
-                sorted(scoring_changes)[0],
+                min(scoring_changes),
                 "Scoring contract changes must include backend or extension scoring tests.",
             )
         ]
@@ -329,7 +328,7 @@ def check_release_tag(release_tag: str | None) -> list[Finding]:
     if not release_tag:
         return []
 
-    normalized_tag = release_tag[1:] if release_tag.startswith("v") else release_tag
+    normalized_tag = release_tag.removeprefix("v")
     manifest = json.loads((REPO_ROOT / "extension/manifest.json").read_text(encoding="utf-8"))
     package_json = json.loads((REPO_ROOT / "extension/package.json").read_text(encoding="utf-8"))
 
