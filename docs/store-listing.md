@@ -89,15 +89,24 @@ https://github.com/JuanCardesa/PhishLens
 
 ## Screenshots required by the store
 
-The following screenshots must be created manually at 1280×800 or 640×400 (PNG or JPEG):
+The store takes 1280×800 or 640×400 screenshots (PNG or JPEG). Generate them from real captures of the built extension on the local demo pages, with the backend and `demo/serve_demo.py` running (see [Local Demo](../README.md#local-demo)):
 
-| # | What to capture | Suggested state |
-|---|-----------------|-----------------|
-| 1 | Popup — Safe result | Navigate to https://example.com, open popup |
-| 2 | Popup — Suspicious result | Navigate to a URL with many hyphens and a login keyword |
-| 3 | Popup — Dangerous result with risk breakdown expanded | Use the local demo page |
-| 4 | Options page | Open settings with a custom backend URL filled in |
-| 5 | Danger overlay | Trigger a dangerous result with overlay enabled |
+```bash
+cd extension
+npm run build
+node scripts/record-demo.mjs --docs   # real popup and overlay captures
+node scripts/take-screenshots.mjs     # frames them at 1280×800
+```
+
+| File in `docs/screenshots/` | What it shows |
+|---|---|
+| `01-safe-result.png` | Popup, `demo/pages/safe.html`, backend enriched |
+| `02-suspicious-result.png` | Popup, `demo/pages/suspicious.html`, backend enriched |
+| `03-dangerous-result.png` | Popup, the dangerous demo page, backend enriched |
+| `04-local-only.png` | Popup with the backend unreachable (local analysis only) |
+| `05-danger-overlay.png` | The in-page warning overlay on the dangerous demo page |
+
+Do not hand-edit these images or draw popup states that the code does not render. Earlier versions were hand-built HTML mockups and drifted from the product. An options-page screenshot is not generated; capture it manually if you want one.
 
 Minimum: 1 screenshot. Recommended: all 5 for a complete listing.
 
