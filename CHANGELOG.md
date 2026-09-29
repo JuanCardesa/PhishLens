@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **README demo animation looked soft and stuttered**: `docs/screenshots/demo.webp` was 1280×720 at 20 fps and quality 65. It is now 1600×900 at 30 fps and quality 80, from the same recording. It is still an animated WebP that loops like a GIF: a GIF was about 10 times larger on a test segment and limited to 256 colors. The file grows from ~4.2 MB to ~10.7 MB. The encoding command is in `docs/demo-gif-script.md`.
 - **Backend CI broke when Ruff 0.16 was released**: `requirements-dev.txt` allows any `ruff<1.0` and the repo had no Ruff config, so CI inherited each release's default rules. Ruff 0.16.9 enables many more families by default (import sorting, SIM, BLE, UP, TRY, …) and reported 31 errors on unchanged `develop` code. The project now adopts Ruff 0.16's defaults and fixes every finding. Ruff is pinned to `>=0.16.9,<0.17`, because defaults change between minors. A root `ruff.toml` sets `target-version = "py311"` and keeps the previous `E4`/`E7`/`E9` rules on top, since 0.16's defaults keep only two `E` rules. The change adds checks and removes none. Across `backend/`, `ml/`, `demo/`, and `scripts/ci/` there were 74 findings:
   - 58 safe auto-fixes: import sorting, `datetime.UTC`, the builtin `TimeoutError`, and unused `noqa`s.
   - Nested `with` blocks were merged.
