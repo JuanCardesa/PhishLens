@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-29 — one score scale, honest ML metrics, and real demo assets
+
 ### Added
 
 - **Confidence calibration reliability diagram**: `ml/evaluate_confidence_calibration.py` reconstructs the URL-only heuristic score for every row of the committed dataset, computes the heuristic-only `_confidence()` fallback used when ML is unavailable, and bins predicted confidence against empirical accuracy. Result: every bin sits below the perfectly-calibrated diagonal (mean calibration error 0.397), and the bin holding 96% of rows is only ~52% accurate — the formula is measurably overconfident, not just an unverified proxy. Documented in `docs/ml-methodology.md` with the generated `ml/calibration_reliability_diagram.png`, including why this wasn't "fixed" with a quick correction factor (it would calibrate to this offline benchmark's blind spots, not real-world accuracy).
