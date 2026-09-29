@@ -28,22 +28,42 @@
       input {
         min-height: 36px;
       }
+      iframe {
+        width: 100%;
+        height: 60px;
+        border: 1px solid #d7dde8;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Suspicious Demo Page</h1>
-      <p>This page uses a login-style form and several external links, but it is still only a local demo fixture.</p>
-      <form action="/pages/suspicious.html" method="post">
+      <!--
+        Tuned to land in the "suspicious" band (35-69) in both local-only and
+        backend-enriched mode: plain http (URL 5) plus a form, a password field,
+        an external form action, one iframe, and a hidden input next to the
+        password (DOM 26). 31 of 65 heuristic points scale to 48, and the ML
+        adjustment (-5 to +12) keeps it between 43 and 60. No brand name, no
+        external links, and no suspicious keyword in the URL, so nothing pushes it
+        to "dangerous". extension/e2e/smoke.mjs asserts the resulting label.
+      -->
+      <p>
+        This sign-in form posts to a different domain than the page it is on, which is one of the signals PhishLens
+        treats as suspicious. It is a local demo fixture: the form never submits. Do not enter real information.
+      </p>
+      <form action="https://example.net/demo-sign-in" method="post">
+        <input type="hidden" name="session_marker" value="demo-only" />
         <label>
           Account ID
           <input name="account" autocomplete="off" />
         </label>
+        <label>
+          Password
+          <input type="password" name="password" autocomplete="off" />
+        </label>
         <button type="button">Continue</button>
       </form>
       <section>
-        <a href="https://example.com/help">External help</a>
-        <a href="https://example.org/status">External status</a>
         <a href="/pages/safe.html">Internal safety page</a>
       </section>
       <iframe title="demo frame" src="/pages/safe.html"></iframe>

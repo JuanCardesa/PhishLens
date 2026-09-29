@@ -39,6 +39,46 @@ def test_dataset_builder_matches_backend_url_feature_values() -> None:
                 assert row[column] == expected[column]
 
 
+def test_realistic_legit_urls_include_subdomains_and_www() -> None:
+    import random
+
+    builder = _load_dataset_builder()
+    rng = random.Random(42)
+    urls = [builder.realistic_legit_url("https://example.com/", rng) for _ in range(1000)]
+    hosts = [url.split("://", 1)[1].split("/", 1)[0] for url in urls]
+
+    subdomain_share = sum(host.count(".") == 2 and not host.startswith("www.") for host in hosts) / len(hosts)
+    www_share = sum(host.startswith("www.") for host in hosts) / len(hosts)
+    bare_share = sum(host == "example.com" for host in hosts) / len(hosts)
+
+    assert 0.28 < subdomain_share < 0.42
+    assert 0.28 < www_share < 0.42
+    assert 0.23 < bare_share < 0.37
+
+
+def test_real_dataset_num_subdomains_is_not_a_class_label() -> None:
+    """Regression guard for the subdomain bias behind the www.paypal.com false positive.
+
+    Legitimate rows were bare Tranco roots, so 599 of 600 had no subdomain and the
+    model learned "has a subdomain" as phishing: www.paypal.com and
+    accounts.google.com both got the maximum +20 ML adjustment. build_dataset.py now
+    gives a share of legitimate URLs a realistic service subdomain (see
+    REALISTIC_SUBDOMAINS); this test fails if that mitigation regresses.
+    """
+    if not REAL_DATASET_PATH.exists():
+        return
+
+    import pandas as pd
+
+    data = pd.read_csv(REAL_DATASET_PATH)
+    legit_with_subdomain = (data.loc[data["label"] == 0, "num_subdomains"] > 0).mean()
+
+    assert legit_with_subdomain > 0.2, (
+        f"Only {legit_with_subdomain:.1%} of legitimate rows have a subdomain: "
+        "the dataset may have regressed to bare Tranco roots."
+    )
+
+
 def test_real_dataset_url_length_is_not_trivially_separable_by_class() -> None:
     """Regression guard for a dataset bias found during a portfolio audit.
 

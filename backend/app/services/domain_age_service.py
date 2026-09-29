@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -10,8 +10,11 @@ from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
 from app.services.diagnostics import DIAGNOSTICS
 from app.services.feature_extractor import registrable_domain_from_hostname
-from app.services.url_normalizer import URLNormalizationError, hostname_from_url, normalize_url
-
+from app.services.url_normalizer import (
+    URLNormalizationError,
+    hostname_from_url,
+    normalize_url,
+)
 
 RDAP_BOOTSTRAP_URL = "https://rdap.org/domain/{domain}"
 # Domain registration dates do not change minute to minute, unlike TLS/PhishTank
@@ -98,14 +101,14 @@ def _parse_rdap_payload(payload: dict[str, object]) -> DomainAgeResult:
             continue
 
         try:
-            registered_at = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+            registered_at = datetime.fromisoformat(event_date)
         except ValueError:
             continue
 
         if registered_at.tzinfo is None:
-            registered_at = registered_at.replace(tzinfo=timezone.utc)
+            registered_at = registered_at.replace(tzinfo=UTC)
 
-        age_days = (datetime.now(timezone.utc) - registered_at).days
+        age_days = (datetime.now(UTC) - registered_at).days
         return DomainAgeResult(checked=True, age_days=age_days, registered_at=event_date)
 
     # No registration event in the response — common for privacy-protected WHOIS

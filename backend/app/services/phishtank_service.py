@@ -9,7 +9,6 @@ from app.services.cache import TTLCache
 from app.services.diagnostics import DIAGNOSTICS
 from app.services.url_normalizer import normalize_url
 
-
 PHISHTANK_CHECK_URL = "https://checkurl.phishtank.com/checkurl/"
 PHISHTANK_CACHE = TTLCache["PhishTankResult"](ttl_seconds=300)
 PHISHTANK_ERROR_CACHE = TTLCache["PhishTankResult"](ttl_seconds=30)

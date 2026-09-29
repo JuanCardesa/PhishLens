@@ -4,7 +4,6 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-
 HOST = "127.0.0.1"
 PORT = 8080
 DEMO_ROOT = Path(__file__).resolve().parent

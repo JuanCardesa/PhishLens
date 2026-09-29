@@ -32,13 +32,14 @@ HOW IT WORKS
 PhishLens can run local page-structure checks for its badge on HTTP/HTTPS pages. When you open the popup, it shows the current analysis and can add optional backend enrichment:
 
 1. Local heuristics — instant, private, no backend calls
-   • URL signals: length, dot/hyphen density, IP-based domains, @ symbols, suspicious keywords in the hostname and path, punycode characters, and Shannon entropy of the domain name.
+   • URL signals: look-alike domains of frequently impersonated brands (typosquatting such as paypa1.com, and Unicode homographs that swap in look-alike characters), a brand's full domain hidden in subdomains, labels mixing writing scripts, length, dot/hyphen density, IP-based domains, @ symbols, suspicious keywords in the hostname and path, and Shannon entropy of the domain name.
    • Page-structure signals: presence of login forms, password fields, forms that submit data to external domains, iframes, hidden inputs, the ratio of external links, and local brand-mismatch booleans derived from limited page metadata.
 
 2. Optional backend enrichment from the popup — richer signals when you run the companion API
-   • TLS certificate validation and expiry check for the current domain.
+   • TLS certificate validation and expiry check for the current domain, plus Certificate Transparency logs to flag domains whose first certificate is less than a week old.
+   • Domain registration age via RDAP: domains registered in the last 30 or 180 days add risk.
    • PhishTank threat-intelligence lookup (requires a free API key on your self-hosted backend).
-   • Machine-learning model adjustment trained on URL-derived numeric features.
+   • A small machine-learning adjustment (−5 to +12 points) from a model trained on URL-derived numeric features.
 
 Results are shown as a risk score (0–100) labelled Safe, Suspicious, or Dangerous, with a per-category breakdown explaining exactly what contributed to the score.
 
@@ -53,7 +54,7 @@ PhishLens is built around minimal data collection:
 
 EXPLAINABILITY
 
-Every risk score comes with a structured breakdown. You can see exactly how many points each category (URL, page structure, TLS, threat intelligence, ML) contributed, and why. There are no black-box verdicts.
+Every risk score comes with a structured breakdown. You can see exactly how many points each category (URL, page structure, threat intelligence, TLS, domain age, ML) contributed, and why. There are no black-box verdicts.
 
 OFFLINE FIRST
 
@@ -67,7 +68,7 @@ LIMITATIONS
 
 PhishLens is a risk-assistance tool, not a definitive phishing detector. It may produce false positives on legitimate pages and can miss novel or obfuscated phishing campaigns. Always apply your own judgement.
 
-The ML model shipped with the companion API is trained on a real PhishTank + Tranco dataset, but that dataset has no DOM features (URLs only, no live browser session) and reflects a single snapshot in time — phishing campaigns evolve quickly, so the model should be retrained periodically.
+The ML model shipped with the companion API is trained on a real PhishTank + Tranco dataset, but that dataset has no DOM features (URLs only, no live browser session) and reflects a single snapshot in time. In validation it caught under half of phishing newer than its training data, which is why it can only move the score by a few points. Phishing campaigns evolve quickly, so the model should be retrained periodically.
 
 SELF-HOSTING
 
@@ -89,15 +90,24 @@ https://github.com/JuanCardesa/PhishLens
 
 ## Screenshots required by the store
 
-The following screenshots must be created manually at 1280×800 or 640×400 (PNG or JPEG):
+The store takes 1280×800 or 640×400 screenshots (PNG or JPEG). Generate them from real captures of the built extension on the local demo pages, with the backend and `demo/serve_demo.py` running (see [Local Demo](../README.md#local-demo)):
 
-| # | What to capture | Suggested state |
-|---|-----------------|-----------------|
-| 1 | Popup — Safe result | Navigate to https://example.com, open popup |
-| 2 | Popup — Suspicious result | Navigate to a URL with many hyphens and a login keyword |
-| 3 | Popup — Dangerous result with risk breakdown expanded | Use the local demo page |
-| 4 | Options page | Open settings with a custom backend URL filled in |
-| 5 | Danger overlay | Trigger a dangerous result with overlay enabled |
+```bash
+cd extension
+npm run build
+node scripts/record-demo.mjs --docs   # real popup and overlay captures
+node scripts/take-screenshots.mjs     # frames them at 1280×800
+```
+
+| File in `docs/screenshots/` | What it shows |
+|---|---|
+| `01-safe-result.png` | Popup, `demo/pages/safe.html`, backend enriched |
+| `02-suspicious-result.png` | Popup, `demo/pages/suspicious.html`, backend enriched |
+| `03-dangerous-result.png` | Popup, the dangerous demo page, backend enriched |
+| `04-local-only.png` | Popup with the backend unreachable (local analysis only) |
+| `05-danger-overlay.png` | The in-page warning overlay on the dangerous demo page |
+
+Do not hand-edit these images or draw popup states that the code does not render. Earlier versions were hand-built HTML mockups and drifted from the product. An options-page screenshot is not generated; capture it manually if you want one.
 
 Minimum: 1 screenshot. Recommended: all 5 for a complete listing.
 

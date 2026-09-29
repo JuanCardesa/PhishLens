@@ -1,5 +1,4 @@
 import pytest
-
 from app.core.config import Settings
 from app.services import phishtank_service
 from app.services.phishtank_service import check_url

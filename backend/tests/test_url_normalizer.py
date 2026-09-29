@@ -1,5 +1,4 @@
 import pytest
-
 from app.schemas.analysis import AnalysisRequest, ReportRequest
 from app.services.url_normalizer import URLNormalizationError, normalize_url
 

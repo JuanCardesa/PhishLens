@@ -4,7 +4,7 @@ import asyncio
 import socket
 import ssl
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 import httpx
@@ -13,7 +13,6 @@ from app.core.config import Settings, get_settings
 from app.services.cache import TTLCache
 from app.services.diagnostics import DIAGNOSTICS
 from app.services.url_normalizer import normalize_url
-
 
 TLS_CACHE = TTLCache["TLSResult"](ttl_seconds=300)
 
@@ -87,9 +86,11 @@ def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
     context = ssl.create_default_context()
 
     try:
-        with socket.create_connection((server_name, 443), timeout=timeout) as sock:
-            with context.wrap_socket(sock, server_hostname=server_name) as tls_sock:
-                cert = tls_sock.getpeercert()
+        with (
+            socket.create_connection((server_name, 443), timeout=timeout) as sock,
+            context.wrap_socket(sock, server_hostname=server_name) as tls_sock,
+        ):
+            cert = tls_sock.getpeercert()
     except ssl.SSLCertVerificationError as exc:
         # Python's ssl raises before the handshake completes for expired certs,
         # so we never reach the post-handshake parsing. Inspect the OpenSSL
@@ -97,7 +98,7 @@ def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
         if exc.verify_code == _OPENSSL_ERR_CERT_HAS_EXPIRED:
             return TLSResult(checked=True, valid=False, expired=True)
         return TLSResult(checked=True, valid=False, error=str(exc))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - best-effort check: any failure is reported, never raised into /analyze
         return TLSResult(checked=True, valid=False, error=str(exc))
 
     if cert is None:
@@ -105,8 +106,8 @@ def _inspect_tls_sync(hostname: str, timeout: float) -> TLSResult:
 
     try:
         not_after = str(cert["notAfter"])
-        expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
-        days_until_expiration = (expires_at - datetime.now(timezone.utc)).days
+        expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=UTC)
+        days_until_expiration = (expires_at - datetime.now(UTC)).days
         expired = days_until_expiration < 0
     except (KeyError, ValueError) as exc:
         return TLSResult(checked=True, valid=False, error=f"could not parse certificate expiry: {exc}")
@@ -157,7 +158,9 @@ async def _fetch_ct_log_payload(hostname: str, settings: Settings) -> list[dict[
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
-            raise ValueError("unexpected crt.sh response shape")
+            # A wrong shape from a remote API is bad data, not a caller type error;
+            # _check_ct_logs handles ValueError alongside httpx errors.
+            raise ValueError("unexpected crt.sh response shape")  # noqa: TRY004
         return payload
 
 
@@ -170,12 +173,12 @@ def _earliest_ct_entry_days_ago(entries: list[dict[str, object]]) -> int | None:
             continue
 
         try:
-            issued_at = datetime.fromisoformat(not_before.replace("Z", "+00:00"))
+            issued_at = datetime.fromisoformat(not_before)
         except ValueError:
             continue
 
         if issued_at.tzinfo is None:
-            issued_at = issued_at.replace(tzinfo=timezone.utc)
+            issued_at = issued_at.replace(tzinfo=UTC)
 
         if earliest is None or issued_at < earliest:
             earliest = issued_at
@@ -183,7 +186,7 @@ def _earliest_ct_entry_days_ago(entries: list[dict[str, object]]) -> int | None:
     if earliest is None:
         return None
 
-    return (datetime.now(timezone.utc) - earliest).days
+    return (datetime.now(UTC) - earliest).days
 
 
 def clear_tls_cache() -> None:

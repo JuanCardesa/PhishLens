@@ -1,5 +1,4 @@
 import pytest
-
 from app.services.feature_extractor import extract_url_features
 
 
@@ -13,6 +12,27 @@ def test_extract_url_features_detects_suspicious_signals() -> None:
     assert "secure" in features.suspicious_keywords
     assert "account" in features.suspicious_keywords
     assert "update" in features.suspicious_keywords
+
+
+@pytest.mark.parametrize(
+    ("url", "num_subdomains", "num_dots"),
+    [
+        # Regression: www.paypal.com counted one subdomain and one extra dot, and the
+        # ML model (trained on legitimate rows with no subdomains) scored it +20.
+        ("https://www.paypal.com/signin", 0, 1),
+        ("https://paypal.com/signin", 0, 1),
+        ("https://www.accounts.example.com/", 1, 2),
+        # Only a leading www is dropped, never a www inside the hostname.
+        ("https://mail.www.example.com/", 2, 3),
+        # A www that is itself the registrable label is not a subdomain to drop.
+        ("https://www.com/", 0, 1),
+    ],
+)
+def test_extract_url_features_does_not_count_leading_www(url: str, num_subdomains: int, num_dots: int) -> None:
+    features = extract_url_features(url)
+
+    assert features.num_subdomains == num_subdomains
+    assert features.num_dots == num_dots
 
 
 def test_extract_url_features_detects_ip_and_at_symbol() -> None:

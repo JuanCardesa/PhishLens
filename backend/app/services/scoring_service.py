@@ -27,8 +27,22 @@ DOM_SCORE_CAP = 30
 THREAT_INTEL_SCORE_CAP = 40
 TLS_SCORE_CAP = 15
 DOMAIN_AGE_SCORE_CAP = 20
-ML_MIN_ADJUSTMENT = -10
-ML_MAX_ADJUSTMENT = 20
+# The range _adjustment_from_probability in ml_service.py can produce.
+ML_MIN_ADJUSTMENT = -5
+ML_MAX_ADJUSTMENT = 12
+
+# URL and DOM are the only categories the extension can score without the
+# backend. Their combined points are scaled onto 0-100 here exactly as
+# analyzeLocally does in extension/src/utils/risk-score.ts, and every backend-only
+# category (threat intel, TLS, domain age, ML) is added on top. So the backend
+# score is the local score plus enrichment: a page never drops from Dangerous 95
+# locally to 74 once the backend answers, and URL + DOM evidence alone can reach
+# "dangerous" here too instead of topping out at 65.
+HEURISTIC_MAX_SCORE = URL_SCORE_CAP + DOM_SCORE_CAP
+
+
+def scale_heuristic_score(url_score: int, dom_score: int) -> int:
+    return round((url_score + dom_score) / HEURISTIC_MAX_SCORE * 100)
 
 
 def label_from_score(score: int) -> RiskLabel:
@@ -52,7 +66,7 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
             asyncio.gather(check_url(request.url), inspect_tls(request.url), check_domain_age(request.url)),
             timeout=gather_timeout,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("external_services_timeout", extra={"timeout_seconds": gather_timeout})
         phishtank_result = PhishTankResult(checked=False, in_database=False, verified=False, valid=False)
         tls_result = TLSResult(checked=False)
@@ -68,7 +82,11 @@ async def analyze_url(request: AnalysisRequest) -> AnalysisResponse:
     ml_reasons = _ml_reasons(ml_result)
 
     raw_score = (
-        url_score + dom_score + threat_score + tls_score + domain_age_score + ml_result.adjustment
+        scale_heuristic_score(url_score, dom_score)
+        + threat_score
+        + tls_score
+        + domain_age_score
+        + ml_result.adjustment
     )
     risk_score = max(0, min(100, round(raw_score)))
     risk_breakdown = _build_risk_breakdown(

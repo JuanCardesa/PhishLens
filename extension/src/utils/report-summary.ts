@@ -44,8 +44,5 @@ function modeText(mode: PopupAnalysis["mode"]): string {
   if (mode === "cached") {
     return "cached";
   }
-  if (mode === "checking") {
-    return "checking";
-  }
-  return "local only";
+  return "checking";
 }

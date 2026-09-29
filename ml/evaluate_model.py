@@ -7,7 +7,6 @@ import joblib
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-
 ROOT = Path(__file__).resolve().parent
 _REAL_DATASET = ROOT / "datasets" / "real_phishing_urls.csv"
 _DEMO_DATASET = ROOT / "datasets" / "demo_phishing_urls.csv"

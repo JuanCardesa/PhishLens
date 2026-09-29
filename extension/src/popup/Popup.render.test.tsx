@@ -59,6 +59,24 @@ describe("Popup", () => {
     expect(screen.getByText("Analyzing current page...")).toBeInTheDocument();
   });
 
+  it("marks the local result as still checking until the backend answers", async () => {
+    let resolveBackend: (value: AnalysisResponse | null) => void = () => {};
+    vi.spyOn(analysisApi, "requestBackendAnalysis").mockImplementation(
+      () => new Promise((resolve) => (resolveBackend = resolve)),
+    );
+    const { container } = render(<Popup />);
+    const shell = container.querySelector("main");
+
+    // Regression: this in-flight state used to read "Local-only analysis. Backend
+    // enrichment is not active." while the backend was in fact being queried.
+    await waitFor(() => expect(screen.getByText("Local result. Waiting for backend enrichment...")).toBeInTheDocument());
+    expect(shell).toHaveAttribute("aria-busy", "true");
+
+    resolveBackend(makeBackendResponse());
+    await waitFor(() => expect(screen.getByText("Backend enrichment is active for this result.")).toBeInTheDocument());
+    expect(shell).toHaveAttribute("aria-busy", "false");
+  });
+
   it("renders the backend-enriched result once analysis resolves", async () => {
     vi.spyOn(analysisApi, "requestBackendAnalysis").mockResolvedValue(makeBackendResponse());
     render(<Popup />);

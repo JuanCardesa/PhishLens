@@ -35,7 +35,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-
 EXPORT_COLUMNS = ["url_host", "observed_label", "expected_label", "notes_present", "request_id", "created_at"]
 
 

@@ -1,9 +1,43 @@
 # Demo GIF Recording Script
 
+> **Status:** `README.md` no longer uses this GIF. Its walkthrough is now
+> `docs/screenshots/demo.webp`, cut from a screen recording (see
+> [Current README demo](#current-readme-demo)). The shot list and the automated
+> pipeline below are kept for regenerating a scripted GIF.
+
 This is the shot list for the short, header-of-the-README demo GIF
-(`docs/screenshots/demo.gif`, referenced from `README.md`). It is a condensed,
+(`docs/screenshots/demo.gif`). It is a condensed,
 visual-first cut of the full [Demo Script](demo-script.md) — record that setup
 first, then follow this sequence for the GIF itself.
+
+## Current README demo
+
+`docs/screenshots/demo.webp` is a 33-second walkthrough: a local webmail inbox
+receives a fake "PayPal Security" email, hovering the button reveals the real
+link target, the cloned login on `paypal-verify-account.net` turns the toolbar
+icon red, the popup shows the local result (95) while it waits for the backend,
+then the same Dangerous 95/100 backend-enriched, and walks through the breakdown
+down to domain age and ML. The in-page warning overlay stays up. Both sites are
+demo pages served locally; `paypal-verify-account.net` is not a registered
+domain, and the only external lookup during the recording is the backend's
+domain-age query to `rdap.org`.
+
+The source is a 2560×1440, 60 fps screen recording made with Recordly
+(~50 MB, not committed; re-recorded on 2026-09-29 after the scoring and ML
+fixes). The README hero is its frame at 16 s, cropped to the browser window
+(2485×1440) and scaled to 1600×927. The recording is converted with:
+
+```bash
+ffmpeg -i "PhishLens - demo.mp4" -vf "fps=20,scale=1280:-2:flags=lanczos" \
+  -c:v libwebp_anim -lossless 0 -q:v 65 -compression_level 5 -loop 0 -an \
+  docs/screenshots/demo.webp
+```
+
+Animated WebP instead of GIF: the recording has camera zooms over a gradient
+background, so most frames change almost every pixel. A GIF of that would be
+several times larger and banded to 256 colors, while the WebP is ~4.2 MB in full
+color and GitHub loops it like a GIF. The recording has no audio track, so
+nothing is lost compared with the MP4.
 
 ## Output target
 
@@ -61,14 +95,14 @@ reads as more polished.
 
 1. Save the file as `docs/screenshots/demo.gif`.
 2. Re-run `extension/scripts/take-screenshots.mjs` is unrelated (PNG only) —
-   no script needs updating for the GIF; the README reference is already wired.
-3. Open `README.md` and confirm the image renders where the placeholder is
-   (right under the intro paragraph, above "## Quick Start").
+   no script needs updating for the GIF.
+3. To use it in `README.md`, point the walkthrough image (right under the
+   intro paragraph, above "## Quick Start") at `docs/screenshots/demo.gif`.
 
 ## Automated capture (alternative to manual screen recording)
 
-The current `docs/screenshots/demo.gif` was produced this way instead of a
-real screen recording, using Playwright (already a devDependency) to drive a
+The original README GIF (`docs/screenshots/demo.gif`, since replaced by
+`demo.webp`) was produced this way instead of a real screen recording, using Playwright (already a devDependency) to drive a
 real Chromium instance with the built extension loaded, plus Pillow to
 composite the captured frames into a GIF:
 

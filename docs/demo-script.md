@@ -39,7 +39,7 @@ This script demonstrates PhishLens without visiting suspicious external sites or
    Confirm a low-risk result and the `Backend enriched` state.
 
 2. Open `http://localhost:8080/pages/suspicious.html`.
-   Confirm the popup explains form, iframe, or external-link signals and shows category scores such as URL, Page structure, TLS, Threat intelligence, and ML.
+   Confirm a `Suspicious` result (48) whose Page structure signals explain why: a password field in a form that submits to another domain. Category scores are shown for URL, Page structure, Threat intelligence, TLS, Domain age, and ML.
 
 3. Open `http://localhost:8080/pages/phishlens-demo-dangerous-login-secure-update.html`.
    Confirm the final label is `dangerous` and the dismissible overlay appears.
@@ -68,10 +68,10 @@ This script demonstrates PhishLens without visiting suspicious external sites or
    ```bash
    curl -X POST http://localhost:8000/analyze `
      -H "Content-Type: application/json" `
-     -d "{\"url\":\"http://localhost:8080/pages/suspicious.html\",\"dom_features\":{\"has_password_field\":true,\"num_forms\":1,\"external_form_action\":false,\"num_iframes\":1,\"external_links_ratio\":0.2,\"has_hidden_inputs\":true}}"
+     -d "{\"url\":\"http://localhost:8080/pages/suspicious.html\",\"dom_features\":{\"has_password_field\":true,\"num_forms\":1,\"external_form_action\":true,\"num_iframes\":1,\"external_links_ratio\":0,\"has_hidden_inputs\":true}}"
    ```
 
-   Confirm `risk_breakdown` includes URL, DOM, threat intelligence, TLS, and ML entries with category scores and caps.
+   These are the DOM features the extension collects on `suspicious.html`, so the response is `suspicious` with `risk_score` 48 when the ML adjustment is 0. Confirm `risk_breakdown` includes URL, DOM, threat intelligence, TLS, domain age, and ML entries with category scores and caps.
 
 ## Talking Points
 

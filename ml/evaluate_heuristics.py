@@ -34,7 +34,7 @@ DATASET_PATH = ROOT / "datasets" / "real_phishing_urls.csv"
 THRESHOLDS = (1, 8, 14, 20, 30)
 
 
-def _row_to_url_features(row: "pd.Series[object]") -> URLFeatures:
+def _row_to_url_features(row: pd.Series[object]) -> URLFeatures:
     keyword_count = int(row["suspicious_keyword_count"])
     return URLFeatures(
         url_length=int(row["url_length"]),

@@ -53,8 +53,8 @@ describe("signal-categories", () => {
       {
         category: "ml",
         score: -5,
-        min_score: -10,
-        max_score: 20,
+        min_score: -5,
+        max_score: 12,
         reasons: ["Machine learning model reduced the estimated risk"],
         source: "ml",
       },
@@ -62,7 +62,7 @@ describe("signal-categories", () => {
 
     expect(groups.map((group) => group.id)).toEqual(["url", "ml"]);
     expect(formatSignalScore(groups[0])).toBe("12/35");
-    expect(formatSignalScore(groups[1])).toBe("-5 (-10 to +20)");
+    expect(formatSignalScore(groups[1])).toBe("-5 (-5 to +12)");
   });
 
   it("prefixes positive ML adjustments with a plus sign", () => {
@@ -70,12 +70,12 @@ describe("signal-categories", () => {
       id: "ml" as const,
       title: "ML",
       score: 12,
-      minScore: -10,
-      maxScore: 20,
+      minScore: -5,
+      maxScore: 12,
       reasons: ["Machine learning model increased the estimated risk"],
     };
 
-    expect(formatSignalScore(group)).toBe("+12 (-10 to +20)");
+    expect(formatSignalScore(group)).toBe("+12 (-5 to +12)");
   });
 
   it("does not add a prefix to zero ML adjustment", () => {
@@ -83,11 +83,11 @@ describe("signal-categories", () => {
       id: "ml" as const,
       title: "ML",
       score: 0,
-      minScore: -10,
-      maxScore: 20,
+      minScore: -5,
+      maxScore: 12,
       reasons: [],
     };
 
-    expect(formatSignalScore(group)).toBe("0 (-10 to +20)");
+    expect(formatSignalScore(group)).toBe("0 (-5 to +12)");
   });
 });

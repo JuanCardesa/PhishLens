@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared scoring contract. The extension fallback (extension/src/utils/risk-score.ts) and the backend (backend/app/services/scoring_service.py) reimplement the same URL/DOM scoring in two languages. These vectors are loaded by BOTH extension/src/utils/scoring-contract.test.ts and backend/tests/test_scoring_contract.py, which assert each side produces the url_score, dom_score, and reason lists below. A weight or reason changed on only one side breaks that side's run. Edit this file and both implementations together.",
+  "_comment": "Shared scoring contract. The extension fallback (extension/src/utils/risk-score.ts) and the backend (backend/app/services/scoring_service.py) reimplement the same URL/DOM scoring in two languages. These vectors are loaded by BOTH extension/src/utils/scoring-contract.test.ts and backend/tests/test_scoring_contract.py, which assert each side produces the url_score, dom_score, and reason lists below, plus heuristic_score: URL + DOM points scaled onto 0-100, which is the extension's local risk score and the base the backend adds threat intel, TLS, domain age, and ML on top of. label is that score's label. A weight or reason changed on only one side breaks that side's run. Edit this file and both implementations together.",
   "dom_defaults": {
     "has_password_field": false,
     "num_forms": 0,
@@ -18,7 +18,9 @@
       "url_score": 0,
       "url_reasons": [],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 0,
+      "label": "safe"
     },
     {
       "name": "no https adds 5",
@@ -27,7 +29,9 @@
       "url_score": 5,
       "url_reasons": ["URL does not use HTTPS"],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 8,
+      "label": "safe"
     },
     {
       "name": "no https plus two keywords",
@@ -36,7 +40,9 @@
       "url_score": 13,
       "url_reasons": ["URL does not use HTTPS", "Domain or path contains suspicious keywords"],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 20,
+      "label": "safe"
     },
     {
       "name": "ascii typosquat",
@@ -45,7 +51,9 @@
       "url_score": 14,
       "url_reasons": ["Domain closely resembles paypal.com (possible typosquatting)"],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 22,
+      "label": "safe"
     },
     {
       "name": "full-script homograph",
@@ -54,7 +62,9 @@
       "url_score": 16,
       "url_reasons": ["Domain uses look-alike Unicode characters resembling apple.com (homograph attack)"],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 25,
+      "label": "safe"
     },
     {
       "name": "mixed-script homograph",
@@ -66,7 +76,9 @@
         "Domain label mixes multiple writing scripts (possible homograph attack)"
       ],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 37,
+      "label": "suspicious"
     },
     {
       "name": "brand domain hidden in subdomains",
@@ -77,7 +89,9 @@
         "A subdomain embeds paypal.com, but the real registered domain is different (possible impersonation)"
       ],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 22,
+      "label": "safe"
     },
     {
       "name": "dom credential context",
@@ -90,7 +104,9 @@
         "Page contains forms",
         "Page contains a password field",
         "Form submits data to an external domain"
-      ]
+      ],
+      "heuristic_score": 31,
+      "label": "safe"
     },
     {
       "name": "brand mention without credential surface is not flagged",
@@ -109,7 +125,9 @@
         "Page contains forms",
         "Page contains iframes",
         "Page has a high ratio of external links"
-      ]
+      ],
+      "heuristic_score": 15,
+      "label": "safe"
     },
     {
       "name": "brand impersonation in a credential context",
@@ -126,7 +144,9 @@
         "Page contains a password field",
         "Page text references a well-known brand that does not match this domain",
         "Page favicon is hotlinked from a different brand's domain"
-      ]
+      ],
+      "heuristic_score": 43,
+      "label": "suspicious"
     },
     {
       "name": "hidden inputs alone are not flagged",
@@ -135,7 +155,41 @@
       "url_score": 0,
       "url_reasons": [],
       "dom_score": 0,
-      "dom_reasons": []
+      "dom_reasons": [],
+      "heuristic_score": 0,
+      "label": "safe"
+    },
+    {
+      "name": "cloned brand login on a look-alike domain",
+      "url": "http://paypal-verify-account.net/signin",
+      "dom": { "has_password_field": true, "num_forms": 1, "external_form_action": true, "brand_text_mismatch": true },
+      "url_score": 32,
+      "url_reasons": [
+        "URL does not use HTTPS",
+        "Domain or path contains suspicious keywords",
+        "Domain closely resembles paypal.com (possible typosquatting)",
+        "Domain has high character entropy"
+      ],
+      "dom_score": 30,
+      "dom_reasons": [
+        "Page contains forms",
+        "Page contains a password field",
+        "Form submits data to an external domain",
+        "Page text references a well-known brand that does not match this domain"
+      ],
+      "heuristic_score": 95,
+      "label": "dangerous"
+    },
+    {
+      "name": "leading www is not a subdomain",
+      "url": "http://www.shop.mail.example.com",
+      "dom": {},
+      "url_score": 5,
+      "url_reasons": ["URL does not use HTTPS"],
+      "dom_score": 0,
+      "dom_reasons": [],
+      "heuristic_score": 8,
+      "label": "safe"
     }
   ]
 }

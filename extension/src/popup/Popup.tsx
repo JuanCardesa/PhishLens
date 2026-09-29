@@ -62,7 +62,9 @@ export function Popup() {
       // and can carry OAuth/reset tokens that should stay in the browser.
       const networkUrl = stripFragment(url);
       const domFeatures = await collectDomFeatures(tab.id);
-      const localAnalysis = toPopupAnalysis(networkUrl, analyzeLocally(url, domFeatures), false, "local-only");
+      // Shown while the backend request is in flight, so it is "checking", not a
+      // final local-only verdict: the backend is being asked right now.
+      const localAnalysis = toPopupAnalysis(networkUrl, analyzeLocally(url, domFeatures), false, "checking");
       setAnalysis(localAnalysis);
 
       const backendAnalysis = await requestBackendAnalysis(networkUrl, domFeatures, currentSettings);
@@ -123,7 +125,7 @@ export function Popup() {
   }
 
   return (
-    <main className="popup-shell">
+    <main className="popup-shell" aria-busy={loading}>
       <header className="header">
         <div>
           <p className="eyebrow">PhishLens</p>
@@ -356,10 +358,7 @@ export function modeLabel(mode: AnalysisMode): string {
   if (mode === "cached") {
     return "Cached";
   }
-  if (mode === "checking") {
-    return "Checking";
-  }
-  return "Local only";
+  return "Checking";
 }
 
 export function modeBannerText(analysis: PopupAnalysis): string {
@@ -378,10 +377,7 @@ export function modeBannerText(analysis: PopupAnalysis): string {
   if (analysis.mode === "cached") {
     return "Showing a recent cached result while refreshing.";
   }
-  if (analysis.mode === "checking") {
-    return "Checking the current page.";
-  }
-  return "Local-only analysis. Backend enrichment is not active.";
+  return "Local result. Waiting for backend enrichment...";
 }
 
 export function sourceList(analysis: PopupAnalysis): string[] {

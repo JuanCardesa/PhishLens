@@ -2,7 +2,6 @@ from pathlib import Path
 
 import joblib
 import pytest
-
 from app.core.config import Settings
 from app.schemas.analysis import DOMFeatures
 from app.services.feature_extractor import extract_url_features
@@ -86,7 +85,7 @@ def test_predict_ml_adjustment_uses_predict_proba(tmp_path) -> None:
 
     assert result.available is True
     assert result.probability == pytest.approx(0.9)
-    assert result.adjustment == 20
+    assert result.adjustment == 12
     assert result.error is None
 
 
@@ -189,7 +188,7 @@ def test_predict_ml_adjustment_falls_back_to_predict_when_no_predict_proba(tmp_p
 
     assert result.available is True
     assert result.probability == pytest.approx(0.85)
-    assert result.adjustment == 20
+    assert result.adjustment == 12
 
 
 def test_predict_ml_adjustment_handles_missing_positive_class_label(tmp_path) -> None:
@@ -208,11 +207,15 @@ def test_predict_ml_adjustment_handles_missing_positive_class_label(tmp_path) ->
 @pytest.mark.parametrize(
     ("probability", "expected_adjustment"),
     [
-        (0.9, 20),
-        (0.7, 12),
+        (0.99, 12),
+        (0.9, 12),
+        (0.65, 12),
+        (0.64, 0),
         (0.5, 0),
-        (0.3, -5),
-        (0.1, -10),
+        (0.36, 0),
+        (0.35, -5),
+        (0.1, -5),
+        (0.0, -5),
     ],
 )
 def test_adjustment_from_probability_thresholds(probability: float, expected_adjustment: int) -> None:

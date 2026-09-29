@@ -101,15 +101,18 @@ export function extractUrlFeatures(rawUrl: string): URLFeatures {
   const subdomainLabelCount = usesIpDomain ? 0 : Math.max(0, labels.length - registeredDomainParts.length);
   const subdomainLabels = subdomainLabelCount > 0 ? decodedLabels.slice(0, subdomainLabelCount) : [];
   const brandSubdomainTarget = detectBrandSubdomainImpersonation(registeredDomain, subdomainLabels);
+  // A leading "www" counts as neither a subdomain nor a dot. Mirrors
+  // feature_extractor.py, where the reason is explained.
+  const wwwPrefix = subdomainLabelCount > 0 && labels[0] === "www" ? 1 : 0;
 
   return {
     url_length: rawUrl.length,
-    num_dots: count(hostnameAndPath, "."), // query string excluded to avoid false positives
+    num_dots: count(hostnameAndPath, ".") - wwwPrefix, // query string excluded to avoid false positives
     num_hyphens: count(decodedHostnameAndPath, "-"),
     uses_ip_domain: usesIpDomain,
     has_at_symbol: rawUrl.includes("@"),
     uses_https: parsed.protocol === "https:",
-    num_subdomains: usesIpDomain ? 0 : Math.max(0, labels.length - registeredDomainParts.length),
+    num_subdomains: subdomainLabelCount - wwwPrefix,
     suspicious_keywords: SUSPICIOUS_KEYWORDS.filter((keyword) => hostnameAndPath.includes(keyword)),
     uses_punycode: hostname.includes("xn--"),
     domain_entropy: Number(shannonEntropy(decodedRegisteredDomain.replaceAll(".", "")).toFixed(3)),
